@@ -5,6 +5,7 @@ import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { klantCompleet } from '@shared/wizardControle';
+import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
@@ -64,6 +65,7 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
   const vandaag = useNavigatie((s) => s.vandaag);
   const storeStap = useNavigatie((s) => s.wizardStap);
   const storeFout = useNavigatie((s) => s.fout);
+  const opnieuwInloggen = useOpnieuwInloggen();
   const bewaar = useAutoBewaarInvoer(detail.id);
 
   // Lokale formulierstate (§13.4). De refs houden de nieuwste waarde vast voor snel na elkaar
@@ -137,7 +139,9 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
       <h1 className="text-3xl font-semibold">{t.titel}</h1>
       <Stappenbalk stappen={t.stappen} huidig={stap} opKies={naarStap} />
 
-      {storeFout && <Foutmelding fout={storeFout} opnieuw={() => void maak()} />}
+      {storeFout && (
+        <Foutmelding fout={storeFout} opnieuw={() => void maak()} opnieuwInloggen={opnieuwInloggen} />
+      )}
       {bewaar.fout !== null && <Foutmelding fout={alsFout(bewaar.fout)} />}
 
       <section aria-labelledby="wizard-stap-titel" className="flex flex-col gap-6">

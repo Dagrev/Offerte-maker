@@ -1,0 +1,105 @@
+import { randomUUID } from 'node:crypto';
+import { berekenTotalen } from '@shared/calc/bedragen';
+import { AppFout } from '@shared/fouten';
+import { omschrijvingKort } from '@shared/omschrijvingKort';
+import { klantSchema, klusInvoerSchema, offerteInhoudSchema } from '@shared/schemas';
+import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
+import type { Klant, KlusInvoer, OfferteInhoud } from '@shared/types';
+import { database } from '../verbinding';
+
+// Inhoud en versies van een offerte (TDO §4.2, §10.7 stap 7). Eigenaar: OFM-013; OFM-014 (handmatig
+// bewaren), OFM-017 (aanpassen, terugzetten) en OFM-025 (zonder Claude) breiden dit bestand uit.
+// `inhoud_json` bevat altijd plaatshouders, nooit klantgegevens (§11.4).
+
+export type VersieBron = 'agent' | 'agent_aanpassing' | 'handmatig' | 'terugzetten' | 'zonder_claude';
+
+export interface OfferteVoorAgent {
+  id: string;
+  status: string;
+  offertedatum: string;
+  klant: Klant;
+  invoer: KlusInvoer;
+  /** Opgeslagen inhoud (met plaatshouders), of `null` als er nog geen is. */
+  inhoud: OfferteInhoud | null;
+  heeftPdf: boolean;
+}
+
+/** Alles wat een agenttaak van de offerte nodig heeft. Onbekend id → `VALIDATIE`. */
+export function haalOfferteVoorAgent(id: string): OfferteVoorAgent {
+  const db = database();
+  const rij = db
+    .prepare(
+      'SELECT id, status, offertedatum, klant_json, invoer_json, inhoud_json FROM offertes WHERE id = ?',
+    )
+    .get(id) as
+    | {
+        id: string;
+        status: string;
+        offertedatum: string;
+        klant_json: string;
+        invoer_json: string;
+        inhoud_json: string | null;
+      }
+    | undefined;
+  if (!rij) throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+  const heeftPdf =
+    db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(id) !== undefined;
+  return {
+    id: rij.id,
+    status: rij.status,
+    offertedatum: rij.offertedatum,
+    klant: klantSchema.parse(JSON.parse(rij.klant_json)),
+    invoer: klusInvoerSchema.parse(JSON.parse(rij.invoer_json)),
+    inhoud: rij.inhoud_json === null ? null : offerteInhoudSchema.parse(JSON.parse(rij.inhoud_json)),
+    heeftPdf,
+  };
+}
+
+export interface NieuweVersie {
+  id: string;
+  inhoud: OfferteInhoud;
+  bron: VersieBron;
+  /** `offertes.wizard_stap`; bij `maken` 4 (§10.7 stap 7), anders ongewijzigd laten. */
+  wizardStap?: number;
+  /** Bij een aanpassing van een definitieve offerte (OFM-017). */
+  gewijzigdNaDefinitief?: boolean;
+}
+
+/**
+ * Eén synchrone transactie (§10.7 stap 7): nieuwe `offerte_versies`-regel, `inhoud_json`,
+ * `totaal_incl_cent`, `omschrijving_kort` en `bijgewerkt_op`. De status verandert niet.
+ */
+export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { versieNr: number } {
+  const db = database();
+  const inhoud = offerteInhoudSchema.parse(v.inhoud);
+  const inhoudJson = JSON.stringify(inhoud);
+  const totaal = berekenTotalen(inhoud.regels).totaalCent;
+  const tijd = nu.toISOString();
+  return db.transaction(() => {
+    const rij = db.prepare('SELECT invoer_json, wizard_stap FROM offertes WHERE id = ?').get(v.id) as
+      { invoer_json: string; wizard_stap: number } | undefined;
+    if (!rij) throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+    const invoer = klusInvoerSchema.parse(JSON.parse(rij.invoer_json));
+    const { hoogste } = db
+      .prepare('SELECT COALESCE(MAX(versie_nr), 0) AS hoogste FROM offerte_versies WHERE offerte_id = ?')
+      .get(v.id) as { hoogste: number };
+    const versieNr = hoogste + 1;
+    db.prepare(
+      'INSERT INTO offerte_versies (id, offerte_id, versie_nr, bron, inhoud_json, aangemaakt_op) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(randomUUID(), v.id, versieNr, v.bron, inhoudJson, tijd);
+    db.prepare(
+      `UPDATE offertes SET inhoud_json = ?, totaal_incl_cent = ?, omschrijving_kort = ?, wizard_stap = ?,
+         gewijzigd_na_definitief = CASE WHEN ? THEN 1 ELSE gewijzigd_na_definitief END, bijgewerkt_op = ?
+       WHERE id = ?`,
+    ).run(
+      inhoudJson,
+      totaal,
+      omschrijvingKort(invoer),
+      v.wizardStap ?? rij.wizard_stap,
+      v.gewijzigdNaDefinitief ? 1 : 0,
+      tijd,
+      v.id,
+    );
+    return { versieNr };
+  })();
+}
