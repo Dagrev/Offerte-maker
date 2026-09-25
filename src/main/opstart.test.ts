@@ -33,6 +33,7 @@ vi.mock('./db/opschonen', () => ({
     return { offertes: 0, privacylog: 0 };
   }),
 }));
+vi.mock('./agent/werkmap', () => ({ synchroniseerWerkmap: vi.fn(() => volgorde.push('werkmap')) }));
 vi.mock('./paden', () => ({
   paden: { dataMap: 'C:\\data', logMap: 'C:\\data\\logs' },
   maakMappenAan: vi.fn(() => {
@@ -74,6 +75,7 @@ describe('opstart', () => {
       'database',
       'migreer',
       'opschonen',
+      'werkmap',
       'ipc',
       'csp',
       'venster',
