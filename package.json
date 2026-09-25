@@ -1,0 +1,77 @@
+{
+  "name": "offerte-maker",
+  "productName": "Offerte maker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktopapp om offertes te maken voor een dakdekkersbedrijf",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "test": "cross-env ELECTRON_RUN_AS_NODE=1 electron ./node_modules/vitest/vitest.mjs run",
+    "test:coverage": "cross-env ELECTRON_RUN_AS_NODE=1 electron ./node_modules/vitest/vitest.mjs run --coverage",
+    "test:e2e": "pnpm build && playwright test",
+    "format": "prettier --write .",
+    "check": "pnpm typecheck && pnpm lint && pnpm test:coverage",
+    "seed": "cross-env ELECTRON_RUN_AS_NODE=1 electron ./node_modules/tsx/dist/cli.mjs scripts/seed.ts",
+    "dist": "pnpm build && electron-builder --win nsis --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "~0.128.0",
+    "better-sqlite3": "~13.0.3",
+    "date-fns": "~4.4.0",
+    "electron-log": "~5.4.4",
+    "mammoth": "~1.12.3",
+    "unpdf": "~1.8.1",
+    "zod": "~4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "~4.13.0",
+    "@electron/rebuild": "~4.2.0",
+    "@fontsource/inter": "~5.3.0",
+    "@fontsource/merriweather": "~5.3.0",
+    "@fontsource/source-sans-3": "~5.3.0",
+    "@playwright/test": "~1.63.0",
+    "@tailwindcss/vite": "~4.3.3",
+    "@tanstack/react-query": "~5.103.2",
+    "@types/better-sqlite3": "~9.6.0",
+    "@types/node": "~24.13.6",
+    "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.3.0",
+    "@vitejs/plugin-react": "~5.2.0",
+    "@vitest/coverage-v8": "~5.0.2",
+    "cross-env": "~10.1.0",
+    "docx": "~9.7.2",
+    "electron": "~44.4.5",
+    "electron-builder": "~26.15.7",
+    "electron-vite": "~5.0.0",
+    "eslint": "~10.11.0",
+    "eslint-plugin-react-hooks": "~7.1.1",
+    "lucide-react": "~1.48.0",
+    "prettier": "~3.9.9",
+    "react": "~19.3.0",
+    "react-dom": "~19.3.0",
+    "tailwindcss": "~4.3.3",
+    "tsx": "~4.23.15",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "~8.70.1",
+    "vite": "~7.3.6",
+    "vitest": "~5.0.2",
+    "zustand": "~5.0.15"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "electron",
+      "esbuild"
+    ]
+  }
+}

@@ -1,3 +1,18 @@
+# Dependencies en build-output
+node_modules/
+out/
+dist/
+release/
+
+# Test-output
+coverage/
+test-results/
+playwright-report/
+
+# Worktrees binnen de repo (A-19, NFE-023)
 .trees/
 .claude/worktrees/
-node_modules/
+
+# Overig
+*.log
+.env*
