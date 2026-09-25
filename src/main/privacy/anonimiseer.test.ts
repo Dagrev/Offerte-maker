@@ -10,7 +10,8 @@ describe('patronen (§11.2 letterlijk)', () => {
     expect(EMAIL.flags).toBe('gu');
     expect(IBAN.source).toBe('\\b[A-Z]{2}\\d{2}(?:\\s?[A-Z0-9]{4}){2,7}(?:\\s?[A-Z0-9]{1,3})?\\b');
     expect(IBAN.flags).toBe('gi');
-    expect(TELEFOON_NL.source).toBe('(?<![\\d,.])(?:\\+31|0031|0)(?:[\\s-]?\\d){9}(?![\\d,.])');
+    // Bewuste afwijking van §11.2: komma/punt alleen als grens naast een cijfer (zie patronen.ts).
+    expect(TELEFOON_NL.source).toBe('(?<!\\d|\\d[,.])(?:\\+31|0031|0)(?:[\\s-]?\\d){9}(?!\\d|[,.]\\d)');
     expect(POSTCODE.source).toBe('\\b[1-9]\\d{3}\\s?[A-Z]{2}\\b');
     expect(POSTCODE_KLEIN.source).toBe('\\b[1-9]\\d{3}[a-z]{2}\\b');
   });
@@ -18,6 +19,10 @@ describe('patronen (§11.2 letterlijk)', () => {
   it('generieke patronen vervangen e-mail, IBAN en telefoon', () => {
     expect(vervangGeneriekePatronen('a@b.nl NL91ABNA0417164300 06-12345678 040 1234567')).toBe(
       '[VERWIJDERD] [VERWIJDERD] [VERWIJDERD] [VERWIJDERD]',
+    );
+    // Ook met een komma of punt erachter (zinsbouw).
+    expect(vervangGeneriekePatronen('Bel 0612345678. Of 06-12345678, of (040 1234567)')).toBe(
+      'Bel [VERWIJDERD]. Of [VERWIJDERD], of ([VERWIJDERD])',
     );
     // Bedragen en getallen met komma of punt blijven staan.
     expect(vervangGeneriekePatronen('Totaal 0,123456789 en 1.061234567')).toBe(

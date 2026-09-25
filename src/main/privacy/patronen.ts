@@ -8,8 +8,15 @@ export const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu;
 /** Stap 1: IBAN, met of zonder spaties per vier tekens. */
 export const IBAN = /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,7}(?:\s?[A-Z0-9]{1,3})?\b/gi;
 
-/** Stap 1: Nederlands telefoonnummer (0, +31 of 0031 en negen cijfers). */
-export const TELEFOON_NL = /(?<![\d,.])(?:\+31|0031|0)(?:[\s-]?\d){9}(?![\d,.])/g;
+/**
+ * Stap 1: Nederlands telefoonnummer (0, +31 of 0031 en negen cijfers).
+ *
+ * Afwijking van de letterlijke regex in §11.2 (`(?<![\d,.])` … `(?![\d,.])`): die mist een nummer
+ * met een komma of punt erachter ("bel 0612345678." of "06-12345678, of"), en dat is in
+ * voorbeeldoffertes gewoon zinsbouw. De bedoeling (geen stuk uit een decimaal getal pakken) blijft:
+ * een komma of punt telt alleen als grens als er een cijfer aan de andere kant staat.
+ */
+export const TELEFOON_NL = /(?<!\d|\d[,.])(?:\+31|0031|0)(?:[\s-]?\d){9}(?!\d|[,.]\d)/g;
 
 /** Stap 2b: postcode in hoofdletters, met of zonder spatie. */
 export const POSTCODE = /\b[1-9]\d{3}\s?[A-Z]{2}\b/g;
