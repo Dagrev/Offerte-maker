@@ -1,0 +1,20 @@
+# Build en installer (TDO §16, V-24). Geen code-signing (A-23), geen auto-update (A-17).
+# `files` is een witte lijst: alleen de gebouwde app. Worktrees (.trees/, .claude/) en test-helpers
+# komen er zo nooit in; de uitsluitingen staan er voor de zekerheid ook expliciet (NFE-023).
+appId: nl.greven.offertemaker
+productName: Offerte maker
+directories: { output: release, buildResources: build }
+files: ['out/**', 'package.json', '!**/*.map', '!.trees/**', '!.claude/**']
+extraResources: [{ from: resources/fonts, to: fonts }]
+asarUnpack: ['**/node_modules/better-sqlite3/**']
+win:
+  target: [{ target: nsis, arch: [x64] }]
+  icon: build/icon.png
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Offerte maker
+  deleteAppDataOnUninstall: false
+  artifactName: 'Offerte-maker-Setup-${version}.exe'

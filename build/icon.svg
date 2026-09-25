@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Pictogram Offerte maker (TDO V-24): dakprofiel boven een document. -->
+  <rect x="0" y="0" width="512" height="512" rx="96" ry="96" fill="#1F4E79"/>
+  <polyline points="96,272 256,128 416,272" fill="none" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="176" y="256" width="160" height="160" rx="16" ry="16" fill="#FFFFFF"/>
+  <line x1="208" y1="312" x2="304" y2="312" stroke="#1F4E79" stroke-width="16" stroke-linecap="round"/>
+  <line x1="208" y1="360" x2="304" y2="360" stroke="#1F4E79" stroke-width="16" stroke-linecap="round"/>
+</svg>
