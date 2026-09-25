@@ -1,0 +1,44 @@
+import type { FoutCode } from '../fouten';
+
+// Foutmeldingen (TDO §15.1, V-11, V-19). Main heeft ze nodig voor `Resultaat.melding`; alle overige
+// interfacetekst staat in src/renderer/src/teksten/.
+
+/** Maximale bestandsgrootte in MB bij `BESTAND_TE_GROOT`: 20 voor voorbeelden, 5 voor het logo (V-11). */
+export function bestandTeGroot(maxMb: number): string {
+  return `Dit bestand is te groot (maximaal ${maxMb} MB).`;
+}
+
+/** Standaardmelding per foutcode. `VALIDATIE` heeft per geval een eigen tekst (zie hieronder). */
+export const FOUTMELDINGEN: Record<FoutCode, string> = {
+  CLAUDE_NIET_GEINSTALLEERD:
+    'De koppeling met Claude is niet ingesteld. Vraag de beheerder om dit in te stellen.',
+  CLAUDE_TE_OUD: 'Claude Code is te oud. Vraag de beheerder om het bij te werken.',
+  CLAUDE_NIET_INGELOGD: 'Je bent niet (meer) ingelogd bij Claude.',
+  GEEN_INTERNET:
+    'Er is geen internetverbinding. Je offerte is bewaard als concept; probeer het later opnieuw.',
+  LIMIET_BEREIKT: 'Je Claude-tegoed is voor nu op. Probeer het over een tijdje opnieuw.',
+  AGENT_ONBRUIKBAAR: 'Het is niet gelukt de offerte te maken. Probeer opnieuw.',
+  AGENT_TIMEOUT: 'Het duurde te lang. Je offerte is bewaard als concept.',
+  AGENT_AFGEBROKEN: 'Gestopt. Je offerte is bewaard als concept.',
+  PRIVACY_GEBLOKKEERD:
+    'Er stond nog een persoonsgegeven in de opdracht. Er is niets verstuurd. Haal namen, adressen en telefoonnummers uit het veld Overig en probeer opnieuw.',
+  PDF_BESTAND_BEZET: 'Het bestand is nog open in een ander programma. Sluit het en druk op Opnieuw.',
+  BESTAND_TYPE_ONBEKEND: 'Dit soort bestand kan ik niet lezen. Gebruik een PDF- of Word-bestand.',
+  BESTAND_TE_GROOT: bestandTeGroot(20),
+  BESTAND_GEEN_TEKST: 'In dit bestand staat geen leesbare tekst. Misschien is het een scan.',
+  BESTAND_ONLEESBAAR: 'Dit bestand kan niet worden geopend. Misschien is het beschadigd of beveiligd.',
+  VALIDATIE: 'Ongeldige invoer.',
+  BACKUP_MISLUKT: 'De back-up is niet gelukt. Probeer het opnieuw of vraag de beheerder.',
+  HERSTEL_MISLUKT: 'Terugzetten is niet gelukt. Er is niets veranderd.',
+  ONBEKEND: 'Er ging iets mis. Je werk is bewaard.',
+};
+
+/** Vaste `VALIDATIE`-meldingen (V-03, V-11, V-19, V-27). */
+export const VALIDATIE_MELDINGEN = {
+  ongeldigeInvoer: 'Ongeldige invoer.',
+  nogNietBeschikbaar: 'Nog niet beschikbaar.',
+  eerstDefinitief: 'Maak de offerte eerst definitief.',
+  eerstGoedkeuren: 'Keur dit voorbeeld eerst goed.',
+  backupVanNieuwereVersie:
+    'Deze back-up komt van een nieuwere versie van de app en kan niet worden teruggezet.',
+} as const;

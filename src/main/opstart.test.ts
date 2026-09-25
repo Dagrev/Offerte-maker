@@ -12,7 +12,8 @@ const nep = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('electron', () => ({ app: nep.app }));
+vi.mock('electron', () => ({ app: nep.app, ipcMain: { handle: vi.fn() } }));
+vi.mock('./ipc/registreer', () => ({ registreerIpc: vi.fn(() => volgorde.push('ipc')) }));
 vi.mock('./paden', () => ({
   paden: { dataMap: 'C:\\data', logMap: 'C:\\data\\logs' },
   maakMappenAan: vi.fn(() => {
@@ -47,7 +48,7 @@ describe('opstart', () => {
   it('voert de stappen van §14.1 in volgorde uit', async () => {
     await opstart();
     expect(nep.app.setPath).toHaveBeenCalledWith('userData', 'C:\\data');
-    expect(volgorde).toEqual(['lock', 'logging', 'mappen', 'csp', 'venster']);
+    expect(volgorde).toEqual(['lock', 'logging', 'mappen', 'ipc', 'csp', 'venster']);
     expect(nep.app.quit).not.toHaveBeenCalled();
   });
 

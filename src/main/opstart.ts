@@ -1,4 +1,5 @@
-import { app } from 'electron';
+import { app, ipcMain } from 'electron';
+import { registreerIpc } from './ipc/registreer';
 import { initLogging, log } from './log';
 import { maakMappenAan, paden } from './paden';
 import { claimEnkeleInstantie, cspVoor, devServerUrl, maakHoofdvenster, stelCspIn } from './venster';
@@ -28,8 +29,10 @@ export async function opstart(): Promise<void> {
 
   // Stap 6 — agentwerkmap synchroniseren (OFM-012).
 
-  // Stap 7 — IPC registreren (OFM-004), CSP en hoofdvenster.
+  // Stap 7 — IPC registreren, CSP en hoofdvenster.
   await app.whenReady();
+  registreerIpc(ipcMain);
+  log.info('opstart: IPC geregistreerd');
   const devUrl = devServerUrl();
   stelCspIn(cspVoor(devUrl));
   maakHoofdvenster();
