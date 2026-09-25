@@ -1,27 +1,18 @@
 import type { Bedrijf } from '@shared/types';
+import { leesRedacties } from '../db/repo/voorbeelden';
 import { database } from '../db/verbinding';
 import { log } from '../log';
 import { redigeerVoorbeeld } from '../privacy/voorbeeldRedactie';
 import { haalTekstUit } from './tekstExtractie';
 
 // V-16: na het bewaren van `bedrijf` alle voorbeelden opnieuw redigeren vanaf de brontekst (OFM-018).
-// Eigen bestand, zodat `db/repo/voorbeelden.ts` van OFM-019 blijft. Aanroeper synchroniseert daarna
-// de agentwerkmap.
+// Aanroeper synchroniseert daarna de agentwerkmap.
 
 interface Rij {
   id: string;
   bestandsnaam: string;
   handmatige_redacties: string;
   inhoud: Uint8Array;
-}
-
-function leesRedacties(json: string): string[] {
-  try {
-    const waarde: unknown = JSON.parse(json);
-    return Array.isArray(waarde) ? waarde.filter((r): r is string => typeof r === 'string') : [];
-  } catch {
-    return [];
-  }
 }
 
 /**
