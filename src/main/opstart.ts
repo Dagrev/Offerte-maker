@@ -1,11 +1,13 @@
 import { app, ipcMain } from 'electron';
 import { synchroniseerWerkmap } from './agent/werkmap';
+import { dagelijkseBackup } from './backup/backup';
 import { migreer } from './db/migraties';
 import { schoonOp } from './db/opschonen';
 import { database, openAppDatabase } from './db/verbinding';
 import { registreerIpc } from './ipc/registreer';
 import { initLogging, log } from './log';
 import { maakMappenAan, paden } from './paden';
+import { vandaag } from './testhaken';
 import { claimEnkeleInstantie, cspVoor, devServerUrl, maakHoofdvenster, stelCspIn } from './venster';
 
 // Opstartvolgorde (TDO §14.1). Houd dit een lineaire lijst stappen; latere tickets voegen op de
@@ -29,6 +31,7 @@ export async function opstart(): Promise<void> {
   await migreer(openAppDatabase());
 
   // Stap 4 — dagelijkse back-up (OFM-022).
+  await dagelijkseBackup(vandaag());
 
   // Stap 5 — opschonen: prullenbak > 90 dagen, privacylog > 365 dagen.
   log.info(`opstart: opgeschoond ${JSON.stringify(schoonOp(database()))}`);

@@ -28,6 +28,9 @@ const standaardMigraties = laadMigraties(
   import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
 );
 
+/** Hoogste schemaversie die deze app kent (OFM-022: nieuwere back-ups weigeren, V-19). */
+export const SCHEMA_VERSIE = standaardMigraties.at(-1)?.nr ?? 0;
+
 export function voegStartsetIn(db: Db): void {
   const invoegen = db.prepare(
     'INSERT INTO prijsposten (id, sleutel, omschrijving, eenheid, prijs_cent, btw_tarief, volgorde) VALUES (?, ?, ?, ?, NULL, ?, ?)',

@@ -33,6 +33,13 @@ vi.mock('./db/opschonen', () => ({
     return { offertes: 0, privacylog: 0 };
   }),
 }));
+vi.mock('./backup/backup', () => ({
+  dagelijkseBackup: vi.fn((vandaag: string) => {
+    volgorde.push(`backup ${vandaag}`);
+    return Promise.resolve(null);
+  }),
+}));
+vi.mock('./testhaken', () => ({ vandaag: () => '2026-09-25' }));
 vi.mock('./agent/werkmap', () => ({ synchroniseerWerkmap: vi.fn(() => volgorde.push('werkmap')) }));
 vi.mock('./paden', () => ({
   paden: { dataMap: 'C:\\data', logMap: 'C:\\data\\logs' },
@@ -74,6 +81,7 @@ describe('opstart', () => {
       'mappen',
       'database',
       'migreer',
+      'backup 2026-09-25',
       'opschonen',
       'werkmap',
       'ipc',
