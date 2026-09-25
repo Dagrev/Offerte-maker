@@ -1,5 +1,5 @@
 import type { WebContents } from 'electron';
-import { AppFout, nietBeschikbaar } from '@shared/fouten';
+import { AppFout } from '@shared/fouten';
 import { VOORTGANG_KANAAL } from '@shared/ipcKanalen';
 import type { Voortgang } from '@shared/types';
 import {
@@ -11,6 +11,7 @@ import {
   type Stuur,
 } from '../agent/taken';
 import { zetVersieTerug } from '../db/repo/offertesInhoud';
+import { maakZonderClaude } from '../offerte/maakZonderClaude';
 import type { DomeinHandlers } from './registreer';
 
 // Eigenaar: OFM-013 (maak, stop), OFM-017 (pasAanMetClaude, zetVersieTerug), OFM-025 (maakZonderClaude). Vervang een stub door de echte handler; de kanalen zelf staan vast (V-03).
@@ -41,5 +42,5 @@ export const offerteAgentHandlers: DomeinHandlers<Kanalen> = {
     if (isBezig(id)) throw new AppFout('VALIDATIE', MELDING_AL_BEZIG);
     return zetVersieTerug(id, versieId);
   },
-  'offerte:maakZonderClaude': nietBeschikbaar,
+  'offerte:maakZonderClaude': ({ id }) => maakZonderClaude(id),
 };

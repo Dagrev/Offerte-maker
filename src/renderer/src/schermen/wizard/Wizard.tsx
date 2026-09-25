@@ -1,17 +1,19 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { differenceInCalendarDays } from 'date-fns';
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide-react';
 import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { klantCompleet } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
+import { useClaudeStatus } from '../../api/claude';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
 import { Stappenbalk } from '../../componenten/Stappenbalk';
+import { markeerMislukt, toonZonderClaude } from '../../stores/mislukteMaken';
 import { useNavigatie, type WizardStap } from '../../stores/navigatie';
 import { nl } from '../../teksten/nl';
 import { StapDak } from './StapDak';
@@ -67,6 +69,13 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
   const storeFout = useNavigatie((s) => s.fout);
   const opnieuwInloggen = useOpnieuwInloggen();
   const bewaar = useAutoBewaarInvoer(detail.id);
+  const claudeStatus = useClaudeStatus();
+  // V-09: terug van het Bezig-scherm met een fout = een mislukte poging in deze sessie. De markering
+  // blijft staan als de gebruiker weggaat en later terugkomt; `storeFout` alleen niet.
+  useEffect(() => {
+    if (storeFout !== undefined) markeerMislukt(detail.id);
+  }, [storeFout, detail.id]);
+  const zonderClaudeZichtbaar = storeFout !== undefined || toonZonderClaude(claudeStatus, detail.id);
 
   // Lokale formulierstate (§13.4). De refs houden de nieuwste waarde vast voor snel na elkaar
   // volgende wijzigingen; de state zorgt voor het renderen.
@@ -119,15 +128,16 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
     gaNaar({ scherm: 'overzicht' });
   };
 
-  const maak = async () => {
+  const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
     if (!klantCompleet(klantRef.current)) {
       setStap(1);
       setToonFouten(true);
       return;
     }
     await bewaar.nu();
-    // Het Bezig-scherm (OFM-013) start `offerte:maak` en gaat na een fout terug naar stap 4 (V-07).
-    gaNaar({ scherm: 'bezig', bezig: { id: detail.id, soort: 'maken', terugNaar: 'wizard' } });
+    // Het Bezig-scherm (OFM-013) start `offerte:maak` of `offerte:maakZonderClaude` (OFM-025); na
+    // succes naar het detailscherm, na een fout terug naar stap 4 (V-07).
+    gaNaar({ scherm: 'bezig', bezig: { id: detail.id, soort, terugNaar: 'wizard' } });
   };
 
   return (
@@ -168,8 +178,13 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
         {stap < 4 ? (
           <Knop label={t.volgende} variant="hoofd" icoon={ArrowRight} onClick={() => naarStap(stap + 1)} />
         ) : (
-          // "Maak zonder Claude" (OFM-025) is hier bewust niet zichtbaar (V-09).
-          <Knop label={t.maakDeOfferte} variant="hoofd" icoon={Sparkles} onClick={() => void maak()} />
+          <div className="flex flex-wrap items-center gap-4">
+            {/* V-09: alleen bij een statusfout of na een mislukte poging voor deze offerte. */}
+            {zonderClaudeZichtbaar && (
+              <Knop label={t.maakZonderClaude} icoon={FileText} onClick={() => void maak('zonder_claude')} />
+            )}
+            <Knop label={t.maakDeOfferte} variant="hoofd" icoon={Sparkles} onClick={() => void maak()} />
+          </div>
         )}
       </div>
     </main>

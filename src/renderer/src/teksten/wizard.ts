@@ -7,6 +7,8 @@ export const wizard = {
   vorige: 'Vorige',
   volgende: 'Volgende',
   maakDeOfferte: 'Maak de offerte',
+  /** OFM-025 (FE-110, V-09): alleen zichtbaar als Claude niet werkt. */
+  maakZonderClaude: 'Maak zonder Claude',
   laden: 'De offerte wordt geopend…',
 
   klant: {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AppFout } from '@shared/fouten';
+import { AppFout, nietBeschikbaar } from '@shared/fouten';
 import { IPC_KANALEN, type Kanaal } from '@shared/ipcKanalen';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 
@@ -137,11 +137,9 @@ describe('standaardhandlers', () => {
     expect(typeof resultaat.data.documentenMap).toBe('string');
   });
 
-  it('stubs geven VALIDATIE "Nog niet beschikbaar."', async () => {
-    const resultaat = await maakIpcHandler(
-      'offerte:maakZonderClaude',
-      alleHandlers['offerte:maakZonderClaude'],
-    )(event, { id: 'o1' });
+  it('een stub (`nietBeschikbaar`) geeft VALIDATIE "Nog niet beschikbaar."', async () => {
+    // Sinds OFM-025 zijn alle kanalen gebouwd; de stub zelf blijft bruikbaar.
+    const resultaat = await maakIpcHandler('offerte:maakZonderClaude', nietBeschikbaar)(event, { id: 'o1' });
     expect(resultaat).toEqual({ ok: false, fout: { code: 'VALIDATIE', melding: 'Nog niet beschikbaar.' } });
   });
 });
