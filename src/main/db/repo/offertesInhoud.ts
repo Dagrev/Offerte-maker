@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { berekenTotalen } from '@shared/calc/bedragen';
 import { AppFout } from '@shared/fouten';
+import { markeerHandmatig } from '@shared/offerteBewerken';
 import { omschrijvingKort } from '@shared/omschrijvingKort';
 import { klantSchema, klusInvoerSchema, offerteInhoudSchema } from '@shared/schemas';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { Klant, KlusInvoer, OfferteInhoud } from '@shared/types';
+import { terugNaarPlaatshouders } from '../../privacy/invullen';
 import { database } from '../verbinding';
 
 // Inhoud en versies van een offerte (TDO §4.2, §10.7 stap 7). Eigenaar: OFM-013; OFM-014 (handmatig
@@ -101,5 +103,37 @@ export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { ve
       v.id,
     );
     return { versieNr };
+  })();
+}
+
+/**
+ * `offerte:bewaarInhoud` (OFM-014, §11.4, §12.3, V-05, V-12). De renderer stuurt ingevulde tekst;
+ * die gaat eerst door `terugNaarPlaatshouders`, zodat `inhoud_json` nooit klantgegevens bevat. Regels
+ * die nieuw zijn of een andere prijs hebben dan opgeslagen worden `handmatig`. Is de offerte al
+ * definitief (nummer of PDF), dan wordt `gewijzigd_na_definitief = 1`.
+ */
+export function bewaarHandmatigeInhoud(
+  id: string,
+  ingevuld: OfferteInhoud,
+  nu: Date = new Date(),
+): { versieNr: number } {
+  const db = database();
+  return db.transaction(() => {
+    const offerte = haalOfferteVoorAgent(id);
+    if (offerte.inhoud === null) throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+    const { nummer } = db.prepare('SELECT nummer FROM offertes WHERE id = ?').get(id) as {
+      nummer: string | null;
+    };
+    const metPlaatshouders = terugNaarPlaatshouders(ingevuld, offerte.klant);
+    const regels = markeerHandmatig(offerte.inhoud.regels, metPlaatshouders.regels);
+    return bewaarNieuweVersie(
+      {
+        id,
+        inhoud: { ...metPlaatshouders, regels },
+        bron: 'handmatig',
+        gewijzigdNaDefinitief: nummer !== null || offerte.heeftPdf,
+      },
+      nu,
+    );
   })();
 }
