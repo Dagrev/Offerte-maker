@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Klant, OfferteInhoud } from '@shared/types';
+import { PRIJS_STARTSET } from '@shared/prijsStartset';
+import { standaardInstelling } from '@shared/schemas';
+import type { Klant, OfferteInhoud, Prijspost } from '@shared/types';
+import { bouwOpdrachtMaken, bouwSysteemprompt, verstuurdeTekst } from '../../src/main/agent/prompts';
 import { anonimiseer } from '../../src/main/privacy/anonimiseer';
 import { controleer } from '../../src/main/privacy/controle';
 import { invullen, tekstvelden, terugNaarPlaatshouders } from '../../src/main/privacy/invullen';
@@ -7,9 +10,22 @@ import { bouwKlusVoorAgent, gebruikersTekst } from '../../src/main/privacy/klusV
 import { bouwPiiSet, telefoonCijfers } from '../../src/main/privacy/piiSet';
 import { type Privacygeval, testset } from './testset';
 
-// Privacytest (TDO §11.6, NFE-008, FE-031, V-02). Bouwt per geval de opdrachtdata met de echte
-// `bouwKlusVoorAgent()`; bij een aanpassing komen de gefilterde instructie en de gefilterde huidige
-// inhoud erbij. OFM-013 breidt dit uit naar de volledige opdracht van de opdrachtbouwer.
+// Privacytest (TDO §11.6, NFE-008, FE-031, V-02). Bouwt per geval de volledige verstuurde tekst
+// (systeemprompt + opdracht `maken`) met dezelfde code als productie: `bouwKlusVoorAgent()` en
+// `prompts.ts` (OFM-013). Bij een geval met een aanpassingsinstructie komen de gefilterde instructie
+// en de gefilterde huidige inhoud erbij; de echte opdracht `aanpassen` toetst OFM-017.
+
+/** Prijslijst en standaardteksten zoals een nieuwe installatie ze heeft (vaste tekst). */
+const prijslijst: Prijspost[] = PRIJS_STARTSET.map((p, i) => ({
+  id: `start-${p.sleutel}`,
+  sleutel: p.sleutel,
+  omschrijving: p.omschrijving,
+  eenheid: p.eenheid,
+  prijsCent: i % 2 === 0 ? 1000 + i * 250 : null,
+  btwTarief: p.btwTarief,
+  volgorde: (i + 1) * 10,
+}));
+const teksten = standaardInstelling('teksten');
 
 /** Inhoud met alle toegestane plaatshouders, voor de aanpassing en de roundtrip. */
 const inhoudMetPlaatshouders: OfferteInhoud = {
@@ -36,7 +52,7 @@ const inhoudMetPlaatshouders: OfferteInhoud = {
 };
 
 interface Opdracht {
-  /** Wat de agent te zien krijgt (klusgegevens als JSON, plus bij aanpassen inhoud en instructie). */
+  /** Wat de agent te zien krijgt: systeemprompt + opdracht (plus bij aanpassen inhoud en instructie). */
   tekst: string;
   /** Alleen de delen uit invoer van de gebruiker, voor de eindcontrole. */
   payload: string;
@@ -47,7 +63,15 @@ function bouwOpdracht(geval: Privacygeval): Opdracht {
   const klus = bouwKlusVoorAgent({ invoer: geval.invoer, klant: geval.klant, offertedatum: '2026-09-25' });
   const json = JSON.stringify(klus, null, 2);
   const delen = gebruikersTekst(klus);
-  let tekst = json;
+  const opdracht = bouwOpdrachtMaken({
+    klus,
+    prijslijst,
+    teksten: { inleiding: teksten.inleiding, afsluiting: teksten.afsluiting },
+    aantalVoorbeelden: 3,
+    template: true,
+  });
+  let tekst = verstuurdeTekst(bouwSysteemprompt({ template: true }), opdracht);
+  expect(tekst).toContain(json);
   if (geval.instructie !== undefined) {
     const piiSet = bouwPiiSet(geval.klant);
     const huidig = terugNaarPlaatshouders(invullen(inhoudMetPlaatshouders, geval.klant), geval.klant);

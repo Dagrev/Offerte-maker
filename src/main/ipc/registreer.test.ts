@@ -138,7 +138,10 @@ describe('standaardhandlers', () => {
   });
 
   it('stubs geven VALIDATIE "Nog niet beschikbaar."', async () => {
-    const resultaat = await maakIpcHandler('offerte:maak', alleHandlers['offerte:maak'])(event, { id: 'o1' });
+    const resultaat = await maakIpcHandler(
+      'offerte:maakZonderClaude',
+      alleHandlers['offerte:maakZonderClaude'],
+    )(event, { id: 'o1' });
     expect(resultaat).toEqual({ ok: false, fout: { code: 'VALIDATIE', melding: 'Nog niet beschikbaar.' } });
   });
 });
