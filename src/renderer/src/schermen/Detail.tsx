@@ -1,4 +1,4 @@
-import { ArrowLeft, FileCheck, FileText, FolderOpen, Pencil, Printer, Sparkles } from 'lucide-react';
+import { ArrowLeft, FileCheck, FileText, FolderOpen, Pencil, Printer } from 'lucide-react';
 import { formatEuro } from '@shared/formatteer';
 import { klantWeergave } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
@@ -13,13 +13,14 @@ import { PdfVoorbeeld } from '../componenten/PdfVoorbeeld';
 import { StatusLabel } from '../componenten/StatusLabel';
 import { useNavigatie } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
+import { ClaudeAanpassen } from './detail/ClaudeAanpassen';
+import { EerdereVersies } from './detail/EerdereVersies';
 import { KopieEnVerwijderen } from './detail/KopieEnVerwijderen';
 import { StatusKnoppen } from './detail/StatusKnoppen';
 
 // Detailscherm (FO S4, UC-06; TDO §13.4, V-05). Links het voorbeeld (gelijk aan de PDF, FE-050),
-// rechts het actiepaneel. OFM-015 (definitief, PDF), OFM-016 (status, kopie, verwijderen) en OFM-017
-// (Laat Claude aanpassen, eerdere versies terugzetten) sluiten hun knoppen hier aan; tot dan staan
-// ze uitgeschakeld op hun plek.
+// rechts het actiepaneel: definitief en PDF (OFM-015), status, kopie en verwijderen (OFM-016, in
+// `detail/`), Laat Claude aanpassen en eerdere versies (OFM-017, in `detail/`).
 
 const t = nl.detail;
 
@@ -155,8 +156,7 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
               breed
               onClick={() => gaNaar({ scherm: 'bewerken', offerteId: detail.id })}
             />
-            {/* Laat Claude aanpassen (FE-053): OFM-017. */}
-            <NogNiet label={t.laatClaudeAanpassen} icoon={Sparkles} />
+            <ClaudeAanpassen id={detail.id} />
             {/* Open PDF, Afdrukken, Toon in map (FE-057): alleen met een PDF. */}
             {laatstePdf && (
               <>
@@ -186,34 +186,9 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
             <KopieEnVerwijderen id={detail.id} />
           </div>
 
-          {/* Eerdere versies met Terugzetten (FE-053): OFM-017 voegt de knop per versie toe. */}
-          {detail.versies.length > 1 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-xl font-semibold">{t.eerdereVersies}</h2>
-              <ul className="flex flex-col gap-2">
-                {detail.versies.map((v) => (
-                  <li key={v.id} className="rounded-knop border border-rand p-3">
-                    <p className="font-semibold">{t.versie(v.versieNr)}</p>
-                    <p className="text-tekst-zacht">
-                      {t.versieBron[v.bron] ?? v.bron} · {tijdstip(v.aangemaaktOp)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <EerdereVersies id={detail.id} versies={detail.versies} />
         </aside>
       </div>
     </main>
   );
-}
-
-/** Knop die een volgend ticket aansluit; tot dan uitgeschakeld. */
-function NogNiet({ label, icoon, variant }: Pick<Parameters<typeof Knop>[0], 'label' | 'icoon' | 'variant'>) {
-  return <Knop label={label} icoon={icoon} variant={variant} breed disabled title={t.binnenkort} />;
-}
-
-/** Opgeslagen tijdstip (ISO) in lokale tijd, bijv. "25-09-2026 14:32". */
-function tijdstip(iso: string): string {
-  return new Date(iso).toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
 }

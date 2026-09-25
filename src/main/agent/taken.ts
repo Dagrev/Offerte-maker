@@ -1,18 +1,22 @@
 import { z } from 'zod';
 import { AppFout, type FoutCode } from '@shared/fouten';
+import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspost, lijstPrijsposten } from '../db/repo/prijsposten';
 import { schrijfLogregel, type Logregel } from '../db/repo/privacylog';
 import { log } from '../log';
+import { anonimiseer } from '../privacy/anonimiseer';
 import { controleer } from '../privacy/controle';
+import { tekstvelden, terugNaarPlaatshouders } from '../privacy/invullen';
 import { bouwKlusVoorAgent, gebruikersTekst } from '../privacy/klusVoorAgent';
 import { bouwPiiSet } from '../privacy/piiSet';
 import { testhaak } from '../testhaken';
 import { bepaalClaudeStatus } from './claudeStatus';
 import { haalGoedgekeurdeVoorbeelden } from '../db/repo/voorbeelden';
 import {
+  bouwOpdrachtAanpassen,
   bouwOpdrachtMaken,
   bouwOpdrachtTemplateTeksten,
   bouwSysteemprompt,
@@ -347,5 +351,86 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
     const inhoud = nabewerk(uitvoer, { soort: 'maken', klant: offerte.klant, prijspost: haalPrijspost });
     bewaarNieuweVersie({ id, inhoud, bron: 'agent', wizardStap: 4 });
     return { controlepunten: inhoud.controlepunten.length };
+  });
+}
+
+// ---------- Laat Claude aanpassen (OFM-017, §10.7, V-06, FE-053) ----------
+
+/**
+ * `offerte:pasAanMetClaude`: dezelfde stappen als `maakOfferte` met de opdracht `aanpassen`.
+ * Instructie en huidige inhoud gaan door filter en eindcontrole; nieuwe versie met bron
+ * `agent_aanpassing`; is de offerte al definitief (PDF), dan `gewijzigd_na_definitief = 1`.
+ */
+export function pasAanMetClaude(
+  id: string,
+  instructie: string,
+  opties: MaakOpties = {},
+): Promise<{ versieNr: number }> {
+  return metTaak(id, opties.stuur ?? (() => undefined), async (ctx) => {
+    const offerte = haalOfferteVoorAgent(id);
+    if (offerte.inhoud === null || instructie.trim() === '') {
+      throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+    }
+
+    // 1. Koppeling controleren; bij een fout niets versturen.
+    await controleerKoppeling(ctx.signal);
+
+    // 2. Filter en eindcontrole: gebruikersinvoer van `maken` plus instructie en huidige inhoud (§11.3).
+    const filteren = testhaak('privacyfilter-uit') === false;
+    const piiSet = bouwPiiSet(offerte.klant);
+    const klus = bouwKlusVoorAgent(
+      { invoer: offerte.invoer, klant: offerte.klant, offertedatum: offerte.offertedatum },
+      { filteren },
+    );
+    const gefilterdeInstructie = filteren ? anonimiseer(instructie, piiSet) : instructie;
+    const huidige = filteren ? terugNaarPlaatshouders(offerte.inhoud, offerte.klant) : offerte.inhoud;
+    controleerPrivacy(
+      [...gebruikersTekst(klus), gefilterdeInstructie, ...tekstvelden(huidige)].join('\n'),
+      piiSet,
+    );
+
+    // 3. Werkmap en opdracht `aanpassen` (§10.5).
+    const werkmap =
+      opties.agentMap === undefined ? synchroniseerWerkmap() : synchroniseerWerkmap(opties.agentMap);
+    const api = isApiModus();
+    const systeemprompt = bouwSysteemprompt({ template: werkmap.template, api });
+    const opdracht = bouwOpdrachtAanpassen({
+      huidige,
+      instructie: gefilterdeInstructie,
+      prijslijst: lijstPrijsposten(),
+      aantalVoorbeelden: werkmap.voorbeelden,
+      template: werkmap.template,
+      ...(api && { api: voorbeeldenVoorApi() }),
+    });
+
+    // 4–5. Versturen, valideren, één nieuwe poging, privacylog (soort `aanpassen`).
+    const uitvoer = await voerUitMetNieuwePoging({
+      soort: 'aanpassen',
+      offerteId: id,
+      systeemprompt,
+      opdracht,
+      schema: UITVOER_SCHEMA,
+      valideer: (json) => {
+        const r = agentUitvoerSchema.safeParse(json);
+        return r.success ? r.data : null;
+      },
+      ctx,
+      provider: opties.provider ?? kiesProvider(),
+    });
+
+    // 6. Nabewerking met de refs uit de opdracht (V-06); 7. opslaan.
+    afgebroken(ctx.signal);
+    const inhoud = nabewerk(uitvoer, {
+      soort: 'aanpassen',
+      klant: offerte.klant,
+      prijspost: haalPrijspost,
+      huidigeRegels: huidige.regels,
+    });
+    return bewaarNieuweVersie({
+      id,
+      inhoud,
+      bron: 'agent_aanpassing',
+      gewijzigdNaDefinitief: offerte.heeftPdf,
+    });
   });
 }

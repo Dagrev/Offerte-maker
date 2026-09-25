@@ -1,8 +1,16 @@
 import type { WebContents } from 'electron';
-import { nietBeschikbaar } from '@shared/fouten';
+import { AppFout, nietBeschikbaar } from '@shared/fouten';
 import { VOORTGANG_KANAAL } from '@shared/ipcKanalen';
 import type { Voortgang } from '@shared/types';
-import { maakOfferte, stopTaak, type Stuur } from '../agent/taken';
+import {
+  isBezig,
+  maakOfferte,
+  MELDING_AL_BEZIG,
+  pasAanMetClaude,
+  stopTaak,
+  type Stuur,
+} from '../agent/taken';
+import { zetVersieTerug } from '../db/repo/offertesInhoud';
 import type { DomeinHandlers } from './registreer';
 
 // Eigenaar: OFM-013 (maak, stop), OFM-017 (pasAanMetClaude, zetVersieTerug), OFM-025 (maakZonderClaude). Vervang een stub door de echte handler; de kanalen zelf staan vast (V-03).
@@ -26,7 +34,12 @@ export const offerteAgentHandlers: DomeinHandlers<Kanalen> = {
     stopTaak(id);
     return null;
   },
-  'offerte:pasAanMetClaude': nietBeschikbaar,
-  'offerte:zetVersieTerug': nietBeschikbaar,
+  'offerte:pasAanMetClaude': ({ id, instructie }, event) =>
+    pasAanMetClaude(id, instructie, { stuur: stuurNaar(event.sender) }),
+  'offerte:zetVersieTerug': ({ id, versieId }) => {
+    // Niet terugzetten terwijl de agent aan deze offerte werkt: het antwoord zou de versie overschrijven.
+    if (isBezig(id)) throw new AppFout('VALIDATIE', MELDING_AL_BEZIG);
+    return zetVersieTerug(id, versieId);
+  },
   'offerte:maakZonderClaude': nietBeschikbaar,
 };

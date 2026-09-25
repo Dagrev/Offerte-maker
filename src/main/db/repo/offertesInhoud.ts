@@ -107,6 +107,35 @@ export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { ve
 }
 
 /**
+ * `offerte:zetVersieTerug` (OFM-017, FE-053): nieuwe versie met bron `terugzetten` en precies de inhoud
+ * van de gekozen versie (ook als dat al de huidige is: terugzetten overschrijft nooit). Is de offerte
+ * definitief (nummer of PDF), dan `gewijzigd_na_definitief = 1`.
+ */
+export function zetVersieTerug(id: string, versieId: string, nu: Date = new Date()): { versieNr: number } {
+  const db = database();
+  return db.transaction(() => {
+    const versie = db
+      .prepare('SELECT inhoud_json FROM offerte_versies WHERE id = ? AND offerte_id = ?')
+      .get(versieId, id) as { inhoud_json: string } | undefined;
+    const offerte = db
+      .prepare('SELECT nummer FROM offertes WHERE id = ? AND verwijderd_op IS NULL')
+      .get(id) as { nummer: string | null } | undefined;
+    if (!versie || !offerte) throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+    const heeftPdf =
+      db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(id) !== undefined;
+    return bewaarNieuweVersie(
+      {
+        id,
+        inhoud: offerteInhoudSchema.parse(JSON.parse(versie.inhoud_json)),
+        bron: 'terugzetten',
+        gewijzigdNaDefinitief: offerte.nummer !== null || heeftPdf,
+      },
+      nu,
+    );
+  })();
+}
+
+/**
  * `offerte:bewaarInhoud` (OFM-014, §11.4, §12.3, V-05, V-12). De renderer stuurt ingevulde tekst;
  * die gaat eerst door `terugNaarPlaatshouders`, zodat `inhoud_json` nooit klantgegevens bevat. Regels
  * die nieuw zijn of een andere prijs hebben dan opgeslagen worden `handmatig`. Is de offerte al

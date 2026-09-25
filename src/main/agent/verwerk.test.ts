@@ -163,6 +163,30 @@ describe('nabewerk (§10.7 stap 6)', () => {
     expect(uit.regels[0]?.prijsCent).toBe(12345);
   });
 
+  it('V-06 (OFM-017): de vier gevallen los', () => {
+    const basis: Offerteregel = {
+      id: 'x',
+      omschrijving: 'Eigen prijs',
+      aantalHonderdsten: 100,
+      eenheid: 'post',
+      prijsCent: 5000,
+      btwTarief: 21,
+      prijsbron: 'handmatig',
+      prijspostId: null,
+    };
+    const huidigeRegels: Offerteregel[] = [basis, { ...basis, id: 'y', prijsbron: 'voorbeeld' }];
+    const bron = (r: Parameters<typeof regel>[0]) =>
+      nabewerk(metRegels(regel(r)), opties({ soort: 'aanpassen', huidigeRegels })).regels[0]?.prijsbron;
+    // handmatig, zelfde ref en prijs → blijft handmatig
+    expect(bron({ ref: 'r1', prijsbron: 'handmatig', prijsEuro: 50, prijspostId: null })).toBe('handmatig');
+    // zelfde ref, andere prijs → schatting
+    expect(bron({ ref: 'r1', prijsbron: 'handmatig', prijsEuro: 55, prijspostId: null })).toBe('schatting');
+    // handmatig zonder ref → schatting
+    expect(bron({ ref: null, prijsbron: 'handmatig', prijsEuro: 50, prijspostId: null })).toBe('schatting');
+    // ref van een regel die geen handmatig was → schatting
+    expect(bron({ ref: 'r2', prijsbron: 'handmatig', prijsEuro: 50, prijspostId: null })).toBe('schatting');
+  });
+
   it('omrekenen naar honderdsten en centen, met nieuwe id per regel', () => {
     const uit = nabewerk(
       metRegels(regel({ aantal: 34.8, prijsEuro: 12.5 }), regel({ aantal: 1.155, prijsEuro: 0.005 })),

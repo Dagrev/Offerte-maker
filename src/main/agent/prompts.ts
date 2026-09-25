@@ -1,4 +1,4 @@
-import type { Prijspost } from '@shared/types';
+import type { OfferteInhoud, Offerteregel, Prijspost } from '@shared/types';
 import type { KlusVoorAgent } from '../privacy/klusVoorAgent';
 
 // Prompts (TDO §10.5). De systeemprompt staat er letterlijk; alleen de `{{#template}}…{{/template}}`-
@@ -159,6 +159,86 @@ export function bouwOpdrachtMaken(o: OpdrachtMaken): string {
     `## Standaardteksten\n${blok({ inleiding: o.teksten.inleiding, afsluiting: o.teksten.afsluiting })}`,
     '',
     voorbeeldenKop(o),
+  ].join('\n');
+}
+
+// ---------- Opdracht `aanpassen` (OFM-017, §10.5, V-06) ----------
+
+export interface HuidigeRegelVoorAgent {
+  ref: string;
+  omschrijving: string;
+  aantal: number;
+  eenheid: Offerteregel['eenheid'];
+  prijsEuro: number;
+  btwTarief: Offerteregel['btwTarief'];
+  prijsbron: Offerteregel['prijsbron'];
+  prijspostId: string | null;
+}
+
+export interface HuidigeOfferteVoorAgent {
+  titel: string;
+  inleiding: string;
+  werkomschrijving: string[];
+  regels: HuidigeRegelVoorAgent[];
+  uitvoering: string;
+  opmerkingen: string;
+  afsluiting: string;
+}
+
+/**
+ * "## Huidige offerte" (§10.5): de inhoud zonder regel-id's en zonder controlepunten; prijzen als
+ * `prijsEuro`, aantallen als decimaal getal; per regel `ref` (`r1`, `r2`, … in volgorde) en `prijsbron`
+ * (V-06). `prijspostId` blijft, zodat een prijslijstregel aan zijn post gekoppeld blijft.
+ */
+export function huidigeOfferteVoorAgent(inhoud: OfferteInhoud): HuidigeOfferteVoorAgent {
+  return {
+    titel: inhoud.titel,
+    inleiding: inhoud.inleiding,
+    werkomschrijving: inhoud.werkomschrijving,
+    regels: inhoud.regels.map((r, i) => ({
+      ref: `r${i + 1}`,
+      omschrijving: r.omschrijving,
+      aantal: r.aantalHonderdsten / 100,
+      eenheid: r.eenheid,
+      prijsEuro: r.prijsCent / 100,
+      btwTarief: r.btwTarief,
+      prijsbron: r.prijsbron,
+      prijspostId: r.prijspostId,
+    })),
+    uitvoering: inhoud.uitvoering,
+    opmerkingen: inhoud.opmerkingen,
+    afsluiting: inhoud.afsluiting,
+  };
+}
+
+export const SLOTZIN_AANPASSEN =
+  'Lever de volledige aangepaste offerte. Laat ongewijzigd wat niet genoemd wordt.';
+
+export interface OpdrachtAanpassen {
+  /** Opgeslagen inhoud (met plaatshouders), al door het filter. */
+  huidige: OfferteInhoud;
+  /** Instructie na het privacyfilter. */
+  instructie: string;
+  prijslijst: readonly Prijspost[];
+  aantalVoorbeelden: number;
+  template: boolean;
+  api?: VoorbeeldenVoorApi;
+}
+
+/** Opdracht bij `aanpassen` (§10.5): dezelfde secties Prijslijst en Voorbeelden als bij `maken`. */
+export function bouwOpdrachtAanpassen(o: OpdrachtAanpassen): string {
+  return [
+    '# Opdracht: pas deze offerte aan',
+    '',
+    `## Huidige offerte\n${blok(huidigeOfferteVoorAgent(o.huidige))}`,
+    '',
+    prijslijstSectie(o.prijslijst),
+    '',
+    voorbeeldenKop(o),
+    '',
+    `## Wat moet er anders\n${o.instructie.trim()}`,
+    '',
+    SLOTZIN_AANPASSEN,
   ].join('\n');
 }
 

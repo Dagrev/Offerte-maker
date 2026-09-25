@@ -39,13 +39,19 @@ export const detail = {
   andereKlant: 'Andere klant',
   annuleren: 'Annuleren',
 
+  /** Laat Claude aanpassen (FE-053, OFM-017). */
+  aanpassenTitel: 'Laat Claude aanpassen',
+  watMoetErAnders: 'Wat moet er anders?',
+  watMoetErAndersHint: 'Bijvoorbeeld: "Maak de dakgoot 14 meter en haal de noodoverloop eruit."',
+  aanpassenVersturen: 'Pas aan',
+  terugzetten: 'Terugzetten',
+  terugzettenVersie: (nr: number) => `Versie ${nr} terugzetten`,
+
   /** Verwijderen (FE-062). */
   verwijderTitel: 'Weet je het zeker?',
   verwijderUitleg: 'De offerte gaat naar de prullenbak. Daar kun je hem 90 dagen terugzetten.',
   jaVerwijderen: 'Ja, verwijderen',
   nee: 'Nee',
-  /** Tooltip bij knoppen die in een volgend ticket worden aangesloten. */
-  binnenkort: 'Komt in een volgende versie.',
 
   eerdereVersies: 'Eerdere versies',
   versie: (nr: number) => `Versie ${nr}`,

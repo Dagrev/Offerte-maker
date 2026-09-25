@@ -85,6 +85,15 @@ function useVerversOfferte(id: string) {
     ]);
 }
 
+/** `offerte:zetVersieTerug` (OFM-017, FE-053): nieuwe versie met de inhoud van de gekozen versie. */
+export function useZetVersieTerug(id: string) {
+  const ververs = useVerversOfferte(id);
+  return useMutation({
+    mutationFn: (versieId: string) => roep(window.api.offerteZetVersieTerug({ id, versieId })),
+    onSuccess: ververs,
+  });
+}
+
 /** `offerte:zetStatus` (OFM-016, FE-060): direct bewaard. */
 export function useZetStatus(id: string) {
   const ververs = useVerversOfferte(id);
