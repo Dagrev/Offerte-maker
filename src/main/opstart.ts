@@ -1,4 +1,7 @@
 import { app, ipcMain } from 'electron';
+import { migreer } from './db/migraties';
+import { schoonOp } from './db/opschonen';
+import { database, openAppDatabase } from './db/verbinding';
 import { registreerIpc } from './ipc/registreer';
 import { initLogging, log } from './log';
 import { maakMappenAan, paden } from './paden';
@@ -21,11 +24,13 @@ export async function opstart(): Promise<void> {
   await maakMappenAan(paden);
   log.info('opstart: mappen aangemaakt, tmp leeggemaakt');
 
-  // Stap 3 — database openen en migreren (OFM-003).
+  // Stap 3 — database openen en migreren (met back-up vooraf als er migraties zijn).
+  await migreer(openAppDatabase());
 
   // Stap 4 — dagelijkse back-up (OFM-022).
 
-  // Stap 5 — opschonen: prullenbak > 90 dagen, privacylog > 365 dagen (OFM-003).
+  // Stap 5 — opschonen: prullenbak > 90 dagen, privacylog > 365 dagen.
+  log.info(`opstart: opgeschoond ${JSON.stringify(schoonOp(database()))}`);
 
   // Stap 6 — agentwerkmap synchroniseren (OFM-012).
 

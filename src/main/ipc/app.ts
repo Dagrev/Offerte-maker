@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import { nietBeschikbaar } from '@shared/fouten';
+import { haalInstelling } from '../db/repo/instellingen';
 import { paden } from '../paden';
 import { vandaag } from '../testhaken';
 import type { DomeinHandlers } from './registreer';
@@ -11,7 +12,7 @@ type Kanalen = 'app:info' | 'app:openMap';
 export const appHandlers: DomeinHandlers<Kanalen> = {
   'app:info': () => ({
     versie: app.getVersion(),
-    welkomVoltooid: false,
+    welkomVoltooid: haalInstelling('app').welkomVoltooid,
     vandaag: vandaag(),
     dataMap: paden.dataMap,
     documentenMap: paden.documentenMap,

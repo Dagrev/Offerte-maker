@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { sluitDatabase } from './db/verbinding';
 import { log } from './log';
 import { opstart } from './opstart';
 
@@ -10,4 +11,8 @@ opstart().catch((fout: unknown) => {
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+app.on('will-quit', () => {
+  sluitDatabase();
 });

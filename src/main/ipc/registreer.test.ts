@@ -5,6 +5,7 @@ import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 
 const nepLog = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 vi.mock('../log', () => ({ log: nepLog }));
+vi.mock('../db/repo/instellingen', () => ({ haalInstelling: () => ({ welkomVoltooid: true }) }));
 vi.mock('electron', () => ({
   app: { getVersion: () => '1.2.3', getPath: () => 'C:\\x', isPackaged: false },
 }));
@@ -128,7 +129,7 @@ describe('standaardhandlers', () => {
     const resultaat = await maakIpcHandler('app:info', alleHandlers['app:info'])(event, undefined);
     expect(resultaat).toMatchObject({
       ok: true,
-      data: { versie: '1.2.3', welkomVoltooid: false },
+      data: { versie: '1.2.3', welkomVoltooid: true },
     });
     if (!resultaat.ok) throw new Error('verwacht ok');
     expect(resultaat.data.vandaag).toMatch(/^\d{4}-\d{2}-\d{2}$/);
