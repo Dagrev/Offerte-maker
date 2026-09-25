@@ -1,0 +1,60 @@
+{
+  "titel": "Offerte vervangen dakbedekking plat dak",
+  "inleiding": "Naar aanleiding van het gesprek met [KLANT_NAAM] doen wij u hierbij graag een offerte toekomen voor het vervangen van de dakbedekking van uw platte dak.",
+  "werkomschrijving": [
+    "Bestaande dakbedekking verwijderen en afvoeren",
+    "Ondergrond controleren en waar nodig herstellen",
+    "Nieuwe EPDM-dakbedekking 1,5 mm aanbrengen",
+    "Aluminium daktrim plaatsen",
+    "Hemelwaterafvoer aansluiten"
+  ],
+  "regels": [
+    {
+      "ref": null,
+      "omschrijving": "Slopen en afvoeren oude dakbedekking",
+      "aantal": 34.8,
+      "eenheid": "m²",
+      "prijsEuro": 12.5,
+      "btwTarief": 21,
+      "prijsbron": "voorbeeld",
+      "prijspostId": "start-sloop"
+    },
+    {
+      "ref": null,
+      "omschrijving": "EPDM dakbedekking 1,5 mm",
+      "aantal": 34.8,
+      "eenheid": "m²",
+      "prijsEuro": 45,
+      "btwTarief": 21,
+      "prijsbron": "voorbeeld",
+      "prijspostId": "start-epdm_15"
+    },
+    {
+      "ref": null,
+      "omschrijving": "Aluminium daktrim",
+      "aantal": 24,
+      "eenheid": "m¹",
+      "prijsEuro": 27.5,
+      "btwTarief": 21,
+      "prijsbron": "schatting",
+      "prijspostId": "start-daktrim"
+    },
+    {
+      "ref": null,
+      "omschrijving": "Hemelwaterafvoer aansluiten",
+      "aantal": 1,
+      "eenheid": "stuk",
+      "prijsEuro": 85,
+      "btwTarief": 21,
+      "prijsbron": "voorbeeld",
+      "prijspostId": "start-hwa"
+    }
+  ],
+  "uitvoering": "Wij kunnen de werkzaamheden binnen vier weken na opdracht uitvoeren, afhankelijk van het weer. De werkzaamheden duren naar verwachting twee dagen.",
+  "opmerkingen": "",
+  "afsluiting": "Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.",
+  "controlepunten": [
+    "Controleer of de ondergrond van hout in goede staat is.",
+    "Controleer of er een steiger nodig is voor de achterzijde."
+  ]
+}

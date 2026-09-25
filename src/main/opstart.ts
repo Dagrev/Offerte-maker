@@ -1,4 +1,5 @@
 import { app, ipcMain } from 'electron';
+import { synchroniseerWerkmap } from './agent/werkmap';
 import { migreer } from './db/migraties';
 import { schoonOp } from './db/opschonen';
 import { database, openAppDatabase } from './db/verbinding';
@@ -32,7 +33,8 @@ export async function opstart(): Promise<void> {
   // Stap 5 — opschonen: prullenbak > 90 dagen, privacylog > 365 dagen.
   log.info(`opstart: opgeschoond ${JSON.stringify(schoonOp(database()))}`);
 
-  // Stap 6 — agentwerkmap synchroniseren (OFM-012).
+  // Stap 6 — agentwerkmap synchroniseren.
+  synchroniseerWerkmap();
 
   // Stap 7 — IPC registreren, CSP en hoofdvenster.
   await app.whenReady();
