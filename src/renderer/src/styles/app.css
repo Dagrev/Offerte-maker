@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* Stijltokens (TDO §13.2). De accentkleur van de app is vast; de offerte-accentkleur uit de
+   instellingen geldt alleen voor PDF's. Tekst op de status- en accentvlakken is wit (≥ 4,5:1). */
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --text-base: 1.125rem; /* 18px */
+  --text-base--line-height: 1.5;
+
+  --color-tekst: #1a1a1a;
+  --color-tekst-zacht: #4b5563;
+  --color-achtergrond: #ffffff;
+  --color-vlak: #f4f5f7;
+  --color-rand: #d0d4da;
+  --color-accent: #1f4e79;
+  --color-accent-donker: #173b5c;
+
+  --color-status-concept: #6b7280;
+  --color-status-klaar: #1f4e79;
+  --color-status-verstuurd: #b45309;
+  --color-status-akkoord: #15803d;
+  --color-status-afgewezen: #b91c1c;
+
+  --color-fout: #b91c1c;
+  --color-fout-donker: #991b1b;
+  --color-fout-vlak: #fef2f2;
+  --color-waarschuwing: #854d0e;
+  --color-waarschuwing-rand: #eab308;
+  --color-waarschuwing-vlak: #fef9c3;
+  --color-schatting-vlak: #ffedd5;
+  --color-goed: #15803d;
+
+  --radius-knop: 10px;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-achtergrond font-sans text-base text-tekst antialiased;
+  }
+
+  /* Focusring van 3 px, alleen bij toetsenbordfocus (NFE-005). */
+  :focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

@@ -23,6 +23,8 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
+    "src/renderer/src/stores/**/*.ts",
+    "src/renderer/src/componenten/**/*.ts",
     "scripts/**/*",
     "test/**/*",
     "electron.vite.config.ts",
