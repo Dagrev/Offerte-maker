@@ -44,6 +44,33 @@ export function useBewaarInhoud(id: string) {
   });
 }
 
+/** `offerte:maakDefinitief` (OFM-015): nummer en PDF; daarna offerte en lijst opnieuw ophalen. */
+export function useMaakDefinitief(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => roep(window.api.offerteMaakDefinitief({ id })),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.offerte(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
+      ]),
+  });
+}
+
+/** Open PDF, Afdrukken en Toon in map (OFM-015, FE-057): geen data, alleen een eventuele fout. */
+export function usePdfActie(id: string) {
+  return useMutation({
+    mutationFn: (actie: 'open' | 'afdrukken' | 'map') => {
+      const aanroep = {
+        open: window.api.offerteOpenPdf,
+        afdrukken: window.api.offerteAfdrukken,
+        map: window.api.offerteToonInMap,
+      }[actie];
+      return roep(aanroep({ id }));
+    },
+  });
+}
+
 export type InvoerDeel = Omit<KanaalInvoer<'offerte:bewaarInvoer'>, 'id'>;
 
 const DEBOUNCE_MS = 500;

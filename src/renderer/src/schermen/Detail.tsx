@@ -14,7 +14,7 @@ import { klantWeergave } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
 import { gelePunten } from '@shared/offerteBewerken';
 import type { OfferteDetail } from '@shared/types';
-import { useOfferte, useVoorbeeldHtml } from '../api/offerte';
+import { useMaakDefinitief, useOfferte, usePdfActie, useVoorbeeldHtml } from '../api/offerte';
 import { alsFout } from '../api/roep';
 import { Foutmelding } from '../componenten/Foutmelding';
 import { GeleBalk } from '../componenten/GeleBalk';
@@ -69,6 +69,8 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const storeFout = useNavigatie((s) => s.fout);
   const voorbeeld = useVoorbeeldHtml(detail.id, detail.inhoud !== null);
+  const definitief = useMaakDefinitief(detail.id);
+  const pdfActie = usePdfActie(detail.id);
 
   if (detail.inhoud === null) {
     return (
@@ -130,8 +132,27 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
           {/* Statusknoppen (FE-060): OFM-016. */}
 
           <div className="flex flex-col gap-3">
-            {/* Maak definitief (FE-054–056): OFM-015. */}
-            {nogDefinitiefMaken && <NogNiet label={t.maakDefinitief} icoon={FileCheck} variant="hoofd" />}
+            {/* Fout van Maak definitief of een PDF-actie, met Opnieuw (§15.1). */}
+            {definitief.isError && (
+              <Foutmelding fout={alsFout(definitief.error)} opnieuw={() => definitief.mutate()} />
+            )}
+            {pdfActie.isError && pdfActie.variables && (
+              <Foutmelding
+                fout={alsFout(pdfActie.error)}
+                opnieuw={() => pdfActie.mutate(pdfActie.variables)}
+              />
+            )}
+            {/* Maak definitief (FE-054–056): hoofdknop zolang er geen PDF is of na een wijziging. */}
+            {nogDefinitiefMaken && (
+              <Knop
+                label={definitief.isPending ? t.pdfWordtGemaakt : t.maakDefinitief}
+                icoon={FileCheck}
+                variant="hoofd"
+                breed
+                disabled={definitief.isPending}
+                onClick={() => definitief.mutate()}
+              />
+            )}
             <Knop
               label={t.aanpassen}
               icoon={Pencil}
@@ -140,12 +161,30 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
             />
             {/* Laat Claude aanpassen (FE-053): OFM-017. */}
             <NogNiet label={t.laatClaudeAanpassen} icoon={Sparkles} />
-            {/* Open PDF, Afdrukken, Toon in map (FE-057): OFM-015. */}
+            {/* Open PDF, Afdrukken, Toon in map (FE-057): alleen met een PDF. */}
             {laatstePdf && (
               <>
-                <NogNiet label={t.openPdf} icoon={FileText} />
-                <NogNiet label={t.afdrukken} icoon={Printer} />
-                <NogNiet label={t.toonInMap} icoon={FolderOpen} />
+                <Knop
+                  label={t.openPdf}
+                  icoon={FileText}
+                  breed
+                  disabled={pdfActie.isPending}
+                  onClick={() => pdfActie.mutate('open')}
+                />
+                <Knop
+                  label={t.afdrukken}
+                  icoon={Printer}
+                  breed
+                  disabled={pdfActie.isPending}
+                  onClick={() => pdfActie.mutate('afdrukken')}
+                />
+                <Knop
+                  label={t.toonInMap}
+                  icoon={FolderOpen}
+                  breed
+                  disabled={pdfActie.isPending}
+                  onClick={() => pdfActie.mutate('map')}
+                />
               </>
             )}
             {/* Maak kopie (FE-061) en Verwijderen (FE-062): OFM-016. */}
