@@ -166,3 +166,34 @@ export function bouwOpdrachtMaken(o: OpdrachtMaken): string {
 export function verstuurdeTekst(systeemprompt: string, opdracht: string): string {
   return `${systeemprompt}\n\n---\n\n${opdracht}`;
 }
+
+// ---------- Standaardteksten uit het template (OFM-024, §10.5, FE-084) ----------
+
+/** Systeemprompt-variant bij `template_teksten` (§10.5, letterlijk). */
+export const SYSTEEMPROMPT_TEMPLATE_TEKSTEN =
+  'Je krijgt een geanonimiseerd offertetemplate. Stel standaardteksten voor. Antwoord uitsluitend met JSON volgens het schema.';
+
+/** De standaardteksten die de agent mag voorstellen, in deze volgorde. */
+export const TEMPLATE_TEKST_VELDEN = [
+  'inleiding',
+  'afsluiting',
+  'betalingsvoorwaarden',
+  'garantie10',
+  'garantie20',
+  'voetnoot',
+] as const;
+
+/** JSON-schema: object met optionele strings (§10.5). De nep-CLI herkent het aan `"garantie10"` (V-08). */
+export const TEMPLATE_TEKSTEN_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: Object.fromEntries(TEMPLATE_TEKST_VELDEN.map((veld) => [veld, { type: 'string' }])),
+};
+
+/**
+ * Opdracht bij `template_teksten`: de inhoud van template.md (`# Template` + tekst, §10.3, §10.5). Zo
+ * staat de volledige templatetekst ook in API-modus in de opdracht.
+ */
+export function bouwOpdrachtTemplateTeksten(templateTekst: string): string {
+  return `# Template\n\n${templateTekst}`;
+}

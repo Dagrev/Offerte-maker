@@ -45,4 +45,25 @@ export const voorbeelden = {
   gebruikAlsTemplate: 'Gebruik als template',
   isTemplate: 'Dit is het template: Claude volgt de indeling en toon ervan.',
   geenTemplateMeer: 'Niet meer als template gebruiken',
+
+  // Standaardteksten uit het template (OFM-024, FE-084)
+  haalTeksten: 'Haal standaardteksten uit dit template',
+  voorstellen: {
+    titel: 'Voorstellen voor je standaardteksten',
+    uitleg:
+      'Claude heeft deze teksten uit het template gehaald. Kies per tekst of je hem overneemt. Overnemen vervangt alleen die ene standaardtekst.',
+    veld: {
+      inleiding: 'Inleiding',
+      afsluiting: 'Afsluiting',
+      betalingsvoorwaarden: 'Betalingsvoorwaarden',
+      garantie10: 'Garantietekst 10 jaar',
+      garantie20: 'Garantietekst 20 jaar (verzekerd)',
+      voetnoot: 'Voetnoot',
+    },
+    overnemen: 'Overnemen',
+    overnemenLabel: (veld: string) => `${veld} overnemen`,
+    nietOvernemen: 'Niet overnemen',
+    nietOvernemenLabel: (veld: string) => `${veld} niet overnemen`,
+    sluiten: 'Sluiten',
+  },
 };

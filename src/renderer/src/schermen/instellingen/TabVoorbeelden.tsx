@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from 'react';
-import { FilePlus2, Star, Trash2 } from 'lucide-react';
+import { FilePlus2, Sparkles, Star, Trash2 } from 'lucide-react';
 import type { Fout, FoutCode } from '@shared/fouten';
 import { formatDatum, schrijfDatum } from '@shared/formatteer';
 import { FOUTMELDINGEN } from '@shared/teksten/fouten';
@@ -9,10 +9,21 @@ import { useVoorbeelden, verwijderVoorbeeld, voegVoorbeeldenToe } from '../../ap
 import { Bevestiging } from '../../componenten/Bevestiging';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
+import { startAgentTaak } from '../../stores/agentTaken';
+import { useNavigatie, type Bezig } from '../../stores/navigatie';
+import { useTemplateVoorstellen } from '../../stores/templateVoorstellen';
 import { nl } from '../../teksten/nl';
+import { TemplateVoorstellen } from './TemplateVoorstellen';
 import { VoorbeeldReview } from './VoorbeeldReview';
 
 const t = nl.voorbeelden;
+
+/** Bezig-scherm voor **Haal standaardteksten uit dit template** (V-07, V-08). */
+const TEMPLATE_TEKSTEN_BEZIG: Bezig = {
+  id: 'template_teksten',
+  soort: 'template_teksten',
+  terugNaar: 'instellingen',
+};
 
 interface Uitkomst {
   toegevoegd: number;
@@ -31,6 +42,21 @@ export function TabVoorbeelden() {
   const [uitkomst, setUitkomst] = useState<Uitkomst | null>(null);
   const [fout, setFout] = useState<Fout | null>(null);
   const [teVerwijderen, setTeVerwijderen] = useState<VoorbeeldItem | null>(null);
+  const gaNaar = useNavigatie((s) => s.gaNaar);
+  const zetVoorstellen = useTemplateVoorstellen((s) => s.zet);
+
+  /**
+   * FE-084: de agent laat voorstellen doen; het Bezig-scherm wacht erop. Bij succes zet `bijSucces` de
+   * voorstellen klaar en gaat de app terug naar deze tab (V-07), waar het modaal ze toont.
+   */
+  const haalTeksten = () => {
+    startAgentTaak(
+      TEMPLATE_TEKSTEN_BEZIG,
+      () => window.api.voorbeeldenTekstenUitTemplate(),
+      (data) => zetVoorstellen(data.voorstellen),
+    );
+    gaNaar({ scherm: 'bezig', bezig: TEMPLATE_TEKSTEN_BEZIG });
+  };
 
   const voegToe = async (paden?: string[]) => {
     setBezig(true);
@@ -130,12 +156,15 @@ export function TabVoorbeelden() {
                   voorbeeld={v}
                   opBekijk={() => setOpen(v.id)}
                   opVerwijder={() => setTeVerwijderen(v)}
+                  opHaalTeksten={haalTeksten}
                 />
               ))}
             </ul>
           )}
         </>
       )}
+
+      <TemplateVoorstellen />
 
       <Bevestiging
         open={teVerwijderen !== null}
@@ -173,10 +202,13 @@ function VoorbeeldRij({
   voorbeeld,
   opBekijk,
   opVerwijder,
+  opHaalTeksten,
 }: {
   voorbeeld: VoorbeeldItem;
   opBekijk: () => void;
   opVerwijder: () => void;
+  /** Alleen op de rij van het template (V-27). */
+  opHaalTeksten: () => void;
 }) {
   const nogControleren = voorbeeld.status === 'te_controleren';
   return (
@@ -210,6 +242,11 @@ function VoorbeeldRij({
         onClick={opBekijk}
       />
       <Knop label={t.verwijder(voorbeeld.bestandsnaam)} alleenIcoon icoon={Trash2} onClick={opVerwijder} />
+      {voorbeeld.isTemplate && (
+        <div className="basis-full">
+          <Knop label={t.haalTeksten} icoon={Sparkles} onClick={opHaalTeksten} />
+        </div>
+      )}
     </li>
   );
 }

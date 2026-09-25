@@ -1,5 +1,5 @@
 import { dialog } from 'electron';
-import { nietBeschikbaar } from '@shared/fouten';
+import { tekstenUitTemplate } from '../agent/taken';
 import { huidigVenster } from '../venster';
 import {
   haalVoorbeeld,
@@ -10,9 +10,10 @@ import {
   voegVoorbeeldenToe,
   zetTemplate,
 } from '../voorbeelden/beheer';
+import { stuurNaar } from './offerteAgent';
 import type { DomeinHandlers } from './registreer';
 
-// Eigenaar: OFM-019 (tekstenUitTemplate: OFM-024). De logica staat in `voorbeelden/beheer.ts` (V-03).
+// Eigenaar: OFM-019, `tekstenUitTemplate` OFM-024. De logica staat in `voorbeelden/beheer.ts` (V-03).
 type Kanalen =
   | 'voorbeelden:lijst'
   | 'voorbeelden:voegToe'
@@ -43,5 +44,6 @@ export const voorbeeldenHandlers: DomeinHandlers<Kanalen> = {
   'voorbeelden:keurGoed': ({ id }) => keurGoed(id),
   'voorbeelden:zetTemplate': ({ id }) => zetTemplate(id),
   'voorbeelden:verwijder': ({ id }) => verwijderVoorbeeld(id),
-  'voorbeelden:tekstenUitTemplate': nietBeschikbaar,
+  'voorbeelden:tekstenUitTemplate': (_invoer, event) =>
+    tekstenUitTemplate({ stuur: stuurNaar(event.sender) }),
 };
