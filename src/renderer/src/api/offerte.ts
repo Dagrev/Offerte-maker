@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KanaalInvoer } from '@shared/types';
+import type { KanaalInvoer, OfferteInhoud } from '@shared/types';
 import { queryKeys } from './queryKeys';
 import { roep } from './roep';
 
@@ -14,6 +14,33 @@ export function useOfferte(id: string | undefined, opties: { vers?: boolean } = 
     queryFn: () => roep(window.api.offerteHaal({ id: id ?? '' })),
     enabled: id !== undefined,
     refetchOnMount: opties.vers ? 'always' : true,
+  });
+}
+
+/**
+ * `offerte:voorbeeldHtml` (OFM-014). De key hangt onder `['offerte', id]`, zodat elke mutatie die de
+ * offerte invalideert ook het voorbeeld ververst. Bij elk openen opnieuw: de opmaak kan intussen
+ * in de instellingen zijn gewijzigd.
+ */
+export function useVoorbeeldHtml(id: string | undefined, actief = true) {
+  return useQuery({
+    queryKey: [...queryKeys.offerte(id ?? ''), 'voorbeeld'],
+    queryFn: () => roep(window.api.offerteVoorbeeldHtml({ id: id ?? '' })),
+    enabled: id !== undefined && actief,
+    refetchOnMount: 'always',
+  });
+}
+
+/** `offerte:bewaarInhoud` (OFM-014): ingevulde inhoud; main zet hem terug naar plaatshouders. */
+export function useBewaarInhoud(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inhoud: OfferteInhoud) => roep(window.api.offerteBewaarInhoud({ id, inhoud })),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.offerte(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
+      ]),
   });
 }
 
