@@ -91,6 +91,9 @@ export function maakHoofdvenster(): BrowserWindow {
   const htmlPad = rendererHtml();
   const venster = new BrowserWindow({
     show: false,
+    // Vensterminimum (TDO §13.2); ontworpen voor 1366 × 768 en groter.
+    minWidth: 1024,
+    minHeight: 700,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,

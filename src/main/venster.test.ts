@@ -158,8 +158,14 @@ describe('beveiligWebContents', () => {
 describe('maakHoofdvenster', () => {
   it('maakt een verborgen venster met de vaste webPreferences en toont het gemaximaliseerd', () => {
     const v = venster.maakHoofdvenster() as unknown as InstanceType<typeof nep.BrowserWindow>;
-    const opties = v.opties as { show: boolean; webPreferences: Record<string, unknown> };
+    const opties = v.opties as {
+      show: boolean;
+      minWidth: number;
+      minHeight: number;
+      webPreferences: Record<string, unknown>;
+    };
     expect(opties.show).toBe(false);
+    expect([opties.minWidth, opties.minHeight]).toEqual([1024, 700]);
     expect(Object.keys(opties.webPreferences).sort()).toEqual(
       ['contextIsolation', 'nodeIntegration', 'preload', 'sandbox'].sort(),
     );
