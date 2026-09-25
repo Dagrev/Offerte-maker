@@ -19,8 +19,8 @@ describe('formatEuro', () => {
   });
 
   it('bevat geen harde spatie', () => {
-    expect(formatEuro(123456)).not.toMatch(/[  ]/);
-    expect(formatEuroHeel(123456)).not.toMatch(/[  ]/);
+    expect(formatEuro(123456)).not.toMatch(/[\u00a0\u202f]/);
+    expect(formatEuroHeel(123456)).not.toMatch(/[\u00a0\u202f]/);
   });
 });
 

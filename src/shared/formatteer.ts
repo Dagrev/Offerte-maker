@@ -10,7 +10,7 @@ import { rondAf } from './calc/bedragen';
 
 /** Intl zet een harde (of smalle harde) spatie tussen € en bedrag; wij willen een gewone spatie. */
 function gewoneSpaties(s: string): string {
-  return s.replace(/[  ]/g, ' ');
+  return s.replace(/[\u00a0\u202f]/g, ' ');
 }
 
 const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
