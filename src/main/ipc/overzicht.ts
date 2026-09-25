@@ -1,10 +1,10 @@
-import { nietBeschikbaar } from '@shared/fouten';
+import { lijstOverzicht, zoekOffertes } from '../db/repo/offertesLezen';
 import type { DomeinHandlers } from './registreer';
 
-// Eigenaar: OFM-009. Vervang een stub door de echte handler; de kanalen zelf staan vast (V-03).
+// Eigenaar: OFM-009 (TDO §6.2, §8.2). De invoer is al gevalideerd door registreer.ts.
 type Kanalen = 'overzicht:lijst' | 'overzicht:zoek';
 
 export const overzichtHandlers: DomeinHandlers<Kanalen> = {
-  'overzicht:lijst': nietBeschikbaar,
-  'overzicht:zoek': nietBeschikbaar,
+  'overzicht:lijst': ({ weergave, datum }) => lijstOverzicht(weergave, datum),
+  'overzicht:zoek': ({ tekst }) => zoekOffertes(tekst),
 };
