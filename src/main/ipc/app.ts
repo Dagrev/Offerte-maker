@@ -1,5 +1,6 @@
-import { app } from 'electron';
-import { nietBeschikbaar } from '@shared/fouten';
+import { app, shell } from 'electron';
+import { AppFout } from '@shared/fouten';
+import { log } from '../log';
 import { haalInstelling } from '../db/repo/instellingen';
 import { paden } from '../paden';
 import { vandaag } from '../testhaken';
@@ -17,5 +18,14 @@ export const appHandlers: DomeinHandlers<Kanalen> = {
     dataMap: paden.dataMap,
     documentenMap: paden.documentenMap,
   }),
-  'app:openMap': nietBeschikbaar,
+  // V-17 (OFM-021): alleen 'log' of 'offertes'; het pad komt uit paden.ts, nooit uit de renderer.
+  'app:openMap': async ({ welke }) => {
+    const map = welke === 'log' ? paden.logMap : paden.documentenMap;
+    const fout = await shell.openPath(map);
+    if (fout) {
+      log.warn(`app:openMap ${welke} mislukt: ${fout}`);
+      throw new AppFout('ONBEKEND');
+    }
+    return null;
+  },
 };
