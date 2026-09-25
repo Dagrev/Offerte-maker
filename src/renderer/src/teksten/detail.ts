@@ -27,6 +27,23 @@ export const detail = {
   toonInMap: 'Toon in map',
   maakKopie: 'Maak kopie',
   verwijderen: 'Verwijderen',
+
+  /** Statusknoppen (FE-060, OFM-016). */
+  statusKiezen: 'Status van de offerte',
+  statusAlleenDefinitief: 'Maak de offerte eerst definitief om de status te kiezen.',
+
+  /** Kopie (FE-061, V-21). */
+  kopieTitel: 'Voor wie is de kopie?',
+  kopieUitleg: 'De klusgegevens gaan mee. De teksten en prijzen maakt Claude opnieuw.',
+  zelfdeKlant: 'Zelfde klant',
+  andereKlant: 'Andere klant',
+  annuleren: 'Annuleren',
+
+  /** Verwijderen (FE-062). */
+  verwijderTitel: 'Weet je het zeker?',
+  verwijderUitleg: 'De offerte gaat naar de prullenbak. Daar kun je hem 90 dagen terugzetten.',
+  jaVerwijderen: 'Ja, verwijderen',
+  nee: 'Nee',
   /** Tooltip bij knoppen die in een volgend ticket worden aangesloten. */
   binnenkort: 'Komt in een volgende versie.',
 

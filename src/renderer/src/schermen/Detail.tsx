@@ -1,14 +1,4 @@
-import {
-  ArrowLeft,
-  Copy,
-  FileCheck,
-  FileText,
-  FolderOpen,
-  Pencil,
-  Printer,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, FileCheck, FileText, FolderOpen, Pencil, Printer, Sparkles } from 'lucide-react';
 import { formatEuro } from '@shared/formatteer';
 import { klantWeergave } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
@@ -23,6 +13,8 @@ import { PdfVoorbeeld } from '../componenten/PdfVoorbeeld';
 import { StatusLabel } from '../componenten/StatusLabel';
 import { useNavigatie } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
+import { KopieEnVerwijderen } from './detail/KopieEnVerwijderen';
+import { StatusKnoppen } from './detail/StatusKnoppen';
 
 // Detailscherm (FO S4, UC-06; TDO §13.4, V-05). Links het voorbeeld (gelijk aan de PDF, FE-050),
 // rechts het actiepaneel. OFM-015 (definitief, PDF), OFM-016 (status, kopie, verwijderen) en OFM-017
@@ -129,7 +121,11 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
             )}
           </div>
 
-          {/* Statusknoppen (FE-060): OFM-016. */}
+          <StatusKnoppen
+            id={detail.id}
+            status={detail.status}
+            definitief={detail.nummer !== null || detail.pdfs.length > 0}
+          />
 
           <div className="flex flex-col gap-3">
             {/* Fout van Maak definitief of een PDF-actie, met Opnieuw (§15.1). */}
@@ -187,9 +183,7 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
                 />
               </>
             )}
-            {/* Maak kopie (FE-061) en Verwijderen (FE-062): OFM-016. */}
-            <NogNiet label={t.maakKopie} icoon={Copy} />
-            <NogNiet label={t.verwijderen} icoon={Trash2} />
+            <KopieEnVerwijderen id={detail.id} />
           </div>
 
           {/* Eerdere versies met Terugzetten (FE-053): OFM-017 voegt de knop per versie toe. */}

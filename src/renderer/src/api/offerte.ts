@@ -71,6 +71,71 @@ export function usePdfActie(id: string) {
   });
 }
 
+/** Query-key van de prullenbak (OFM-016); los van `queryKeys` (OFM-008), dat niet meer wijzigt. */
+export const PRULLENBAK_KEY = ['prullenbak'] as const;
+
+/** Offerte en lijsten opnieuw ophalen na een beheeractie (OFM-016). */
+function useVerversOfferte(id: string) {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.offerte(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
+      queryClient.invalidateQueries({ queryKey: PRULLENBAK_KEY }),
+    ]);
+}
+
+/** `offerte:zetStatus` (OFM-016, FE-060): direct bewaard. */
+export function useZetStatus(id: string) {
+  const ververs = useVerversOfferte(id);
+  return useMutation({
+    mutationFn: (status: KanaalInvoer<'offerte:zetStatus'>['status']) =>
+      roep(window.api.offerteZetStatus({ id, status })),
+    onSuccess: ververs,
+  });
+}
+
+/** `offerte:nieuw` met `bronId` (OFM-016, FE-061, V-21): kopie voor dezelfde of een andere klant. */
+export function useMaakKopie(bronId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (zelfdeKlant: boolean) => roep(window.api.offerteNieuw({ bronId, zelfdeKlant })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
+  });
+}
+
+/** `offerte:verwijder` (OFM-016, FE-062): naar de prullenbak. */
+export function useVerwijderOfferte(id: string) {
+  const ververs = useVerversOfferte(id);
+  return useMutation({
+    mutationFn: () => roep(window.api.offerteVerwijder({ id })),
+    onSuccess: ververs,
+  });
+}
+
+/** `prullenbak:lijst` (OFM-016). */
+export function usePrullenbak() {
+  return useQuery({
+    queryKey: PRULLENBAK_KEY,
+    queryFn: () => roep(window.api.prullenbakLijst()),
+    refetchOnMount: 'always',
+  });
+}
+
+/** `offerte:zetTerug` (OFM-016): uit de prullenbak. */
+export function useZetTerug() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => roep(window.api.offerteZetTerug({ id })),
+    onSuccess: (_data, id) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.offerte(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
+        queryClient.invalidateQueries({ queryKey: PRULLENBAK_KEY }),
+      ]),
+  });
+}
+
 export type InvoerDeel = Omit<KanaalInvoer<'offerte:bewaarInvoer'>, 'id'>;
 
 const DEBOUNCE_MS = 500;
