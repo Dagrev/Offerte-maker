@@ -3,7 +3,7 @@
 //
 // FAKE_CLAUDE_MODE: ok (standaard) | oud | niet-ingelogd | ongeldig | leeg | crash | traag | limiet |
 //                   geen-internet | ongeldig-dan-ok | geen-versie (extra: --version zonder versienummer)
-// FAKE_CLAUDE_LOG:  pad; elke aanroep voegt een JSON-regel { args, stdin } toe.
+// FAKE_CLAUDE_LOG:  pad; elke aanroep voegt een JSON-regel { args, stdin, pid } toe (pid: OFM-027, Stoppen).
 
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -15,7 +15,7 @@ const modus = process.env.FAKE_CLAUDE_MODE || 'ok';
 const logPad = process.env.FAKE_CLAUDE_LOG;
 
 function logAanroep(stdin) {
-  if (logPad) appendFileSync(logPad, JSON.stringify({ args, stdin }) + '\n', 'utf8');
+  if (logPad) appendFileSync(logPad, JSON.stringify({ args, stdin, pid: process.pid }) + '\n', 'utf8');
 }
 
 function fixture(naam) {

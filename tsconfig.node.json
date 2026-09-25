@@ -25,6 +25,7 @@
     "src/shared/**/*",
     "src/renderer/src/stores/**/*.ts",
     "src/renderer/src/componenten/**/*.ts",
+    "src/renderer/src/teksten/**/*.ts",
     "scripts/**/*",
     "test/**/*",
     "electron.vite.config.ts",

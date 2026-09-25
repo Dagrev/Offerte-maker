@@ -39,8 +39,10 @@ export function Overzicht() {
   const zoekend = zoekTekst.length > 0;
 
   const openOfferte = (offerte: OfferteLijstItem) =>
-    // Concept → wizard; zonder `wizardStap` opent de wizard op de opgeslagen stap (OFM-010).
-    offerte.status === 'concept'
+    // Nog niet gemaakt (geen bedrag) → wizard op de opgeslagen stap (OFM-010); een gemaakt concept en
+    // alle andere offertes → detailscherm (FO UC-02 stap 6), anders kan een gemaakt concept niet meer
+    // definitief worden gemaakt zonder opnieuw te laten maken (OFM-027).
+    offerte.status === 'concept' && offerte.totaalInclCent === null
       ? gaNaar({ scherm: 'wizard', offerteId: offerte.id })
       : gaNaar({ scherm: 'detail', offerteId: offerte.id });
 
@@ -188,8 +190,9 @@ function Periodelijst({
     );
 
   const { items, groepen, samenvatting } = lijst.data;
+  // `aria-busy` zolang de vorige lijst nog staat (keepPreviousData); ook het meetpunt van NFE-004.
   return (
-    <>
+    <div className="contents" aria-busy={lijst.isFetching} data-lijst="periode">
       {items.length === 0 ? (
         <p className="rounded-knop bg-vlak p-8 text-center text-lg">{t.leeg}</p>
       ) : groepen ? (
@@ -219,7 +222,7 @@ function Periodelijst({
         </p>
         <PrullenbakKnop opKlik={() => gaNaar({ scherm: 'prullenbak' })} />
       </footer>
-    </>
+    </div>
   );
 }
 
@@ -236,7 +239,7 @@ function Zoekresultaten({ tekst, opKies }: { tekst: string; opKies: (o: OfferteL
     );
 
   return (
-    <>
+    <div className="contents" aria-busy={zoek.isFetching} data-lijst="zoek">
       <p role="status" className="font-semibold">
         {zoek.data.length === 0 ? t.geenTreffers : t.zoekResultaten(zoek.data.length)}
       </p>
@@ -245,7 +248,7 @@ function Zoekresultaten({ tekst, opKies }: { tekst: string; opKies: (o: OfferteL
       <footer className="mt-auto flex justify-end border-t border-rand pt-4">
         <PrullenbakKnop opKlik={() => gaNaar({ scherm: 'prullenbak' })} />
       </footer>
-    </>
+    </div>
   );
 }
 
