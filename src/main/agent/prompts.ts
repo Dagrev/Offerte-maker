@@ -38,9 +38,23 @@ Inhoud
 
 const TEMPLATE_DEEL = /\{\{#template\}\}([\s\S]*?)\{\{\/template\}\}/g;
 
-/** Systeemprompt; de template-delen alleen als er een goedgekeurd template is. */
-export function bouwSysteemprompt(opties: { template: boolean }): string {
-  return SYSTEEMPROMPT_SJABLOON.replace(TEMPLATE_DEEL, (_, deel: string) => (opties.template ? deel : ''));
+/** Eerste Werkwijze-bullet in de Claude Code-modus (voorbeelden in de werkmap). */
+const WERKWIJZE_MAP =
+  '- In de map waarin je werkt staan geanonimiseerde voorbeeldoffertes in voorbeelden/{{#template}} en het template in template.md{{/template}}. Lees die voordat je schrijft (bij meer dan vijf voorbeelden: de vijf die het best passen bij de klus). Je mag alleen lezen; doe verder niets.';
+
+/** V-17: in API-modus staan de voorbeelden in de opdracht zelf. */
+export const WERKWIJZE_API =
+  '- De geanonimiseerde voorbeeldoffertes{{#template}} en het template{{/template}} staan hieronder in de opdracht. Gebruik ze als voorbeeld.';
+
+/**
+ * Systeemprompt; de template-delen alleen als er een goedgekeurd template is. Met `api` vervangt de
+ * vaste zin uit V-17 de eerste Werkwijze-bullet (OFM-020).
+ */
+export function bouwSysteemprompt(opties: { template: boolean; api?: boolean }): string {
+  const sjabloon = opties.api
+    ? SYSTEEMPROMPT_SJABLOON.replace(WERKWIJZE_MAP, WERKWIJZE_API)
+    : SYSTEEMPROMPT_SJABLOON;
+  return sjabloon.replace(TEMPLATE_DEEL, (_, deel: string) => (opties.template ? deel : ''));
 }
 
 /** Een prijspost zoals de agent hem ziet (§10.5): `prijsEuro` = `prijs_cent / 100` of `null`. */
@@ -76,6 +90,40 @@ export function voorbeeldenSectie(aantalVoorbeelden: number, template: boolean):
   return template ? `${basis} Volg de indeling en toon van template.md.` : basis;
 }
 
+/** API-modus (§10.5, V-17): maximaal 10 voorbeelden en 200.000 tekens voor template + voorbeelden. */
+export const API_MAX_VOORBEELDEN = 10;
+export const API_MAX_TEKENS = 200_000;
+
+export interface VoorbeeldenVoorApi {
+  /** Tekst van het goedgekeurde template, of `null`. */
+  template: string | null;
+  /** Goedgekeurde voorbeelden (zonder template), nieuwste eerst. */
+  voorbeelden: readonly string[];
+}
+
+/**
+ * Sectie Voorbeelden in API-modus: de volledige teksten, zonder de zin over de map. Eerst het template,
+ * dan de voorbeelden (nieuwste eerst) zolang template + voorbeelden samen binnen de grens blijven.
+ */
+export function voorbeeldenSectieApi(v: VoorbeeldenVoorApi): string {
+  let tekens = v.template?.length ?? 0;
+  const gekozen: string[] = [];
+  for (const tekst of v.voorbeelden.slice(0, API_MAX_VOORBEELDEN)) {
+    if (tekens + tekst.length > API_MAX_TEKENS) break;
+    tekens += tekst.length;
+    gekozen.push(tekst);
+  }
+  const delen: string[] = [];
+  if (gekozen.length === 0) {
+    delen.push('Er zijn geen voorbeeldoffertes; schrijf in een gangbare, zakelijke stijl.');
+  }
+  if (v.template !== null) {
+    delen.push(`Volg de indeling en toon van het template.\n\n### Template\n\n${v.template}`);
+  }
+  gekozen.forEach((tekst, i) => delen.push(`### Voorbeeldofferte ${i + 1}\n\n${tekst}`));
+  return delen.join('\n\n');
+}
+
 const json = (waarde: unknown): string => JSON.stringify(waarde, null, 2);
 const blok = (waarde: unknown): string => `\`\`\`json\n${json(waarde)}\n\`\`\``;
 
@@ -85,6 +133,13 @@ export interface OpdrachtMaken {
   teksten: Standaardteksten;
   aantalVoorbeelden: number;
   template: boolean;
+  /** Alleen in API-modus: de volledige teksten in plaats van de verwijzing naar de werkmap (V-17). */
+  api?: VoorbeeldenVoorApi;
+}
+
+/** Sectie Voorbeelden in CLI- of API-modus. */
+export function voorbeeldenKop(o: Pick<OpdrachtMaken, 'aantalVoorbeelden' | 'template' | 'api'>): string {
+  return `## Voorbeelden\n${o.api ? voorbeeldenSectieApi(o.api) : voorbeeldenSectie(o.aantalVoorbeelden, o.template)}`;
 }
 
 /** Gedeelde secties Prijslijst en Voorbeelden (ook voor `aanpassen`, OFM-017). */
@@ -103,7 +158,7 @@ export function bouwOpdrachtMaken(o: OpdrachtMaken): string {
     '',
     `## Standaardteksten\n${blok({ inleiding: o.teksten.inleiding, afsluiting: o.teksten.afsluiting })}`,
     '',
-    `## Voorbeelden\n${voorbeeldenSectie(o.aantalVoorbeelden, o.template)}`,
+    voorbeeldenKop(o),
   ].join('\n');
 }
 

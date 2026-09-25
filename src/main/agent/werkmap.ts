@@ -37,6 +37,21 @@ export function schrijfSysteemprompt(tekst: string, map: string = paden.agentMap
   return pad;
 }
 
+/**
+ * API-modus (§10.5, V-17, OFM-020): dezelfde goedgekeurde, geanonimiseerde teksten als de werkmap,
+ * maar voor in de opdracht. Voorbeelden nieuwste eerst; de grenzen past `voorbeeldenSectieApi` toe.
+ */
+export function voorbeeldenVoorApi(): { template: string | null; voorbeelden: string[] } {
+  const alle = haalGoedgekeurdeVoorbeelden();
+  return {
+    template: alle.find((v) => v.isTemplate)?.tekst ?? null,
+    voorbeelden: alle
+      .filter((v) => !v.isTemplate)
+      .reverse()
+      .map((v) => v.tekst),
+  };
+}
+
 /** `voorbeeld-01.md`, `voorbeeld-02.md`, … */
 export function voorbeeldBestandsnaam(nummer: number): string {
   return `voorbeeld-${String(nummer).padStart(2, '0')}.md`;

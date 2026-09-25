@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { AppFout } from '@shared/fouten';
 import type { ClaudeStatus } from '@shared/types';
+import { haalInstelling, wijzigInstelling } from '../db/repo/instellingen';
 import { schrijfLogregel } from '../db/repo/privacylog';
 import { log } from '../log';
 import { zoekClaude } from './claudePad';
@@ -85,6 +86,12 @@ export async function testClaude(): Promise<{ duurMs: number }> {
   });
 
   if (code !== null) throw new AppFout(code);
+  // Een geslaagde test bewijst dat de verbinding er weer is: een oude internetfout (§10.2 stap 5)
+  // mag de status dan niet nog tien minuten rood houden (OFM-020).
+  if (haalInstelling('app').laatsteClaudeFout !== null) {
+    wijzigInstelling('app', { laatsteClaudeFout: null });
+    legeStatusCache();
+  }
   log.info(`claude: test geslaagd in ${duurMs} ms`);
   return { duurMs };
 }

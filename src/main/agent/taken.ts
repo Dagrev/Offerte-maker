@@ -11,10 +11,10 @@ import { bouwPiiSet } from '../privacy/piiSet';
 import { testhaak } from '../testhaken';
 import { bepaalClaudeStatus } from './claudeStatus';
 import { bouwOpdrachtMaken, bouwSysteemprompt, verstuurdeTekst } from './prompts';
-import { kiesProvider, type AgentProvider, type AgentVerzoek } from './provider';
+import { isApiModus, kiesProvider, type AgentProvider, type AgentVerzoek } from './provider';
 import { agentUitvoerSchema, UITVOER_SCHEMA } from './uitvoerSchema';
 import { nabewerk } from './verwerk';
-import { synchroniseerWerkmap } from './werkmap';
+import { synchroniseerWerkmap, voorbeeldenVoorApi } from './werkmap';
 
 // Agenttaken (TDO §10.7). `maakOfferte` is de eerste; OFM-017 (`pasAanMetClaude`) en OFM-024
 // (`tekstenUitTemplate`) hergebruiken `metTaak`, `controleerKoppeling`, `controleerPrivacy` en
@@ -232,13 +232,17 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
     const werkmap =
       opties.agentMap === undefined ? synchroniseerWerkmap() : synchroniseerWerkmap(opties.agentMap);
     const teksten = haalInstelling('teksten');
-    const systeemprompt = bouwSysteemprompt({ template: werkmap.template });
+    // API-modus (OFM-020, V-17): voorbeelden in de opdracht in plaats van in de werkmap. Ze horen niet
+    // bij de payload van de eindcontrole (§11.3): die is hierboven al gedaan.
+    const api = isApiModus();
+    const systeemprompt = bouwSysteemprompt({ template: werkmap.template, api });
     const opdracht = bouwOpdrachtMaken({
       klus,
       prijslijst: lijstPrijsposten(),
       teksten: { inleiding: teksten.inleiding, afsluiting: teksten.afsluiting },
       aantalVoorbeelden: werkmap.voorbeelden,
       template: werkmap.template,
+      ...(api && { api: voorbeeldenVoorApi() }),
     });
 
     // 4–5. Versturen, valideren, één nieuwe poging, privacylog.

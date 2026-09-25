@@ -68,6 +68,17 @@ describe('claude:test (FE-092, V-17)', () => {
     ]);
   });
 
+  it('een geslaagde test wist een oude internetfout (OFM-020)', async () => {
+    const { haalInstelling, wijzigInstelling } = await import('../db/repo/instellingen');
+    wijzigInstelling('app', {
+      laatsteClaudeFout: { code: 'GEEN_INTERNET', tijdstip: new Date().toISOString() },
+    });
+    claude = gebruikNepClaude('ok');
+    await testClaude();
+    expect(haalInstelling('app').laatsteClaudeFout).toBeNull();
+    await testClaude(); // zonder oude fout: niets te wissen
+  });
+
   it('via IPC: fout als Resultaat met code en een privacylogregel fout', async () => {
     claude = gebruikNepClaude('limiet');
     const resultaat = await maakIpcHandler('claude:test', claudeHandlers['claude:test'])(
