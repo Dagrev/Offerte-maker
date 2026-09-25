@@ -38,8 +38,17 @@ function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
   return rest;
 }
 
-/** Tab Bedrijf (FE-070): bedrijfsgegevens en logo; elk veld bewaart vanzelf (FE-075). */
-export function TabBedrijf({ instellingen }: { instellingen: Instellingen }) {
+/**
+ * Tab Bedrijf (FE-070): bedrijfsgegevens en logo; elk veld bewaart vanzelf (FE-075). `opWijzig` is
+ * voor het welkomstscherm (OFM-023), dat de bedrijfsnaam nodig heeft voor **Volgende** (V-20).
+ */
+export function TabBedrijf({
+  instellingen,
+  opWijzig,
+}: {
+  instellingen: Instellingen;
+  opWijzig?: (bedrijf: BedrijfForm) => void;
+}) {
   const [form, setForm] = useState<BedrijfForm>(() => naarForm(instellingen.bedrijf));
   const bewaren = useAutoBewaar((waarde: BedrijfForm) => bewaarInstelling({ sleutel: 'bedrijf', waarde }));
 
@@ -47,6 +56,7 @@ export function TabBedrijf({ instellingen }: { instellingen: Instellingen }) {
     const nieuw = { ...form, [sleutel]: waarde };
     setForm(nieuw);
     bewaren.wijzig(nieuw);
+    opWijzig?.(nieuw);
   };
 
   return (
