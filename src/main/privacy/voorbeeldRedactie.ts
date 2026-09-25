@@ -126,12 +126,20 @@ function redigeerAdresblok(tekst: string): string {
   return regels.map((r, i) => (teRedigeren.has(i) ? VERWIJDERD : r)).join('\n');
 }
 
-/** Stap 6: handmatige redacties, letterlijk, overal, hoofdletterongevoelig; langste eerst. */
+/**
+ * Stap 6: handmatige redacties, letterlijk, overal, hoofdletterongevoelig; langste eerst. Herhaald
+ * tot er niets meer verandert (OFM-019): een redactie die over het balkje van een eerdere, kortere
+ * redactie heen is geselecteerd (`in [VERWIJDERD], zodra`), past pas in de tweede ronde.
+ */
 function redigeerHandmatig(tekst: string, handmatigeRedacties: readonly string[]): string {
-  return [...handmatigeRedacties]
-    .filter((r) => r.trim() !== '')
-    .sort((a, b) => b.length - a.length)
-    .reduce((uit, r) => uit.replace(new RegExp(escape(r), 'giu'), VERWIJDERD), tekst);
+  const lijst = [...handmatigeRedacties].filter((r) => r.trim() !== '').sort((a, b) => b.length - a.length);
+  let uit = tekst;
+  for (let ronde = 0; ronde <= lijst.length; ronde++) {
+    const volgende = lijst.reduce((t, r) => t.replace(new RegExp(escape(r), 'giu'), VERWIJDERD), uit);
+    if (volgende === uit) break;
+    uit = volgende;
+  }
+  return uit;
 }
 
 export function redigeerVoorbeeld(

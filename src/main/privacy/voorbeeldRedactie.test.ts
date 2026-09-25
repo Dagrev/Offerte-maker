@@ -226,6 +226,17 @@ describe('redigeerVoorbeeld (§11.5)', () => {
         '[VERWIJDERD] [VERWIJDERD] a+b',
       );
     });
+
+    it('een redactie over het balkje van een kortere redactie heen werkt ook (OFM-019)', () => {
+      expect(
+        zonderVulling(
+          redigeerVoorbeeld(naAdresblok('langs in Oosterhout, zodra het kan'), leegBedrijf, [
+            'oosterhout',
+            'in [VERWIJDERD], zodra',
+          ]),
+        ),
+      ).toBe('langs [VERWIJDERD] het kan');
+    });
   });
 
   it('herhaalbaar: zelfde bron geeft zelfde resultaat; een nieuwe redactie werkt door vanaf de bron', () => {
