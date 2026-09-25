@@ -1,12 +1,13 @@
-import { nietBeschikbaar } from '@shared/fouten';
+import { drukAf, openPdf, toonInMap } from '../pdf/afdrukken';
+import { maakDefinitief } from '../pdf/definitief';
 import type { DomeinHandlers } from './registreer';
 
-// Eigenaar: OFM-015. Vervang een stub door de echte handler; de kanalen zelf staan vast (V-03).
+// Eigenaar: OFM-015. Definitief maken, PDF openen, afdrukken en tonen in de map (TDO §12.3, §12.4, V-01).
 type Kanalen = 'offerte:maakDefinitief' | 'offerte:openPdf' | 'offerte:afdrukken' | 'offerte:toonInMap';
 
 export const offerteDefinitiefHandlers: DomeinHandlers<Kanalen> = {
-  'offerte:maakDefinitief': nietBeschikbaar,
-  'offerte:openPdf': nietBeschikbaar,
-  'offerte:afdrukken': nietBeschikbaar,
-  'offerte:toonInMap': nietBeschikbaar,
+  'offerte:maakDefinitief': ({ id }) => maakDefinitief(id),
+  'offerte:openPdf': ({ id }) => openPdf(id),
+  'offerte:afdrukken': ({ id }) => drukAf(id),
+  'offerte:toonInMap': ({ id }) => toonInMap(id),
 };

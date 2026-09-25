@@ -21,6 +21,7 @@ export const detail = {
   aanpassen: 'Aanpassen',
   laatClaudeAanpassen: 'Laat Claude aanpassen',
   maakDefinitief: 'Maak definitief',
+  pdfWordtGemaakt: 'De PDF wordt gemaakt…',
   openPdf: 'Open PDF',
   afdrukken: 'Afdrukken',
   toonInMap: 'Toon in map',
