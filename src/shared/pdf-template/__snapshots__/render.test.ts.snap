@@ -1,0 +1,272 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderOfferteHtml > snapshot lay-out compact 1`] = `
+"<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><title>Offerte 2026-014</title>
+<style>@font-face { font-family: 'Inter'; src: url(data:font/woff2;base64,AAAA) format('woff2'); }</style>
+<style>:root { --accent: #2E7D32; --font-tekst: 'Inter', sans-serif; --font-kop: 'Inter', sans-serif; }
+@page { size: A4; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-tekst); font-size: 10pt; line-height: 1.4; color: #1A1A1A; background: #FFFFFF;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2 { font-family: var(--font-kop); font-weight: 700; line-height: 1.25; margin: 0 0 6pt; }
+h1 { font-size: 15pt; }
+h2 { font-size: 11.5pt; }
+p { margin: 0 0 6pt; }
+section { margin: 0 0 14pt; break-inside: avoid-page; }
+section.werkomschrijving, section.prijsopgave { break-inside: auto; }
+h2 { break-after: avoid-page; }
+ol { margin: 0; padding-left: 18pt; }
+li { margin: 0 0 3pt; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 3pt 5pt; }
+th { font-weight: 700; }
+.getal { text-align: right; white-space: nowrap; }
+.kop { display: flex; gap: 12pt; }
+.logo { display: block; max-height: 22mm; max-width: 60mm; object-fit: contain; }
+.bedrijfsnaam { font-family: var(--font-kop); font-size: 14pt; font-weight: 700; }
+.gegevens span, .klant span { display: block; }
+.adres { display: flex; justify-content: space-between; gap: 24pt; }
+.offertegegevens table { width: auto; }
+.offertegegevens th { font-weight: 400; padding: 0 10pt 0 0; }
+.offertegegevens td { padding: 0; }
+.werkadres { margin: 4pt 0 0; }
+.aanhef { margin-bottom: 8pt; }
+.prijstabel .omschrijving { width: 52%; }
+.totalen { width: 60%; margin: 6pt 0 0 auto; break-inside: avoid; }
+.totalen td { padding: 2pt 5pt; }
+.totalen .totaal td { font-weight: 700; color: var(--accent); border-top: 1pt solid currentColor; padding-top: 4pt; }
+.ondertekening { margin-top: 10pt; }
+.akkoord .lijnen { display: flex; gap: 18pt; margin-top: 8pt; }
+.akkoord .lijn { flex: 1; border-bottom: 0.75pt solid #1A1A1A; height: 32pt; position: relative; }
+.akkoord .lijn.handtekening { flex: 1.6; }
+.akkoord .lijn span { position: absolute; left: 0; top: 0; font-size: 8.5pt; color: #555555; }
+.voetnoot { font-size: 8pt; color: #555555; }
+body.voorbeeld { width: 210mm; min-height: 297mm; padding: 20mm 20mm 25mm; position: relative; }
+.voettekst {
+  margin-top: 18pt; padding-top: 4pt; border-top: 0.5pt solid #CCCCCC;
+  font-family: sans-serif; font-size: 8pt; color: #555555;
+}
+.watermerk {
+  position: absolute; top: 148mm; left: 50%; transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: sans-serif; font-size: 110pt; font-weight: 700; letter-spacing: 8pt;
+  color: rgba(0, 0, 0, 0.07); pointer-events: none; z-index: 10; white-space: nowrap;
+}
+
+.kop { align-items: center; gap: 8pt; font-size: 8.5pt; padding-bottom: 5pt; margin-bottom: 12pt;
+  border-bottom: 0.5pt solid #BDBDBD; }
+.kop .logo { max-height: 11mm; max-width: 40mm; }
+.kop .bedrijf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8pt; }
+.kop .bedrijfsnaam { font-size: 10pt; }
+.kop .gegevens span { display: inline; }
+.kop .gegevens span + span::before { content: ' · '; }
+.adres { justify-content: flex-start; gap: 40pt; }
+section { margin-bottom: 10pt; }
+h1 { font-size: 13pt; }
+h2 { font-size: 10.5pt; margin-bottom: 4pt; }
+.prijstabel { font-size: 9pt; }
+.prijstabel thead th { border-bottom: 0.75pt solid #1A1A1A; }
+.prijstabel tbody tr:nth-child(even) { background: #F2F3F5; }
+.prijstabel th, .prijstabel td { padding: 2pt 5pt; }
+</style>
+</head>
+<body class="layout-compact pdf">
+
+<section class="kop"><img class="logo" src="data:image/png;base64,iVBORw0KGgo=" alt=""><div class="bedrijf"><div class="bedrijfsnaam">Dakdekkersbedrijf Voorbeeld</div><div class="gegevens"><span>Industrieweg 4</span><span>5600 AA Eindhoven</span><span>040 123 45 67</span><span>info@voorbeelddak.nl</span><span>www.voorbeelddak.nl</span></div></div></section>
+<section class="adres"><div class="klant"><span>Fam. De Vries</span><span>Lindelaan 12</span><span>5611 AB Eindhoven</span></div><div class="offertegegevens"><table><tr><th>Offertenummer</th><td>2026-014</td></tr><tr><th>Datum</th><td>25-09-2026</td></tr><tr><th>Geldig tot</th><td>25-10-2026</td></tr></table></div></section>
+<section class="titel"><h1>Offerte vervangen dakbedekking plat dak</h1></section>
+<section class="inleiding"><p class="aanhef">Geachte familie De Vries,</p><p>Naar aanleiding van uw aanvraag doen wij u hierbij graag een offerte toekomen voor de onderstaande werkzaamheden.</p></section>
+<section class="werkomschrijving"><h2>Werkomschrijving</h2><ol><li>Bestaande dakbedekking verwijderen en afvoeren.</li><li>Ondergrond controleren en waar nodig herstellen.</li><li>Isolatie aanbrengen, 100 mm PIR.</li><li>Nieuwe dakbedekking aanbrengen: EPDM 1,5 mm.</li><li>Daktrim en hemelwaterafvoeren vernieuwen.</li></ol></section>
+<section class="prijsopgave"><h2>Prijsopgave</h2><table class="prijstabel"><thead><tr><th class="omschrijving">Omschrijving</th><th class="getal">Aantal</th><th class="eenheid">Eenheid</th><th class="getal">Prijs</th><th class="getal">Bedrag</th></tr></thead><tbody><tr><td class="omschrijving">Verwijderen en afvoeren bestaande dakbedekking</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 12,50</td><td class="getal">€ 435,00</td></tr><tr><td class="omschrijving">Isolatie PIR 100 mm</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 32,00</td><td class="getal">€ 1.113,60</td></tr><tr><td class="omschrijving">EPDM 1,5 mm, volledig verkleefd</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 45,00</td><td class="getal">€ 1.566,00</td></tr><tr><td class="omschrijving">Aluminium daktrim</td><td class="getal">24</td><td class="eenheid">m¹</td><td class="getal">€ 27,50</td><td class="getal">€ 660,00</td></tr><tr><td class="omschrijving">Hemelwaterafvoer vernieuwen</td><td class="getal">2</td><td class="eenheid">stuk</td><td class="getal">€ 85,00</td><td class="getal">€ 170,00</td></tr></tbody></table><table class="totalen"><tbody><tr class="subtotaal"><td>Subtotaal excl. btw</td><td class="getal">€ 3.944,60</td></tr><tr class="btw"><td>Btw 21% over € 3.944,60</td><td class="getal">€ 828,37</td></tr><tr class="totaal"><td>Totaal incl. btw</td><td class="getal">€ 4.772,97</td></tr></tbody></table></section>
+<section class="uitvoering"><h2>Uitvoering en planning</h2><p>De werkzaamheden duren naar verwachting twee werkdagen. Wij plannen de uitvoering in overleg, bij droog weer.</p></section>
+<section class="garantie"><h2>Garantie</h2><p>Op de uitgevoerde werkzaamheden geven wij 10 jaar schriftelijke garantie op waterdichtheid, zonder verplicht onderhoudscontract.</p></section>
+
+<section class="voorwaarden"><h2>Voorwaarden</h2><p>Betaling binnen 14 dagen na oplevering en ontvangst van de factuur.</p><p class="geldigheid">Deze offerte is geldig tot en met 25 oktober 2026.</p></section>
+<section class="afsluiting"><p>Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.</p><p class="ondertekening">Met vriendelijke groet,<br><br>J. Voorbeeld<br>Dakdekkersbedrijf Voorbeeld</p></section>
+<section class="akkoord"><h2>Voor akkoord</h2><div class="lijnen"><div class="lijn naam"><span>Naam</span></div><div class="lijn datum"><span>Datum</span></div><div class="lijn handtekening"><span>Handtekening</span></div></div></section>
+
+
+</body></html>
+"
+`;
+
+exports[`renderOfferteHtml > snapshot lay-out klassiek 1`] = `
+"<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><title>Offerte 2026-014</title>
+<style>@font-face { font-family: 'Inter'; src: url(data:font/woff2;base64,AAAA) format('woff2'); }</style>
+<style>:root { --accent: #2E7D32; --font-tekst: 'Inter', sans-serif; --font-kop: 'Inter', sans-serif; }
+@page { size: A4; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-tekst); font-size: 10pt; line-height: 1.4; color: #1A1A1A; background: #FFFFFF;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2 { font-family: var(--font-kop); font-weight: 700; line-height: 1.25; margin: 0 0 6pt; }
+h1 { font-size: 15pt; }
+h2 { font-size: 11.5pt; }
+p { margin: 0 0 6pt; }
+section { margin: 0 0 14pt; break-inside: avoid-page; }
+section.werkomschrijving, section.prijsopgave { break-inside: auto; }
+h2 { break-after: avoid-page; }
+ol { margin: 0; padding-left: 18pt; }
+li { margin: 0 0 3pt; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 3pt 5pt; }
+th { font-weight: 700; }
+.getal { text-align: right; white-space: nowrap; }
+.kop { display: flex; gap: 12pt; }
+.logo { display: block; max-height: 22mm; max-width: 60mm; object-fit: contain; }
+.bedrijfsnaam { font-family: var(--font-kop); font-size: 14pt; font-weight: 700; }
+.gegevens span, .klant span { display: block; }
+.adres { display: flex; justify-content: space-between; gap: 24pt; }
+.offertegegevens table { width: auto; }
+.offertegegevens th { font-weight: 400; padding: 0 10pt 0 0; }
+.offertegegevens td { padding: 0; }
+.werkadres { margin: 4pt 0 0; }
+.aanhef { margin-bottom: 8pt; }
+.prijstabel .omschrijving { width: 52%; }
+.totalen { width: 60%; margin: 6pt 0 0 auto; break-inside: avoid; }
+.totalen td { padding: 2pt 5pt; }
+.totalen .totaal td { font-weight: 700; color: var(--accent); border-top: 1pt solid currentColor; padding-top: 4pt; }
+.ondertekening { margin-top: 10pt; }
+.akkoord .lijnen { display: flex; gap: 18pt; margin-top: 8pt; }
+.akkoord .lijn { flex: 1; border-bottom: 0.75pt solid #1A1A1A; height: 32pt; position: relative; }
+.akkoord .lijn.handtekening { flex: 1.6; }
+.akkoord .lijn span { position: absolute; left: 0; top: 0; font-size: 8.5pt; color: #555555; }
+.voetnoot { font-size: 8pt; color: #555555; }
+body.voorbeeld { width: 210mm; min-height: 297mm; padding: 20mm 20mm 25mm; position: relative; }
+.voettekst {
+  margin-top: 18pt; padding-top: 4pt; border-top: 0.5pt solid #CCCCCC;
+  font-family: sans-serif; font-size: 8pt; color: #555555;
+}
+.watermerk {
+  position: absolute; top: 148mm; left: 50%; transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: sans-serif; font-size: 110pt; font-weight: 700; letter-spacing: 8pt;
+  color: rgba(0, 0, 0, 0.07); pointer-events: none; z-index: 10; white-space: nowrap;
+}
+
+.kop { justify-content: space-between; align-items: flex-start; padding-bottom: 8pt; margin-bottom: 18pt;
+  border-bottom: 1.25pt solid var(--accent); }
+.kop .bedrijf { margin-left: auto; text-align: right; }
+.kop .gegevens { font-size: 9pt; color: #444444; }
+h1, h2 { color: var(--accent); }
+.prijstabel th, .prijstabel td { border: 0.5pt solid #BDBDBD; }
+.prijstabel thead th { background: #EEEEEE; }
+</style>
+</head>
+<body class="layout-klassiek pdf">
+
+<section class="kop"><img class="logo" src="data:image/png;base64,iVBORw0KGgo=" alt=""><div class="bedrijf"><div class="bedrijfsnaam">Dakdekkersbedrijf Voorbeeld</div><div class="gegevens"><span>Industrieweg 4</span><span>5600 AA Eindhoven</span><span>040 123 45 67</span><span>info@voorbeelddak.nl</span><span>www.voorbeelddak.nl</span></div></div></section>
+<section class="adres"><div class="klant"><span>Fam. De Vries</span><span>Lindelaan 12</span><span>5611 AB Eindhoven</span></div><div class="offertegegevens"><table><tr><th>Offertenummer</th><td>2026-014</td></tr><tr><th>Datum</th><td>25-09-2026</td></tr><tr><th>Geldig tot</th><td>25-10-2026</td></tr></table></div></section>
+<section class="titel"><h1>Offerte vervangen dakbedekking plat dak</h1></section>
+<section class="inleiding"><p class="aanhef">Geachte familie De Vries,</p><p>Naar aanleiding van uw aanvraag doen wij u hierbij graag een offerte toekomen voor de onderstaande werkzaamheden.</p></section>
+<section class="werkomschrijving"><h2>Werkomschrijving</h2><ol><li>Bestaande dakbedekking verwijderen en afvoeren.</li><li>Ondergrond controleren en waar nodig herstellen.</li><li>Isolatie aanbrengen, 100 mm PIR.</li><li>Nieuwe dakbedekking aanbrengen: EPDM 1,5 mm.</li><li>Daktrim en hemelwaterafvoeren vernieuwen.</li></ol></section>
+<section class="prijsopgave"><h2>Prijsopgave</h2><table class="prijstabel"><thead><tr><th class="omschrijving">Omschrijving</th><th class="getal">Aantal</th><th class="eenheid">Eenheid</th><th class="getal">Prijs</th><th class="getal">Bedrag</th></tr></thead><tbody><tr><td class="omschrijving">Verwijderen en afvoeren bestaande dakbedekking</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 12,50</td><td class="getal">€ 435,00</td></tr><tr><td class="omschrijving">Isolatie PIR 100 mm</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 32,00</td><td class="getal">€ 1.113,60</td></tr><tr><td class="omschrijving">EPDM 1,5 mm, volledig verkleefd</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 45,00</td><td class="getal">€ 1.566,00</td></tr><tr><td class="omschrijving">Aluminium daktrim</td><td class="getal">24</td><td class="eenheid">m¹</td><td class="getal">€ 27,50</td><td class="getal">€ 660,00</td></tr><tr><td class="omschrijving">Hemelwaterafvoer vernieuwen</td><td class="getal">2</td><td class="eenheid">stuk</td><td class="getal">€ 85,00</td><td class="getal">€ 170,00</td></tr></tbody></table><table class="totalen"><tbody><tr class="subtotaal"><td>Subtotaal excl. btw</td><td class="getal">€ 3.944,60</td></tr><tr class="btw"><td>Btw 21% over € 3.944,60</td><td class="getal">€ 828,37</td></tr><tr class="totaal"><td>Totaal incl. btw</td><td class="getal">€ 4.772,97</td></tr></tbody></table></section>
+<section class="uitvoering"><h2>Uitvoering en planning</h2><p>De werkzaamheden duren naar verwachting twee werkdagen. Wij plannen de uitvoering in overleg, bij droog weer.</p></section>
+<section class="garantie"><h2>Garantie</h2><p>Op de uitgevoerde werkzaamheden geven wij 10 jaar schriftelijke garantie op waterdichtheid, zonder verplicht onderhoudscontract.</p></section>
+
+<section class="voorwaarden"><h2>Voorwaarden</h2><p>Betaling binnen 14 dagen na oplevering en ontvangst van de factuur.</p><p class="geldigheid">Deze offerte is geldig tot en met 25 oktober 2026.</p></section>
+<section class="afsluiting"><p>Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.</p><p class="ondertekening">Met vriendelijke groet,<br><br>J. Voorbeeld<br>Dakdekkersbedrijf Voorbeeld</p></section>
+<section class="akkoord"><h2>Voor akkoord</h2><div class="lijnen"><div class="lijn naam"><span>Naam</span></div><div class="lijn datum"><span>Datum</span></div><div class="lijn handtekening"><span>Handtekening</span></div></div></section>
+
+
+</body></html>
+"
+`;
+
+exports[`renderOfferteHtml > snapshot lay-out modern 1`] = `
+"<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><title>Offerte 2026-014</title>
+<style>@font-face { font-family: 'Inter'; src: url(data:font/woff2;base64,AAAA) format('woff2'); }</style>
+<style>:root { --accent: #2E7D32; --font-tekst: 'Inter', sans-serif; --font-kop: 'Inter', sans-serif; }
+@page { size: A4; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-tekst); font-size: 10pt; line-height: 1.4; color: #1A1A1A; background: #FFFFFF;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2 { font-family: var(--font-kop); font-weight: 700; line-height: 1.25; margin: 0 0 6pt; }
+h1 { font-size: 15pt; }
+h2 { font-size: 11.5pt; }
+p { margin: 0 0 6pt; }
+section { margin: 0 0 14pt; break-inside: avoid-page; }
+section.werkomschrijving, section.prijsopgave { break-inside: auto; }
+h2 { break-after: avoid-page; }
+ol { margin: 0; padding-left: 18pt; }
+li { margin: 0 0 3pt; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 3pt 5pt; }
+th { font-weight: 700; }
+.getal { text-align: right; white-space: nowrap; }
+.kop { display: flex; gap: 12pt; }
+.logo { display: block; max-height: 22mm; max-width: 60mm; object-fit: contain; }
+.bedrijfsnaam { font-family: var(--font-kop); font-size: 14pt; font-weight: 700; }
+.gegevens span, .klant span { display: block; }
+.adres { display: flex; justify-content: space-between; gap: 24pt; }
+.offertegegevens table { width: auto; }
+.offertegegevens th { font-weight: 400; padding: 0 10pt 0 0; }
+.offertegegevens td { padding: 0; }
+.werkadres { margin: 4pt 0 0; }
+.aanhef { margin-bottom: 8pt; }
+.prijstabel .omschrijving { width: 52%; }
+.totalen { width: 60%; margin: 6pt 0 0 auto; break-inside: avoid; }
+.totalen td { padding: 2pt 5pt; }
+.totalen .totaal td { font-weight: 700; color: var(--accent); border-top: 1pt solid currentColor; padding-top: 4pt; }
+.ondertekening { margin-top: 10pt; }
+.akkoord .lijnen { display: flex; gap: 18pt; margin-top: 8pt; }
+.akkoord .lijn { flex: 1; border-bottom: 0.75pt solid #1A1A1A; height: 32pt; position: relative; }
+.akkoord .lijn.handtekening { flex: 1.6; }
+.akkoord .lijn span { position: absolute; left: 0; top: 0; font-size: 8.5pt; color: #555555; }
+.voetnoot { font-size: 8pt; color: #555555; }
+body.voorbeeld { width: 210mm; min-height: 297mm; padding: 20mm 20mm 25mm; position: relative; }
+.voettekst {
+  margin-top: 18pt; padding-top: 4pt; border-top: 0.5pt solid #CCCCCC;
+  font-family: sans-serif; font-size: 8pt; color: #555555;
+}
+.watermerk {
+  position: absolute; top: 148mm; left: 50%; transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: sans-serif; font-size: 110pt; font-weight: 700; letter-spacing: 8pt;
+  color: rgba(0, 0, 0, 0.07); pointer-events: none; z-index: 10; white-space: nowrap;
+}
+
+.kop { align-items: center; background: var(--accent); color: #FFFFFF; padding: 10pt 12pt; margin-bottom: 18pt; }
+.kop .logo { background: #FFFFFF; padding: 3pt; border-radius: 3pt; max-height: 18mm; }
+.kop .gegevens { font-size: 8.5pt; }
+.kop .gegevens span { display: inline; }
+.kop .gegevens span + span::before { content: ' · '; }
+h2::before { content: ''; display: inline-block; width: 7pt; height: 7pt; margin: 0 6pt 1pt 0;
+  background: var(--accent); vertical-align: middle; }
+.prijstabel thead th { background: var(--accent); color: #FFFFFF; }
+.prijstabel td { border-bottom: 0.5pt solid #D0D4DA; }
+</style>
+</head>
+<body class="layout-modern pdf">
+
+<section class="kop"><img class="logo" src="data:image/png;base64,iVBORw0KGgo=" alt=""><div class="bedrijf"><div class="bedrijfsnaam">Dakdekkersbedrijf Voorbeeld</div><div class="gegevens"><span>Industrieweg 4</span><span>5600 AA Eindhoven</span><span>040 123 45 67</span><span>info@voorbeelddak.nl</span><span>www.voorbeelddak.nl</span></div></div></section>
+<section class="adres"><div class="klant"><span>Fam. De Vries</span><span>Lindelaan 12</span><span>5611 AB Eindhoven</span></div><div class="offertegegevens"><table><tr><th>Offertenummer</th><td>2026-014</td></tr><tr><th>Datum</th><td>25-09-2026</td></tr><tr><th>Geldig tot</th><td>25-10-2026</td></tr></table></div></section>
+<section class="titel"><h1>Offerte vervangen dakbedekking plat dak</h1></section>
+<section class="inleiding"><p class="aanhef">Geachte familie De Vries,</p><p>Naar aanleiding van uw aanvraag doen wij u hierbij graag een offerte toekomen voor de onderstaande werkzaamheden.</p></section>
+<section class="werkomschrijving"><h2>Werkomschrijving</h2><ol><li>Bestaande dakbedekking verwijderen en afvoeren.</li><li>Ondergrond controleren en waar nodig herstellen.</li><li>Isolatie aanbrengen, 100 mm PIR.</li><li>Nieuwe dakbedekking aanbrengen: EPDM 1,5 mm.</li><li>Daktrim en hemelwaterafvoeren vernieuwen.</li></ol></section>
+<section class="prijsopgave"><h2>Prijsopgave</h2><table class="prijstabel"><thead><tr><th class="omschrijving">Omschrijving</th><th class="getal">Aantal</th><th class="eenheid">Eenheid</th><th class="getal">Prijs</th><th class="getal">Bedrag</th></tr></thead><tbody><tr><td class="omschrijving">Verwijderen en afvoeren bestaande dakbedekking</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 12,50</td><td class="getal">€ 435,00</td></tr><tr><td class="omschrijving">Isolatie PIR 100 mm</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 32,00</td><td class="getal">€ 1.113,60</td></tr><tr><td class="omschrijving">EPDM 1,5 mm, volledig verkleefd</td><td class="getal">34,8</td><td class="eenheid">m²</td><td class="getal">€ 45,00</td><td class="getal">€ 1.566,00</td></tr><tr><td class="omschrijving">Aluminium daktrim</td><td class="getal">24</td><td class="eenheid">m¹</td><td class="getal">€ 27,50</td><td class="getal">€ 660,00</td></tr><tr><td class="omschrijving">Hemelwaterafvoer vernieuwen</td><td class="getal">2</td><td class="eenheid">stuk</td><td class="getal">€ 85,00</td><td class="getal">€ 170,00</td></tr></tbody></table><table class="totalen"><tbody><tr class="subtotaal"><td>Subtotaal excl. btw</td><td class="getal">€ 3.944,60</td></tr><tr class="btw"><td>Btw 21% over € 3.944,60</td><td class="getal">€ 828,37</td></tr><tr class="totaal"><td>Totaal incl. btw</td><td class="getal">€ 4.772,97</td></tr></tbody></table></section>
+<section class="uitvoering"><h2>Uitvoering en planning</h2><p>De werkzaamheden duren naar verwachting twee werkdagen. Wij plannen de uitvoering in overleg, bij droog weer.</p></section>
+<section class="garantie"><h2>Garantie</h2><p>Op de uitgevoerde werkzaamheden geven wij 10 jaar schriftelijke garantie op waterdichtheid, zonder verplicht onderhoudscontract.</p></section>
+
+<section class="voorwaarden"><h2>Voorwaarden</h2><p>Betaling binnen 14 dagen na oplevering en ontvangst van de factuur.</p><p class="geldigheid">Deze offerte is geldig tot en met 25 oktober 2026.</p></section>
+<section class="afsluiting"><p>Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.</p><p class="ondertekening">Met vriendelijke groet,<br><br>J. Voorbeeld<br>Dakdekkersbedrijf Voorbeeld</p></section>
+<section class="akkoord"><h2>Voor akkoord</h2><div class="lijnen"><div class="lijn naam"><span>Naam</span></div><div class="lijn datum"><span>Datum</span></div><div class="lijn handtekening"><span>Handtekening</span></div></div></section>
+
+
+</body></html>
+"
+`;
