@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { Prijspost } from '@shared/types';
+import type { OfferteInhoud, Prijspost } from '@shared/types';
 import { maakInvoer, maakKlant } from '../../../test/privacy/testset';
 import { bouwKlusVoorAgent } from '../privacy/klusVoorAgent';
 import {
+  bouwOpdrachtAanpassen,
   bouwOpdrachtMaken,
+  huidigeOfferteVoorAgent,
+  SLOTZIN_AANPASSEN,
   bouwSysteemprompt,
   prijslijstVoorAgent,
   SYSTEEMPROMPT_SJABLOON,
@@ -124,5 +127,92 @@ describe('opdracht bij maken (§10.5)', () => {
 
   it('verstuurde tekst = systeemprompt + scheiding + opdracht', () => {
     expect(verstuurdeTekst('S', 'O')).toBe('S\n\n---\n\nO');
+  });
+});
+
+describe('opdracht aanpassen (OFM-017, §10.5, V-06)', () => {
+  const huidige: OfferteInhoud = {
+    titel: 'T',
+    inleiding: 'I',
+    werkomschrijving: ['S'],
+    regels: [
+      {
+        id: 'a',
+        omschrijving: 'A',
+        aantalHonderdsten: 3480,
+        eenheid: 'm²',
+        prijsCent: 5500,
+        btwTarief: 21,
+        prijsbron: 'prijslijst',
+        prijspostId: 'start-x',
+      },
+      {
+        id: 'b',
+        omschrijving: 'B',
+        aantalHonderdsten: 100,
+        eenheid: 'post',
+        prijsCent: 99,
+        btwTarief: 9,
+        prijsbron: 'handmatig',
+        prijspostId: null,
+      },
+    ],
+    uitvoering: 'U',
+    opmerkingen: '',
+    afsluiting: 'A',
+    controlepunten: ['geheim punt'],
+  };
+
+  it('huidige offerte zonder id’s en controlepunten, met ref, prijsEuro, aantal en prijsbron', () => {
+    const agent = huidigeOfferteVoorAgent(huidige);
+    expect(agent).not.toHaveProperty('controlepunten');
+    expect(agent.regels).toEqual([
+      {
+        ref: 'r1',
+        omschrijving: 'A',
+        aantal: 34.8,
+        eenheid: 'm²',
+        prijsEuro: 55,
+        btwTarief: 21,
+        prijsbron: 'prijslijst',
+        prijspostId: 'start-x',
+      },
+      {
+        ref: 'r2',
+        omschrijving: 'B',
+        aantal: 1,
+        eenheid: 'post',
+        prijsEuro: 0.99,
+        btwTarief: 9,
+        prijsbron: 'handmatig',
+        prijspostId: null,
+      },
+    ]);
+  });
+
+  it('secties in volgorde en de slotzin', () => {
+    const opdracht = bouwOpdrachtAanpassen({
+      huidige,
+      instructie: '  Korter  ',
+      prijslijst: [],
+      aantalVoorbeelden: 0,
+      template: false,
+    });
+    const koppen = [
+      '# Opdracht: pas deze offerte aan',
+      '## Huidige offerte',
+      '## Prijslijst',
+      '## Voorbeelden',
+      '## Wat moet er anders\nKorter',
+    ];
+    const posities = koppen.map((k) => opdracht.indexOf(k));
+    expect(posities.every((p) => p >= 0)).toBe(true);
+    expect([...posities].sort((a, b) => a - b)).toEqual(posities);
+    expect(opdracht.endsWith(SLOTZIN_AANPASSEN)).toBe(true);
+    expect(SLOTZIN_AANPASSEN).toBe(
+      'Lever de volledige aangepaste offerte. Laat ongewijzigd wat niet genoemd wordt.',
+    );
+    expect(opdracht).not.toContain('geheim punt');
+    expect(opdracht).not.toContain('"id"');
   });
 });

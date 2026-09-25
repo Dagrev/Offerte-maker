@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { standaardInstelling } from '@shared/schemas';
 import type { Klant, OfferteInhoud, Prijspost } from '@shared/types';
-import { bouwOpdrachtMaken, bouwSysteemprompt, verstuurdeTekst } from '../../src/main/agent/prompts';
+import {
+  bouwOpdrachtAanpassen,
+  bouwOpdrachtMaken,
+  bouwSysteemprompt,
+  verstuurdeTekst,
+} from '../../src/main/agent/prompts';
 import { anonimiseer } from '../../src/main/privacy/anonimiseer';
 import { controleer } from '../../src/main/privacy/controle';
 import { invullen, tekstvelden, terugNaarPlaatshouders } from '../../src/main/privacy/invullen';
@@ -13,7 +18,7 @@ import { type Privacygeval, testset } from './testset';
 // Privacytest (TDO §11.6, NFE-008, FE-031, V-02). Bouwt per geval de volledige verstuurde tekst
 // (systeemprompt + opdracht `maken`) met dezelfde code als productie: `bouwKlusVoorAgent()` en
 // `prompts.ts` (OFM-013). Bij een geval met een aanpassingsinstructie komen de gefilterde instructie
-// en de gefilterde huidige inhoud erbij; de echte opdracht `aanpassen` toetst OFM-017.
+// en de echte opdracht `aanpassen` (OFM-017) erbij.
 
 /** Prijslijst en standaardteksten zoals een nieuwe installatie ze heeft (vaste tekst). */
 const prijslijst: Prijspost[] = PRIJS_STARTSET.map((p, i) => ({
@@ -73,10 +78,19 @@ function bouwOpdracht(geval: Privacygeval): Opdracht {
   let tekst = verstuurdeTekst(bouwSysteemprompt({ template: true }), opdracht);
   expect(tekst).toContain(json);
   if (geval.instructie !== undefined) {
+    // OFM-017: de echte opdracht `aanpassen`, gebouwd zoals `pasAanMetClaude` dat doet.
     const piiSet = bouwPiiSet(geval.klant);
     const huidig = terugNaarPlaatshouders(invullen(inhoudMetPlaatshouders, geval.klant), geval.klant);
     const instructie = anonimiseer(geval.instructie, piiSet);
-    tekst += `\n${JSON.stringify(huidig, null, 2)}\n${instructie}`;
+    const aanpassen = bouwOpdrachtAanpassen({
+      huidige: huidig,
+      instructie,
+      prijslijst,
+      aantalVoorbeelden: 3,
+      template: true,
+    });
+    expect(aanpassen).toContain(`## Wat moet er anders\n${instructie.trim()}`);
+    tekst += `\n\n${verstuurdeTekst(bouwSysteemprompt({ template: true }), aanpassen)}`;
     delen.push(instructie, ...tekstvelden(huidig));
   }
   return { tekst, payload: delen.join('\n'), json };
