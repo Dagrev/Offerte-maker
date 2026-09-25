@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import { AppFout, type FoutCode } from '@shared/fouten';
-import type { Voortgang } from '@shared/types';
+import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspost, lijstPrijsposten } from '../db/repo/prijsposten';
@@ -10,7 +11,16 @@ import { bouwKlusVoorAgent, gebruikersTekst } from '../privacy/klusVoorAgent';
 import { bouwPiiSet } from '../privacy/piiSet';
 import { testhaak } from '../testhaken';
 import { bepaalClaudeStatus } from './claudeStatus';
-import { bouwOpdrachtMaken, bouwSysteemprompt, verstuurdeTekst } from './prompts';
+import { haalGoedgekeurdeVoorbeelden } from '../db/repo/voorbeelden';
+import {
+  bouwOpdrachtMaken,
+  bouwOpdrachtTemplateTeksten,
+  bouwSysteemprompt,
+  SYSTEEMPROMPT_TEMPLATE_TEKSTEN,
+  TEMPLATE_TEKST_VELDEN,
+  TEMPLATE_TEKSTEN_SCHEMA,
+  verstuurdeTekst,
+} from './prompts';
 import { isApiModus, kiesProvider, type AgentProvider, type AgentVerzoek } from './provider';
 import { agentUitvoerSchema, UITVOER_SCHEMA } from './uitvoerSchema';
 import { nabewerk } from './verwerk';
@@ -211,6 +221,78 @@ export interface MaakOpties {
   provider?: AgentProvider;
   /** Werkmap voor tests; standaard `paden.agentMap`. */
   agentMap?: string;
+}
+
+// ---------- Standaardteksten uit het template (OFM-024, §10.7, V-08, FE-084) ----------
+
+/** Id van de taak voor voortgang en stoppen (V-08). */
+export const TEMPLATE_TEKSTEN_ID = 'template_teksten';
+export const MELDING_GEEN_TEMPLATE = 'Er is nog geen template gekozen.';
+
+const tekstVoorstel = z.string().optional();
+/** Past bij `TEMPLATE_TEKSTEN_SCHEMA`; onbekende velden vallen weg. */
+export const templateTekstenSchema = z.object({
+  inleiding: tekstVoorstel,
+  afsluiting: tekstVoorstel,
+  betalingsvoorwaarden: tekstVoorstel,
+  garantie10: tekstVoorstel,
+  garantie20: tekstVoorstel,
+  voetnoot: tekstVoorstel,
+});
+
+/**
+ * V-08: `[VERWIJDERD]` en `[BEDRIJF]` eruit, dubbele spaties opschonen (regeleinden blijven), trimmen;
+ * lege voorstellen vallen weg.
+ */
+export function nabewerkVoorstellen(ruw: z.infer<typeof templateTekstenSchema>): TekstenVoorstellen {
+  const uit: TekstenVoorstellen = {};
+  for (const veld of TEMPLATE_TEKST_VELDEN) {
+    const tekst = (ruw[veld] ?? '')
+      .replace(/\[(?:VERWIJDERD|BEDRIJF)\]/g, '')
+      .replace(/[ \t]+([,.;:!?])/g, '$1')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .trim();
+    if (tekst !== '') uit[veld] = tekst;
+  }
+  return uit;
+}
+
+export interface TemplateTekstenOpties {
+  stuur?: Stuur;
+  provider?: AgentProvider;
+}
+
+/**
+ * `voorbeelden:tekstenUitTemplate` (§10.7): voorstellen voor de standaardteksten uit het goedgekeurde
+ * template. Geen klant, dus geen PII-set of eindcontrole: de templatetekst is al geanonimiseerd en
+ * goedgekeurd (§11.5, FE-082). Slaat zelf niets op.
+ */
+export function tekstenUitTemplate(
+  opties: TemplateTekstenOpties = {},
+): Promise<{ voorstellen: TekstenVoorstellen }> {
+  const template = haalGoedgekeurdeVoorbeelden().find((v) => v.isTemplate);
+  if (!template) return Promise.reject(new AppFout('VALIDATIE', MELDING_GEEN_TEMPLATE));
+
+  return metTaak(TEMPLATE_TEKSTEN_ID, opties.stuur ?? (() => undefined), async (ctx) => {
+    await controleerKoppeling(ctx.signal);
+    const ruw = await voerUitMetNieuwePoging({
+      soort: 'template_teksten',
+      offerteId: null,
+      systeemprompt: SYSTEEMPROMPT_TEMPLATE_TEKSTEN,
+      opdracht: bouwOpdrachtTemplateTeksten(template.tekst),
+      schema: TEMPLATE_TEKSTEN_SCHEMA,
+      valideer: (json) => {
+        const r = templateTekstenSchema.safeParse(json);
+        return r.success ? r.data : null;
+      },
+      ctx,
+      provider: opties.provider ?? kiesProvider(),
+    });
+    afgebroken(ctx.signal);
+    return { voorstellen: nabewerkVoorstellen(ruw) };
+  });
 }
 
 /** `offerte:maak` (§10.7 stap 1–7). Geeft het aantal opgeslagen controlepunten terug (V-27). */
