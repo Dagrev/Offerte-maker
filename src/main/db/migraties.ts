@@ -3,6 +3,7 @@ import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
+import { zetHuidigDakStartset, zetNieuweBedekkingOm } from './huidigDak';
 import { zetOffertesOm } from './omzettingWerkzaamheden';
 import { voegPrijzenSamen } from './prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from './werkzaamhedenStartset';
@@ -56,7 +57,8 @@ export function voegKeuzeStartsetIn(db: Db): void {
   const invoegen = db.prepare(
     'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
   );
-  for (const lijst of KEUZE_LIJSTEN) {
+  // `nieuweBedekking` bestaat pas sinds 009 (CHECK op `lijst`); die lijst zet `zetHuidigDakStartset` erin.
+  for (const lijst of KEUZE_LIJSTEN.filter((l) => l !== 'nieuweBedekking')) {
     KEUZE_STARTSET[lijst].forEach((optie, index) => {
       invoegen.run(`start-${lijst}-${optie.sleutel}`, lijst, optie.sleutel, optie.label, (index + 1) * 10);
     });
@@ -74,6 +76,8 @@ const NA_MIGRATIE: Record<string, (db: Db) => void> = {
     const { materialen, verwijderd } = voegPrijzenSamen(db);
     log.info(`prijzen samengevoegd: ${materialen} post(en) naar materialen, ${verwijderd} verwijderd`);
   },
+  // OFM-050: lijst nieuweBedekking, startzinnen en de vinkjes "vraagt nieuwe dakbedekking".
+  '009_huidig_dak.sql': zetHuidigDakStartset,
 };
 
 /**
@@ -84,6 +88,11 @@ const VOOR_MIGRATIE: Record<string, (db: Db) => void> = {
   '005_omzetting_werkzaamheden.sql': (db) => {
     const aantal = zetOffertesOm(db);
     log.info(`omzetting naar werkzaamheden: ${aantal} offerte(s)`);
+  },
+  // OFM-050: nieuweBedekking in de invoer, afgeleid uit het materiaal bij Nieuwe bedekking.
+  '009_huidig_dak.sql': (db) => {
+    const aantal = zetNieuweBedekkingOm(db);
+    log.info(`nieuwe dakbedekking afgeleid: ${aantal} offerte(s)`);
   },
 };
 

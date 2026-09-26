@@ -28,7 +28,8 @@ export const VERPLICHT_VELDEN = [
   // stap 2: het dak (hoogte sinds OFM-044)
   'soortDak',
   'hoogte',
-  // stap 3: werkzaamheden (OFM-044; soort werk staat hier ook)
+  // stap 3: werkzaamheden (OFM-044; soort werk staat hier ook; OFM-050 nieuwe dakbedekking)
+  'nieuweBedekking',
   'werkzaamheid',
 ] as const;
 
@@ -63,6 +64,7 @@ export const VELD_STAP: Record<WizardVeld, 1 | 2 | 3> = {
   soortDak: 2,
   dakvlak: 2,
   hoogte: 2,
+  nieuweBedekking: 3,
   werkzaamheid: 3,
 };
 
@@ -84,6 +86,7 @@ export const STANDAARD_VERPLICHT: Verplicht = {
   werkPlaats: true,
   soortDak: false,
   hoogte: false,
+  nieuweBedekking: false,
   werkzaamheid: true,
 };
 
@@ -103,9 +106,14 @@ function adresDelen(straatHuisnummer: string): { straat: boolean; huisnummer: bo
   return { straat: true, huisnummer: false };
 }
 
+/** OFM-050: vraagt deze soort werk om een nieuwe dakbedekking (vinkje in de keuzelijst soort werk)? */
+export type VraagtBedekking = (soortWerk: string) => boolean;
+
 type Bron = {
   klant: Klant;
-  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak' | 'dakvlakken' | 'hoogte' | 'werkzaamheden'>;
+  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak' | 'dakvlakken' | 'hoogte' | 'werkzaamheden'> &
+    Partial<Pick<KlusInvoer, 'nieuweBedekking'>>;
+  vraagtBedekking: VraagtBedekking;
 };
 
 /** Per veld: `true` als het ontbreekt. Werkadres telt alleen als "Het werk is op een ander adres" aan staat. */
@@ -129,6 +137,11 @@ const ONTBREEKT: Record<WizardVeld, (b: Bron) => boolean> = {
   soortDak: ({ invoer }) => invoer.soortDak === null,
   dakvlak: ({ invoer }) => !invoer.dakvlakken.some((v) => m2VanDakvlak(v) > 0),
   hoogte: ({ invoer }) => invoer.hoogte === null || leeg(invoer.hoogte),
+  // Alleen als de gekozen soort werk erom vraagt; anders staat het veld niet in de wizard.
+  nieuweBedekking: ({ invoer, vraagtBedekking }) =>
+    invoer.soortWerk !== null &&
+    vraagtBedekking(invoer.soortWerk) &&
+    (invoer.nieuweBedekking ?? null) === null,
   werkzaamheid: ({ invoer }) => invoer.werkzaamheden.length === 0,
 };
 
@@ -141,9 +154,17 @@ const ALLE_VELDEN: readonly WizardVeld[] = [
   ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 3),
 ];
 
-/** De verplichte velden die leeg zijn, in wizardvolgorde. */
-export function ontbrekendeVelden(klant: Klant, invoer: Bron['invoer'], verplicht: Verplicht): WizardVeld[] {
+/**
+ * De verplichte velden die leeg zijn, in wizardvolgorde. `vraagtBedekking` (OFM-050): zonder die
+ * functie telt de nieuwe dakbedekking nooit als ontbrekend.
+ */
+export function ontbrekendeVelden(
+  klant: Klant,
+  invoer: Bron['invoer'],
+  verplicht: Verplicht,
+  vraagtBedekking: VraagtBedekking = () => false,
+): WizardVeld[] {
   const isVerplicht = (v: WizardVeld) =>
     (ALTIJD_VERPLICHT as readonly string[]).includes(v) || verplicht[v as VerplichtVeld];
-  return ALLE_VELDEN.filter((v) => isVerplicht(v) && ONTBREEKT[v]({ klant, invoer }));
+  return ALLE_VELDEN.filter((v) => isVerplicht(v) && ONTBREEKT[v]({ klant, invoer, vraagtBedekking }));
 }

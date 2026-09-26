@@ -7,7 +7,7 @@ export const verplicht = {
     'Kies welke velden ingevuld moeten zijn voordat een offerte gemaakt kan worden. Een lege verplichte waarde verschijnt pas bij Maak de offerte in de lijst met wat nog ontbreekt.',
   stap: {
     1: 'Stap 1: Klant',
-    2: 'Stap 2: Het dak',
+    2: 'Stap 2: Het huidige dak',
     3: 'Stap 3: Werkzaamheden',
   },
   /** Bij de velden van het werkadres. */
@@ -20,6 +20,9 @@ export const verplicht = {
   aanhefHint: 'Heeft altijd een waarde (standaard Dhr.).',
   /** OFM-044 */
   werkzaamheidHint: 'Een gekozen werkzaamheid met aantal 0 wordt altijd gemeld, ook als dit uit staat.',
+  /** OFM-050 */
+  nieuweBedekkingHint:
+    'Alleen bij een soort werk die om een nieuwe dakbedekking vraagt (Instellingen › Keuzelijsten › Soort werk).',
   herstel: 'Herstel standaard',
   veld: WIZARD_VELDNAMEN,
 };

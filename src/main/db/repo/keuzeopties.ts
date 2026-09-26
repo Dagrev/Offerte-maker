@@ -6,6 +6,10 @@ import {
   STANDAARDKEUZE_STARTSET,
   gebruikteSleutels,
   maakSleutel,
+  isZinLijst,
+  startZin,
+  VRAAGT_BEDEKKING_STARTSET,
+  type KeuzeBasis,
   type KeuzeLijst,
   type Keuzes,
   type Standaardkeuzes,
@@ -30,6 +34,9 @@ interface KeuzeRij {
   verborgen: number;
   standaard: number;
   standaardkeuze: number;
+  /** OFM-050 (migratie 009) */
+  zin: string;
+  vraagt_bedekking: number;
 }
 
 function rijen(lijst?: KeuzeLijst): KeuzeRij[] {
@@ -41,10 +48,20 @@ function rijen(lijst?: KeuzeLijst): KeuzeRij[] {
   ) as KeuzeRij[];
 }
 
-/** Alle opties (ook verborgen) per lijst in volgorde, met alleen sleutel en label: de bron voor labels. */
+/**
+ * Alle opties (ook verborgen) per lijst in volgorde, met sleutel en label (de bron voor labels) en sinds
+ * OFM-050 de zin en het vinkje "vraagt nieuwe dakbedekking".
+ */
 export function haalKeuzes(): Keuzes {
-  const uit = Object.fromEntries(KEUZE_LIJSTEN.map((l) => [l, [] as { sleutel: string; label: string }[]]));
-  for (const rij of rijen()) uit[rij.lijst]?.push({ sleutel: rij.sleutel, label: rij.label });
+  const uit = Object.fromEntries(KEUZE_LIJSTEN.map((l) => [l, [] as KeuzeBasis[]]));
+  for (const rij of rijen()) {
+    uit[rij.lijst]?.push({
+      sleutel: rij.sleutel,
+      label: rij.label,
+      zin: rij.zin,
+      vraagtBedekking: rij.vraagt_bedekking === 1,
+    });
+  }
   return uit as unknown as Keuzes;
 }
 
@@ -88,6 +105,8 @@ function naarOptie(rij: KeuzeRij, inGebruik: Set<string>): Keuzeoptie {
     verborgen: rij.verborgen === 1,
     standaard: rij.standaard === 1,
     standaardkeuze: rij.standaardkeuze === 1,
+    zin: rij.zin,
+    vraagtBedekking: rij.vraagt_bedekking === 1,
     inGebruik: inGebruik.has(rij.sleutel),
   };
 }
@@ -112,6 +131,10 @@ export interface OptieWijziging {
   verborgen: boolean;
   /** OFM-049: hoogstens één per lijst; geen enkele = geen standaard. */
   standaardkeuze: boolean;
+  /** OFM-050: "Zin in de offerte"; weglaten = niet wijzigen. */
+  zin?: string | undefined;
+  /** OFM-050: alleen bij soort werk; weglaten = niet wijzigen. */
+  vraagtBedekking?: boolean | undefined;
 }
 
 /** Sleutels die al bezet zijn: alle keuzeopties (alle lijsten) en alle prijsposten. */
@@ -181,18 +204,31 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
     // Eerst alle standaardkeuzes van de lijst uit: de unieke index laat er hoogstens één toe.
     db.prepare('UPDATE keuzeopties SET standaardkeuze = 0 WHERE lijst = ?').run(lijst);
     const bijwerken = db.prepare(
-      'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = ?, standaardkeuze = ? WHERE id = ?',
+      'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = ?, standaardkeuze = ?, zin = ?, vraagt_bedekking = ? WHERE id = ?',
     );
     const invoegen = db.prepare(
-      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze, zin, vraagt_bedekking) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)',
     );
+    // OFM-050: de zin alleen in de lijsten van de beginsituatie, het vinkje alleen bij soort werk.
+    const zinVan = (optie: OptieWijziging, oud: string) =>
+      isZinLijst(lijst) ? (optie.zin?.trim() ?? oud) : '';
+    const vraagtVan = (optie: OptieWijziging, oud: number) =>
+      lijst === 'soortWerk' ? (optie.vraagtBedekking === undefined ? oud : optie.vraagtBedekking ? 1 : 0) : 0;
     opties.forEach((optie, index) => {
       const volgorde = (index + 1) * 10;
       const label = optie.label.trim();
       const rij = bestaand.get(optie.id);
       if (rij) {
         if (rij.label !== label) labelsGewijzigd = true;
-        bijwerken.run(label, volgorde, optie.verborgen ? 1 : 0, optie.standaardkeuze ? 1 : 0, rij.id);
+        bijwerken.run(
+          label,
+          volgorde,
+          optie.verborgen ? 1 : 0,
+          optie.standaardkeuze ? 1 : 0,
+          zinVan(optie, rij.zin),
+          vraagtVan(optie, rij.vraagt_bedekking),
+          rij.id,
+        );
         return;
       }
       const sleutel = maakSleutel(label, bezet);
@@ -205,6 +241,8 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
         volgorde,
         optie.verborgen ? 1 : 0,
         optie.standaardkeuze ? 1 : 0,
+        zinVan(optie, ''),
+        vraagtVan(optie, 0),
       );
     });
     if (labelsGewijzigd && lijst === 'soortWerk') herberekenOmschrijvingen();
@@ -229,14 +267,26 @@ export function herstelKeuzelijst(lijst: KeuzeLijst): void {
       const volgorde = (index + 1) * 10;
       const rij = opSleutel.get(optie.sleutel);
       const isStandaard = optie.sleutel === standaardkeuze ? 1 : 0;
+      // OFM-050: ook de startzin en het vinkje "vraagt nieuwe dakbedekking" terug.
+      const zin = startZin(lijst, optie.sleutel);
+      const vraagt = lijst === 'soortWerk' && VRAAGT_BEDEKKING_STARTSET.includes(optie.sleutel) ? 1 : 0;
       if (rij) {
         db.prepare(
-          'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = 0, standaard = 1, standaardkeuze = ? WHERE id = ?',
-        ).run(optie.label, volgorde, isStandaard, rij.id);
+          'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = 0, standaard = 1, standaardkeuze = ?, zin = ?, vraagt_bedekking = ? WHERE id = ?',
+        ).run(optie.label, volgorde, isStandaard, zin, vraagt, rij.id);
       } else {
         db.prepare(
-          'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, 0, 1, ?)',
-        ).run(`start-${lijst}-${optie.sleutel}`, lijst, optie.sleutel, optie.label, volgorde, isStandaard);
+          'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze, zin, vraagt_bedekking) VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, ?)',
+        ).run(
+          `start-${lijst}-${optie.sleutel}`,
+          lijst,
+          optie.sleutel,
+          optie.label,
+          volgorde,
+          isStandaard,
+          zin,
+          vraagt,
+        );
       }
     });
     const startSleutels = new Set(start.map((o) => o.sleutel));

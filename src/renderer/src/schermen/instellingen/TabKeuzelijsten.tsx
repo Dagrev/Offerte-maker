@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { KEUZE_LIJSTEN } from '@shared/keuzelijsten';
+import { isZinLijst, KEUZE_LIJSTEN } from '@shared/keuzelijsten';
 import type { KeuzeLijst, Keuzeoptie } from '@shared/types';
 import { bewaarKeuzelijst, herstelKeuzelijst, useKeuzelijsten } from '../../api/keuzelijsten';
 import { alsFout } from '../../api/roep';
@@ -15,7 +15,9 @@ import { useAutoBewaar } from './autoBewaar';
 // Tab Keuzelijsten (OFM-034): per lijst de opties van de wizard, met toevoegen, hernoemen, verbergen,
 // verwijderen en de volgorde. Elke wijziging bewaart vanzelf (FE-075); namen na 800 ms of bij verlaten.
 // OFM-049: per optie een keuzerondje Standaard plus Geen standaard; de standaard is niet te verbergen of
-// te verwijderen (dan een melding: eerst een andere kiezen).
+// te verwijderen (dan een melding: eerst een andere kiezen). OFM-050: bij soort dak, huidige bedekking,
+// ondergrond en hoogte per optie een veld "Zin in de offerte" (beginsituatie), bij soort werk een vinkje
+// "Vraagt nieuwe dakbedekking".
 
 const t = nl.keuzelijsten;
 const invoerKlasse =
@@ -84,11 +86,13 @@ export function LijstBewerker({
     (waarde: Keuzeoptie[]) =>
       bewaarKeuzelijst(
         lijst,
-        waarde.map(({ id, label, verborgen, standaardkeuze }) => ({
+        waarde.map(({ id, label, verborgen, standaardkeuze, zin, vraagtBedekking }) => ({
           id,
           label: label.trim(),
           verborgen,
           standaardkeuze,
+          zin: zin.trim(),
+          vraagtBedekking,
         })),
       ).then((bewaard) => {
         // Een nieuwe optie heeft nu een id (en een sleutel): neem de bewaarde lijst over.
@@ -127,6 +131,8 @@ export function LijstBewerker({
       verborgen: false,
       standaard: false,
       standaardkeuze: false,
+      zin: '',
+      vraagtBedekking: false,
       inGebruik: false,
     };
     setNieuw('');
@@ -150,9 +156,7 @@ export function LijstBewerker({
         <Kop className="text-2xl font-semibold">{t.lijst[lijst]}</Kop>
         <BewaardIndicator signaal={bewaren.signaal} />
       </div>
-      {lijst in t.lijstHint && (
-        <p className="text-tekst-zacht">{t.lijstHint[lijst as keyof typeof t.lijstHint]}</p>
-      )}
+      {lijst in t.lijstHint && <p className="text-tekst-zacht">{t.lijstHint[lijst]}</p>}
       {bewaren.fout && <Foutmelding fout={bewaren.fout} />}
       {herstelFout && <Foutmelding fout={herstelFout} />}
       {melding && (
@@ -173,32 +177,57 @@ export function LijstBewerker({
               key={optie.id || `nieuw-${index}`}
               className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-rand px-2 py-2"
             >
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  className={`${invoerKlasse} max-w-xl ${optie.verborgen ? 'text-tekst-zacht' : ''}`}
-                  aria-label={t.naamVan(naam)}
-                  aria-invalid={optie.label.trim() === '' || undefined}
-                  title={optie.label.trim() === '' ? t.naamFout : undefined}
-                  value={optie.label}
-                  maxLength={80}
-                  onChange={(e) => zet(index, { label: e.target.value }, false)}
-                  onBlur={bewaren.bewaarNu}
-                />
-                {optie.verborgen && (
-                  <span className="rounded-full bg-vlak px-3 py-1 text-tekst-zacht">{t.verborgen}</span>
-                )}
-                <label className="flex min-h-12 cursor-pointer items-center gap-2 has-[:disabled]:cursor-default has-[:disabled]:text-tekst-zacht">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <input
-                    type="radio"
-                    name={`standaard-${lijst}`}
-                    className="size-6 accent-accent"
-                    checked={optie.standaardkeuze}
-                    disabled={optie.id === '' || optie.verborgen}
-                    onChange={() => kiesStandaard(index)}
+                    className={`${invoerKlasse} max-w-xl ${optie.verborgen ? 'text-tekst-zacht' : ''}`}
+                    aria-label={t.naamVan(naam)}
+                    aria-invalid={optie.label.trim() === '' || undefined}
+                    title={optie.label.trim() === '' ? t.naamFout : undefined}
+                    value={optie.label}
+                    maxLength={80}
+                    onChange={(e) => zet(index, { label: e.target.value }, false)}
+                    onBlur={bewaren.bewaarNu}
                   />
-                  {t.standaard}
-                  <span className="sr-only">{t.standaardVoor(naam)}</span>
-                </label>
+                  {optie.verborgen && (
+                    <span className="rounded-full bg-vlak px-3 py-1 text-tekst-zacht">{t.verborgen}</span>
+                  )}
+                  <label className="flex min-h-12 cursor-pointer items-center gap-2 has-[:disabled]:cursor-default has-[:disabled]:text-tekst-zacht">
+                    <input
+                      type="radio"
+                      name={`standaard-${lijst}`}
+                      className="size-6 accent-accent"
+                      checked={optie.standaardkeuze}
+                      disabled={optie.id === '' || optie.verborgen}
+                      onChange={() => kiesStandaard(index)}
+                    />
+                    {t.standaard}
+                    <span className="sr-only">{t.standaardVoor(naam)}</span>
+                  </label>
+                  {lijst === 'soortWerk' && (
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="size-6 accent-accent"
+                        checked={optie.vraagtBedekking}
+                        onChange={(e) => zet(index, { vraagtBedekking: e.target.checked }, true)}
+                      />
+                      {t.vraagtBedekking}
+                      <span className="sr-only">{t.bijOptie(naam)}</span>
+                    </label>
+                  )}
+                </div>
+                {isZinLijst(lijst) && (
+                  <input
+                    className={`${invoerKlasse} max-w-3xl`}
+                    aria-label={t.zinVan(naam)}
+                    placeholder={t.zinPlaatshouder}
+                    value={optie.zin}
+                    maxLength={300}
+                    onChange={(e) => zet(index, { zin: e.target.value }, false)}
+                    onBlur={bewaren.bewaarNu}
+                  />
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Knop

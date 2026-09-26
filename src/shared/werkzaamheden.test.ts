@@ -9,6 +9,8 @@ import {
   gebruikteWerkzaamheden,
   kiesMateriaal,
   kiesWerkzaamheid,
+  bedekkingMateriaal,
+  pasBedekkingToe,
   materiaalInfo,
   optieInfo,
   standaardAantal,
@@ -293,5 +295,92 @@ describe('uurprijs (OFM-048)', () => {
       prijsCent: 4500,
       prijsSleutel: 'werk:slopen:uur',
     });
+  });
+});
+
+describe('nieuwe dakbedekking voorselecteren (OFM-050)', () => {
+  const materiaal = (id: string, sleutel: string, label: string, prijsCent: number | null = null) => ({
+    id,
+    sleutel,
+    label,
+    eenheid: 'm²' as const,
+    prijsCent,
+    btwTarief: 21 as const,
+    verborgen: false,
+    standaard: true,
+    inGebruik: false,
+  });
+  const basis = CATALOGUS.werkzaamheden[1]!;
+  const SET = {
+    ...CATALOGUS,
+    werkzaamheden: [
+      ...CATALOGUS.werkzaamheden,
+      {
+        ...basis,
+        id: 'w-bed',
+        sleutel: 'nieuwe_bedekking',
+        label: 'Nieuwe bedekking',
+        materialen: [
+          { materiaalId: 'm-bit', standaard: true },
+          { materiaalId: 'm-epdm', standaard: false },
+        ],
+      },
+    ],
+    materialen: [
+      ...CATALOGUS.materialen,
+      materiaal('m-bit', 'bitumen', 'Bitumen', 2000),
+      materiaal('m-epdm', 'epdm', 'EPDM', 2500),
+      materiaal('m-pvc', 'pvc', 'PVC'),
+    ],
+  };
+  const BEDEKKINGEN = new Set(['bitumen', 'epdm', 'pvc']);
+  const werk = SET.werkzaamheden.find((w) => w.sleutel === 'nieuwe_bedekking')!;
+  let n = 0;
+  const maakId = () => `id${++n}`;
+
+  it('bedekkingMateriaal: alleen als de werkzaamheid dat materiaal kiesbaar heeft', () => {
+    expect(bedekkingMateriaal(werk, SET, 'epdm')?.sleutel).toBe('epdm');
+    expect(bedekkingMateriaal(werk, SET, 'pvc')).toBeUndefined();
+    expect(bedekkingMateriaal(werk, SET, null)).toBeUndefined();
+  });
+
+  it('kiesWerkzaamheid: de gekozen bedekking wint van het standaardmateriaal', () => {
+    const met = kiesWerkzaamheid(werk, SET, 40, maakId, 'epdm');
+    expect(met.materialen.map((m) => [m.sleutel, m.aantal, m.prijsCent])).toEqual([['epdm', 40, 2500]]);
+    const zonder = kiesWerkzaamheid(werk, SET, 40, maakId, 'pvc');
+    expect(zonder.materialen.map((m) => m.sleutel)).toEqual(['bitumen']);
+  });
+
+  it('pasBedekkingToe: vervangt het oude bedekkingsmateriaal (plek en aantal), laat de rest staan', () => {
+    const gekozenBed = {
+      ...kiesWerkzaamheid(werk, SET, 40, maakId),
+      materialen: [
+        { id: 'a', sleutel: 'pir_80', eenmalig: null, aantal: 40, prijsCent: null },
+        { id: 'b', sleutel: 'bitumen', eenmalig: null, aantal: 38, prijsCent: 2000 },
+        {
+          id: 'c',
+          sleutel: null,
+          eenmalig: { label: 'Kit', eenheid: 'stuk' as const },
+          aantal: 2,
+          prijsCent: 500,
+        },
+      ],
+    };
+    const slopen = gekozen();
+    const [bed, sl] = pasBedekkingToe([gekozenBed, slopen], SET, BEDEKKINGEN, 'epdm', maakId);
+    expect(bed?.materialen.map((m) => [m.sleutel ?? m.eenmalig?.label, m.aantal, m.prijsCent])).toEqual([
+      ['pir_80', 40, null],
+      ['epdm', 38, 2500],
+      ['Kit', 2, 500],
+    ]);
+    expect(sl).toBe(slopen);
+    // Al gekozen, of een bedekking die de werkzaamheid niet heeft: niets verandert.
+    expect(pasBedekkingToe([bed!], SET, BEDEKKINGEN, 'epdm')[0]).toBe(bed);
+    expect(pasBedekkingToe([bed!], SET, BEDEKKINGEN, 'pvc')[0]).toBe(bed);
+    // Zonder bedekkingsmateriaal: erbij, met het aantal van de werkzaamheid.
+    const leeg = { ...gekozenBed, materialen: [] };
+    expect(pasBedekkingToe([leeg], SET, BEDEKKINGEN, 'bitumen', maakId)[0]?.materialen).toMatchObject([
+      { sleutel: 'bitumen', aantal: 40, prijsCent: 2000 },
+    ]);
   });
 });

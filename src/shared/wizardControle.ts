@@ -1,6 +1,12 @@
 import type { GekozenWerkzaamheid, Klant, KlusInvoer } from './types';
 import { ongeldigeKlantVelden, type KlantVeld, type ValidatieFout } from './validatie';
-import { ontbrekendeVelden, VELD_STAP, type Verplicht, type WizardVeld } from './verplicht';
+import {
+  ontbrekendeVelden,
+  VELD_STAP,
+  type Verplicht,
+  type VraagtBedekking,
+  type WizardVeld,
+} from './verplicht';
 
 // Controles van de wizard (FE-024, V-16, OFM-030, OFM-035, OFM-038, OFM-044). Pure functies; de
 // meldingsteksten staan in `teksten/wizardPunten.ts` en `teksten/validatie.ts`. Sinds OFM-035 blokkeert
@@ -33,8 +39,10 @@ export function wizardPunten(
   invoer: WizardInvoer,
   verplicht: Verplicht,
   werkLabel: WerkLabel = standaardWerkLabel,
+  /** OFM-050: welke soorten werk om een nieuwe dakbedekking vragen; standaard geen. */
+  vraagtBedekking?: VraagtBedekking,
 ): WizardPunt[] {
-  const ontbreekt = ontbrekendeVelden(klant, invoer, verplicht).map((veld): WizardPunt => ({
+  const ontbreekt = ontbrekendeVelden(klant, invoer, verplicht, vraagtBedekking).map((veld): WizardPunt => ({
     stap: VELD_STAP[veld],
     soort: 'ontbreekt',
     veld,

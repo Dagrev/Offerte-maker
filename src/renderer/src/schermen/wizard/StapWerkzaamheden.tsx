@@ -16,11 +16,13 @@ import {
   kiesWerkzaamheid,
   materiaalInfo,
   optieInfo,
+  pasBedekkingToe,
   standaardPrijs,
   werkInfo,
   wisselPerUur,
   type WerkCatalogus,
 } from '@shared/werkzaamheden';
+import { vraagtNieuweBedekking } from '@shared/keuzelijsten';
 import { alsFout } from '../../api/roep';
 import { alsBewaarInvoer, bewaarWerkzaamheden } from '../../api/werkzaamheden';
 import { Foutmelding } from '../../componenten/Foutmelding';
@@ -32,7 +34,7 @@ import { Veld } from '../../componenten/Veld';
 import { Vinkje } from '../../componenten/Vinkje';
 import { nl } from '../../teksten/nl';
 import { keuzeTegels } from './opties';
-import { SOORT_WERK_ICONEN, vraagtHuidigeBedekking } from './StapDak';
+import { BEDEKKING_ICONEN, SOORT_WERK_ICONEN } from './StapDak';
 
 const t = nl.wizard.werk;
 const e = nl.wizard.extras;
@@ -54,7 +56,9 @@ const euro = (cent: number | null) => (cent === null ? null : cent / 100);
 const cent = (waarde: number | null) => (waarde === null ? null : euroNaarCent(waarde));
 
 /**
- * Stap 3 Werkzaamheden (OFM-044): soort werk, de gekoppelde werkzaamheden als aanvinkbare tegels, per
+ * Stap 3 Werkzaamheden (OFM-044): soort werk, sinds OFM-050 de nieuwe dakbedekking (alleen bij een
+ * soort werk met het vinkje "vraagt nieuwe dakbedekking"; het gekozen materiaal wordt bij de
+ * werkzaamheden voorgeselecteerd), de gekoppelde werkzaamheden als aanvinkbare tegels, per
  * gekozen werkzaamheid aantal, prijs (alleen voor deze offerte), materialen, opties en een notitie, en
  * eenmalige werkzaamheden en materialen. Onderaan steiger, garantie en gewenste uitvoering (uit de oude
  * stap Extra's).
@@ -88,8 +92,30 @@ export function StapWerkzaamheden({
     if (huidig.some((w) => w.sleutel === werk.sleutel)) {
       zetWerkzaamheden(huidig.filter((w) => w.sleutel !== werk.sleutel));
     } else {
-      zetWerkzaamheden([...huidig, kiesWerkzaamheid(werk, catalogus, m2)]);
+      // OFM-050: de gekozen nieuwe dakbedekking is voorgeselecteerd als hij bij deze werkzaamheid hoort.
+      const bedekking = leesInvoer().nieuweBedekking;
+      zetWerkzaamheden([...huidig, kiesWerkzaamheid(werk, catalogus, m2, undefined, bedekking)]);
     }
+  };
+
+  const vraagtBedekking = vraagtNieuweBedekking(k, invoer.soortWerk);
+  const kiesBedekking = (nieuweBedekking: string) =>
+    opWijzig({
+      nieuweBedekking,
+      werkzaamheden: pasBedekkingToe(
+        leesInvoer().werkzaamheden,
+        set,
+        new Set(k.nieuweBedekking.map((o) => o.sleutel)),
+        nieuweBedekking,
+      ),
+    });
+  const kiesSoortWerk = (soortWerk: string) => {
+    // OFM-050: geen nieuwe bedekking bij een soort werk die er niet om vraagt; vraagt hij er wel om en
+    // is er nog niets gekozen, dan de ingestelde standaard (als die er is).
+    if (!vraagtNieuweBedekking(k, soortWerk)) return opWijzig({ soortWerk, nieuweBedekking: null });
+    opWijzig({ soortWerk });
+    const standaard = k.nieuweBedekking.find((o) => o.standaardkeuze && !o.verborgen)?.sleutel;
+    if (leesInvoer().nieuweBedekking === null && standaard) kiesBedekking(standaard);
   };
 
   const voegEenmaligToe = () =>
@@ -168,13 +194,17 @@ export function StapWerkzaamheden({
           label={t.soortWerk}
           opties={keuzeTegels(k.soortWerk, invoer.soortWerk, SOORT_WERK_ICONEN)}
           waarde={invoer.soortWerk}
-          opKies={(soortWerk) =>
-            // Huidige bedekking hoort alleen bij vervangen en reparatie; anders niet meesturen.
-            opWijzig(
-              vraagtHuidigeBedekking(soortWerk) ? { soortWerk } : { soortWerk, huidigeBedekking: null },
-            )
-          }
+          opKies={kiesSoortWerk}
         />
+        {vraagtBedekking && (
+          <TegelKeuze
+            label={t.nieuweBedekking}
+            hint={t.nieuweBedekkingHint}
+            opties={keuzeTegels(k.nieuweBedekking, invoer.nieuweBedekking, BEDEKKING_ICONEN)}
+            waarde={invoer.nieuweBedekking}
+            opKies={kiesBedekking}
+          />
+        )}
       </Kaart>
 
       <Kaart>

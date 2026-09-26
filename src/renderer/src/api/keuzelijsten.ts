@@ -31,6 +31,10 @@ export interface OptieInvoer {
   verborgen: boolean;
   /** OFM-049: hoogstens één per lijst. */
   standaardkeuze: boolean;
+  /** OFM-050: "Zin in de offerte"; weglaten = niet wijzigen. */
+  zin?: string;
+  /** OFM-050: alleen bij soort werk; weglaten = niet wijzigen. */
+  vraagtBedekking?: boolean;
 }
 
 /** De hele lijst in de nieuwe volgorde; ontbrekende opties worden verwijderd. Geeft de bewaarde lijst. */

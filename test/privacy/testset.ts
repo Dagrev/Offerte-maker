@@ -42,6 +42,7 @@ export function maakKlant(deel: Partial<Klant> = {}): Klant {
 export function maakInvoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
   return {
     soortWerk: 'dak_vervangen',
+    nieuweBedekking: null,
     soortDak: 'plat',
     dakvlakken: [{ id: 'v1', naam: 'Dakvlak 1', modus: 'lxb', lengteM: 5, breedteM: 4.5, m2: null }],
     huidigeBedekking: null,

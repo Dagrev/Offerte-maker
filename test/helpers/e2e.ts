@@ -286,8 +286,10 @@ export async function vulKlantIn(page: Page, klant: KlantInvoer): Promise<void> 
 }
 
 /**
- * Hoofdscherm → Maak nieuwe offerte → stap 1 (alle klantvelden) → stap 2 (soort werk en een dakvlak,
- * want die zijn sinds OFM-035 nodig om te maken) → stap 4 (optioneel Overig).
+ * Hoofdscherm → Maak nieuwe offerte → stap 1 (alle klantvelden) → stap 2 Het huidige dak (een dakvlak)
+ * → stap 3 (soort werk en Slopen; soort werk staat sinds OFM-044/050 in stap 3) → stap 4 (optioneel
+ * Overig). Dakvlak en soort werk zijn sinds OFM-035 nodig om te maken. De nieuwe dakbedekking
+ * (OFM-050) blijft leeg: die is standaard niet verplicht.
  * Geeft het offerte-ID terug.
  */
 export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Promise<string> {
