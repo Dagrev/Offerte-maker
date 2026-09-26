@@ -39,6 +39,7 @@ const { bewaarNieuweVersie } = await import('../db/repo/offertesInhoud');
 const { haalInstelling, bewaarInstelling } = await import('../db/repo/instellingen');
 const { bewaarLogoBestand } = await import('../instellingen/beheer');
 const { maakDefinitief } = await import('./definitief');
+const { zetTesthakenVoorTest } = await import('../testhaken');
 const { printOpties, VERBORGEN_VENSTER } = await import('./maakPdf');
 const { offerteInhoudHandlers } = await import('../ipc/offerteInhoud');
 
@@ -150,6 +151,7 @@ beforeAll(async () => {
   bewaarNieuweVersie({ id, inhoud, bron: 'agent', wizardStap: 4 });
   voorbeeldHtml = (await offerteInhoudHandlers['offerte:voorbeeldHtml']({ id }, {} as never)).html;
 
+  zetTesthakenVoorTest(new Map([['vandaag', '2026-09-25']]));
   ({ pad } = await maakDefinitief(id, (html, b) => echtePdf(html, VERBORGEN_VENSTER, printOpties(b))));
   pdf = readFileSync(pad);
 }, 90_000);
@@ -248,7 +250,7 @@ describe('echte PDF (NFE-021, FE-050, FE-054)', () => {
     }
     expect(pdfTekst).not.toMatch(/\[KLANT_|\[WERK_/);
     // Alleen het nummer verschilt: het voorbeeld is nog een concept.
-    expect(pdfTekst).toContain('Offertenummer 2026-001');
+    expect(pdfTekst).toContain('Offertenummer 2026-09-25-001');
     expect(pdfTekst).not.toContain('CONCEPT');
     expect(pdfTekst).toContain('KvK 12345678 · btw NL001234567B01 · IBAN NL00BANK0123456789');
     expect(pdfTekst).toMatch(/pagina 1 van \d/);

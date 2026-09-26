@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { berekenGeldigTot, periodeVan, verschuif } from './periode';
+import {
+  berekenGeldigTot,
+  kiesbareJaren,
+  maandenVanJaar,
+  maandRaster,
+  periodeVan,
+  verschuif,
+  weeknummer,
+  zelfdePeriode,
+} from './periode';
 import { formatDatum } from './formatteer';
 
 describe('periodeVan', () => {
@@ -88,6 +97,70 @@ describe('verschuif', () => {
     expect(verschuif('maand', '2026-01-31', 1)).toBe('2026-02-28');
     expect(verschuif('jaar', '2026-09-25', -1)).toBe('2025-09-25');
     expect(verschuif('jaar', '2026-09-25', 1)).toBe('2027-09-25');
+  });
+
+  it('meer stappen tegelijk (OFM-037)', () => {
+    expect(verschuif('maand', '2026-09-01', 3)).toBe('2026-12-01');
+    expect(verschuif('maand', '2026-02-01', -3)).toBe('2025-11-01');
+    expect(verschuif('jaar', '2026-01-01', -10)).toBe('2016-01-01');
+  });
+});
+
+describe('periodekiezer (OFM-037)', () => {
+  it('zelfdePeriode', () => {
+    expect(zelfdePeriode('dag', '2026-09-25', '2026-09-25')).toBe(true);
+    expect(zelfdePeriode('dag', '2026-09-25', '2026-09-26')).toBe(false);
+    expect(zelfdePeriode('week', '2026-09-21', '2026-09-27')).toBe(true);
+    expect(zelfdePeriode('week', '2026-09-27', '2026-09-28')).toBe(false);
+    expect(zelfdePeriode('maand', '2026-09-01', '2026-09-30')).toBe(true);
+    expect(zelfdePeriode('jaar', '2026-01-01', '2026-12-31')).toBe(true);
+    expect(zelfdePeriode('jaar', '2026-12-31', '2027-01-01')).toBe(false);
+  });
+
+  it('weeknummer volgt ISO (A-21)', () => {
+    expect(weeknummer('2026-09-25')).toBe(39);
+    expect(weeknummer('2026-12-31')).toBe(53);
+    expect(weeknummer('2027-01-03')).toBe(53);
+    expect(weeknummer('2027-01-04')).toBe(1);
+  });
+
+  it('maandRaster: hele weken ma–zo die de maand dekken', () => {
+    const sep = maandRaster('2026-09-25');
+    expect(sep).toHaveLength(5);
+    expect(sep[0]).toEqual([
+      '2026-08-31',
+      '2026-09-01',
+      '2026-09-02',
+      '2026-09-03',
+      '2026-09-04',
+      '2026-09-05',
+      '2026-09-06',
+    ]);
+    expect(sep.at(-1)?.at(-1)).toBe('2026-10-04');
+    // Februari 2027 begint op maandag en telt precies vier weken.
+    const feb = maandRaster('2027-02-10');
+    expect(feb).toHaveLength(4);
+    expect(feb[0]?.[0]).toBe('2027-02-01');
+    expect(feb[3]?.[6]).toBe('2027-02-28');
+    // Augustus 2026 begint op zaterdag: zes rijen.
+    expect(maandRaster('2026-08-01')).toHaveLength(6);
+    for (const week of sep) expect(week).toHaveLength(7);
+  });
+
+  it('maandenVanJaar', () => {
+    const maanden = maandenVanJaar('2026-09-25');
+    expect(maanden).toHaveLength(12);
+    expect(maanden[0]).toBe('2026-01-01');
+    expect(maanden[11]).toBe('2026-12-01');
+  });
+
+  it('kiesbareJaren: tien jaar terug tot volgend jaar, uitgebreid met de gekozen datum', () => {
+    const jaren = kiesbareJaren('2026-09-25', '2026-03-01');
+    expect(jaren).toHaveLength(12);
+    expect(jaren[0]).toBe('2016-01-01');
+    expect(jaren.at(-1)).toBe('2027-01-01');
+    expect(kiesbareJaren('2026-09-25', '2010-05-05')[0]).toBe('2010-01-01');
+    expect(kiesbareJaren('2026-09-25', '2030-05-05').at(-1)).toBe('2030-01-01');
   });
 });
 

@@ -59,12 +59,12 @@ test('van welkom tot een akkoord-offerte met PDF', async () => {
   await expect(geleBalk.getByRole('listitem').filter({ hasText: 'Geschatte prijs' })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: d.concept, level: 1 })).toBeVisible();
 
-  // Definitief → nummer 2026-001 en een PDF in <DOCS>\2026\.
+  // Definitief → nummer 2026-09-25-001 (OFM-033) en een PDF in <DOCS>\2026\.
   await page.getByRole('button', { name: d.maakDefinitief }).click();
   await expect(page.getByRole('button', { name: d.openPdf })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: '2026-001', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible();
   const pdfs = readdirSync(join(mappen.docs, '2026')).filter((n) => n.endsWith('.pdf'));
-  expect(pdfs).toEqual(['2026-001 Jansen.pdf']);
+  expect(pdfs).toEqual(['2026-09-25-001 Jansen.pdf']);
 
   // Status Akkoord.
   const akkoord = page.getByRole('button', { name: nl.componenten.status.akkoord });
@@ -77,7 +77,7 @@ test('van welkom tot een akkoord-offerte met PDF', async () => {
   const label = rij.getByText(nl.componenten.status.akkoord, { exact: true });
   await expect(label).toBeVisible();
   await expect(label).toHaveCSS('background-color', 'rgb(21, 128, 61)');
-  await expect(rij).toContainText('2026-001');
+  await expect(rij).toContainText('2026-09-25-001');
 
   const lijst = await apiData(page, 'overzichtZoek', { tekst: 'Jansen' });
   expect(lijst.map((o) => o.status)).toEqual(['akkoord']);

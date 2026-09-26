@@ -292,7 +292,7 @@ export function vulMetSeed(
     const jaar = Number(o.offertedatum.slice(0, 4));
     const volgnummer = (teller.get(jaar) ?? 0) + 1;
     teller.set(jaar, volgnummer);
-    nummers.set(o.id, { jaar, volgnummer, nummer: formatNummer(jaar, volgnummer) });
+    nummers.set(o.id, { jaar, volgnummer, nummer: formatNummer(o.offertedatum, volgnummer) });
   }
 
   const offerteSql = db.prepare(

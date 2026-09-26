@@ -63,13 +63,20 @@ beforeEach(async () => {
   nep.vensters.length = 0;
   nep.shell.openPath.mockClear();
   nep.shell.showItemInFolder.mockClear();
-  zetTesthakenVoorTest(new Map());
+  zetVandaag('2026-09-25');
 });
 afterEach(() => {
   db.opruimen();
   rmSync(nep.tmp, { recursive: true, force: true });
   rmSync(nep.docs, { recursive: true, force: true });
 });
+
+/** OFM-033: het nummer draagt de datum van definitief maken; die komt uit `vandaag()` (testhaak). */
+function zetVandaag(datum: string, pdfBezet = false): void {
+  const haken = new Map<'vandaag' | 'pdf-bezet', string | true>([['vandaag', datum]]);
+  if (pdfBezet) haken.set('pdf-bezet', true);
+  zetTesthakenVoorTest(haken);
+}
 
 const renders: string[] = [];
 const nepRenderer = (html: string) => {
@@ -149,38 +156,80 @@ async function foutcode(belofte: Promise<unknown>): Promise<string> {
 }
 
 describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
-  it('FE-055: 2026-001, 2026-002, versies b en c, 2027-001', async () => {
+  it('FE-055 (OFM-033): 2026-09-25-001, -002, versies b en c, volgend jaar weer 001', async () => {
     const a = offerte();
     const b = offerte(maakKlant({ naam: 'Pietersen' }));
-    const c = offerte(maakKlant({ naam: 'Klaassen' }), '2027-01-04');
+    const c = offerte(maakKlant({ naam: 'Klaassen' }), '2026-12-30');
 
-    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-001');
-    expect((await maakDefinitief(b, nepRenderer)).nummer).toBe('2026-002');
-    expect((await maakDefinitief(c, nepRenderer)).nummer).toBe('2027-001');
+    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001');
+    zetVandaag('2026-09-26');
+    expect((await maakDefinitief(b, nepRenderer)).nummer).toBe('2026-09-26-002');
+    // De datum van definitief maken telt, niet de offertedatum: nieuw jaar, volgnummer weer 001.
+    zetVandaag('2027-01-03');
+    expect((await maakDefinitief(c, nepRenderer)).nummer).toBe('2027-01-03-001');
+    expect(rij(c)).toMatchObject({ jaar: 2027, volgnummer: 1 });
+    expect(bestanden(2027)).toEqual(['2027-01-03-001 Klaassen.pdf']);
 
     bewaarHandmatigeInhoud(a, haalOfferte(a).inhoud as OfferteInhoud);
     expect(rij(a).gewijzigd_na_definitief).toBe(1);
     const tweede = await maakDefinitief(a, nepRenderer);
-    expect(tweede.nummer).toBe('2026-001b');
-    expect(basename(tweede.pad)).toBe('2026-001b Jansen.pdf');
+    // Een nieuwe versie houdt het nummer (en dus de datum) van de eerste keer definitief.
+    expect(tweede.nummer).toBe('2026-09-25-001b');
+    expect(basename(tweede.pad)).toBe('2026-09-25-001b Jansen.pdf');
     // Het hoofdscherm (OFM-009) toont het weergavenummer met versieletter.
-    expect(zoekOffertes('jansen').map((i) => i.nummer)).toEqual(['2026-001b']);
-    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-001c');
+    expect(zoekOffertes('jansen').map((i) => i.nummer)).toEqual(['2026-09-25-001b']);
+    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001c');
 
     expect(bestanden(2026)).toEqual([
-      '2026-001 Jansen.pdf',
-      '2026-001b Jansen.pdf',
-      '2026-001c Jansen.pdf',
-      '2026-002 Pietersen.pdf',
+      '2026-09-25-001 Jansen.pdf',
+      '2026-09-25-001b Jansen.pdf',
+      '2026-09-25-001c Jansen.pdf',
+      '2026-09-26-002 Pietersen.pdf',
     ]);
     expect(pdfRegels(a).map((p) => p.versieletter)).toEqual(['', 'b', 'c']);
-    expect(rij(a)).toMatchObject({ status: 'klaar', jaar: 2026, volgnummer: 1, nummer: '2026-001' });
+    expect(rij(a)).toMatchObject({ status: 'klaar', jaar: 2026, volgnummer: 1, nummer: '2026-09-25-001' });
     expect(rij(a).gewijzigd_na_definitief).toBe(0);
-    expect(rij(a).zoektekst).toContain('2026-001');
-    expect(haalOfferte(a).nummer).toBe('2026-001');
+    expect(rij(a).zoektekst).toContain('2026-09-25-001');
+    expect(haalOfferte(a).nummer).toBe('2026-09-25-001');
     expect(readdirSync(nep.tmp)).toEqual([]);
     // Het nummer staat op de PDF, met versieletter.
-    expect(renders.at(-1)).toContain('2026-001c');
+    expect(renders.at(-1)).toContain('2026-09-25-001c');
+    // Zoeken op datum of volgnummer vindt de offerte.
+    expect(zoekOffertes('2026-09-25').map((i) => i.nummer)).toEqual(['2026-09-25-001c']);
+    expect(zoekOffertes('002').map((i) => i.nummer)).toEqual(['2026-09-26-002']);
+  });
+
+  it('OFM-033: na 2026-09-26-007 geeft 2027-01-03 het nummer 2027-01-03-001', async () => {
+    const zeven = offerte(maakKlant({ naam: 'Zeven' }));
+    db.db
+      .prepare("UPDATE offertes SET jaar = 2026, volgnummer = 7, nummer = '2026-09-26-007' WHERE id = ?")
+      .run(zeven);
+    const a = offerte();
+    const b = offerte(maakKlant({ naam: 'Pietersen' }));
+    zetVandaag('2026-12-31');
+    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-12-31-008');
+    zetVandaag('2027-01-03');
+    expect((await maakDefinitief(b, nepRenderer)).nummer).toBe('2027-01-03-001');
+  });
+
+  it('OFM-033: een oud nummer (2026-001) blijft staan, krijgt een volgende letter en blijft vindbaar', async () => {
+    const a = offerte();
+    await maakDefinitief(a, nepRenderer);
+    // Zoals een offerte die vóór OFM-033 definitief werd.
+    db.db
+      .prepare(
+        "UPDATE offertes SET nummer = '2026-001', zoektekst = 'jansen  veldhoven 2026-001' WHERE id = ?",
+      )
+      .run(a);
+    bewaarHandmatigeInhoud(a, haalOfferte(a).inhoud as OfferteInhoud);
+    const tweede = await maakDefinitief(a, nepRenderer);
+    expect(tweede.nummer).toBe('2026-001b');
+    expect(basename(tweede.pad)).toBe('2026-001b Jansen.pdf');
+    expect(rij(a).nummer).toBe('2026-001');
+    expect(zoekOffertes('2026-001').map((i) => i.nummer)).toEqual(['2026-001b']);
+    // Een nieuwe offerte telt door na het oude volgnummer.
+    const b = offerte(maakKlant({ naam: 'Pietersen' }));
+    expect((await maakDefinitief(b, nepRenderer)).nummer).toBe('2026-09-25-002');
   });
 
   it('jaar blijft vast als de datum later verandert; status blijft als die niet concept was', async () => {
@@ -189,8 +238,9 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
     db.db
       .prepare("UPDATE offertes SET offertedatum = '2027-02-01', status = 'verstuurd' WHERE id = ?")
       .run(a);
+    zetVandaag('2027-02-01');
     const { nummer, pad } = await maakDefinitief(a, nepRenderer);
-    expect(nummer).toBe('2026-001b');
+    expect(nummer).toBe('2026-09-25-001b');
     expect(pad.startsWith(join(nep.docs, '2026'))).toBe(true);
     expect(rij(a).status).toBe('verstuurd');
     expect(rij(a).geldig_tot).toBe('2027-03-03'); // V-12: opnieuw berekend (30 dagen)
@@ -200,25 +250,25 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
     const a = offerte(maakKlant({ naam: 'Jansen/de Vries' }));
     const b = offerte(maakKlant({ aanhef: 'bedrijf', naam: 'Piet', bedrijfsnaam: 'Bouw B.V.' }));
     const c = offerte(maakKlant({ naam: 'Oud' }));
-    expect(basename((await maakDefinitief(a, nepRenderer)).pad)).toBe('2026-001 Jansen-de Vries.pdf');
-    expect(basename((await maakDefinitief(b, nepRenderer)).pad)).toBe('2026-002 Bouw B.V.pdf');
-    writeFileSync(join(nep.docs, '2026', '2026-003 Oud.pdf'), 'van de gebruiker');
+    expect(basename((await maakDefinitief(a, nepRenderer)).pad)).toBe('2026-09-25-001 Jansen-de Vries.pdf');
+    expect(basename((await maakDefinitief(b, nepRenderer)).pad)).toBe('2026-09-25-002 Bouw B.V.pdf');
+    writeFileSync(join(nep.docs, '2026', '2026-09-25-003 Oud.pdf'), 'van de gebruiker');
     const pad = (await maakDefinitief(c, nepRenderer)).pad;
-    expect(basename(pad)).toBe('2026-003 Oud-2.pdf');
-    expect(bestanden(2026)).toContain('2026-003 Oud.pdf');
+    expect(basename(pad)).toBe('2026-09-25-003 Oud-2.pdf');
+    expect(bestanden(2026)).toContain('2026-09-25-003 Oud.pdf');
   });
 
   it('pdf-bezet: PDF_BESTAND_BEZET, niets vastgelegd, volgende poging krijgt hetzelfde nummer', async () => {
     const a = offerte();
-    zetTesthakenVoorTest(new Map([['pdf-bezet', true]]));
+    zetVandaag('2026-09-25', true);
     expect(await foutcode(maakDefinitief(a, nepRenderer))).toBe('PDF_BESTAND_BEZET');
     expect(rij(a)).toMatchObject({ status: 'concept', nummer: null, jaar: null });
     expect(pdfRegels(a)).toEqual([]);
     expect(bestanden(2026)).toEqual([]);
     expect(readdirSync(nep.tmp)).toEqual([]);
 
-    zetTesthakenVoorTest(new Map());
-    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-001');
+    zetVandaag('2026-09-25');
+    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001');
   });
 
   it('fout in de transactie van stap 5: PDF weer weg en ONBEKEND', async () => {
@@ -231,21 +281,21 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
       )
       .run(a);
     expect(await foutcode(maakDefinitief(a, nepRenderer))).toBe('ONBEKEND');
-    expect(bestanden(2026)).toEqual(['2026-001 Jansen.pdf']);
+    expect(bestanden(2026)).toEqual(['2026-09-25-001 Jansen.pdf']);
   });
 
   it('gelijktijdig: twee concepten krijgen na elkaar twee opeenvolgende nummers', async () => {
     const a = offerte();
     const b = offerte(maakKlant({ naam: 'Pietersen' }));
     const [ra, rb] = await Promise.all([maakDefinitief(a, traagRenderer), maakDefinitief(b, traagRenderer)]);
-    expect([ra.nummer, rb.nummer].sort()).toEqual(['2026-001', '2026-002']);
+    expect([ra.nummer, rb.nummer].sort()).toEqual(['2026-09-25-001', '2026-09-25-002']);
   });
 
   it('een mislukte aanroep blokkeert de volgende niet', async () => {
     const zonder = offerte(jansen, '2026-09-25', false);
     const a = offerte();
     expect(await foutcode(maakDefinitief(zonder, nepRenderer))).toBe('VALIDATIE');
-    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-001');
+    expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001');
   });
 
   it('na definitief weigert bewaarInvoer (§12.3)', async () => {

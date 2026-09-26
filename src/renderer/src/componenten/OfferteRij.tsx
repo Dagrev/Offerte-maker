@@ -3,9 +3,9 @@ import { formatEuroHeel } from '@shared/formatteer';
 import { nl } from '../teksten/nl';
 import { StatusLabel } from './StatusLabel';
 
-/** Kolommen van de offertelijst; gedeeld met de kopregel in het overzicht. */
+/** Kolommen van de offertelijst; gedeeld met de kopregel in het overzicht. 11rem past `2026-09-26-001b` (OFM-033). */
 export const offerteRijKolommen =
-  'grid grid-cols-[8rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.6fr)_10rem_8.5rem] items-center gap-4';
+  'grid grid-cols-[11rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.6fr)_10rem_8.5rem] items-center gap-4';
 
 export interface OfferteRijProps {
   offerte: OfferteLijstItem;

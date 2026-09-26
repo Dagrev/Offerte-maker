@@ -14,6 +14,26 @@ export const overzicht = {
   volgende: 'Volgende periode',
   vandaag: 'Vandaag',
 
+  /** Periodekiezer (OFM-037): kalenderknop en klikbaar periodelabel. */
+  kiesPeriode: 'Kies periode',
+  kiezer: {
+    titel: {
+      dag: 'Kies een dag',
+      week: 'Kies een week',
+      maand: 'Kies een maand',
+      jaar: 'Kies een jaar',
+    } satisfies Record<Weergave, string>,
+    uitleg: 'Kies met de muis, of met de pijltjestoetsen en Enter.',
+    vorigeMaand: 'Vorige maand',
+    volgendeMaand: 'Volgende maand',
+    vorigJaar: 'Vorig jaar',
+    volgendJaar: 'Volgend jaar',
+    vandaag: 'Vandaag',
+    sluiten: 'Sluiten',
+    week: 'Week',
+    weekdagen: ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'],
+  },
+
   zoeken: 'Zoek op naam of nummer',
   zoekWissen: 'Zoekveld leegmaken',
   zoekResultaten: (aantal: number) => (aantal === 1 ? '1 offerte gevonden' : `${aantal} offertes gevonden`),

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AppFout } from '@shared/fouten';
 import { zoektekstVan } from '@shared/nieuweOfferte';
-import { formatNummer, versieletter } from '@shared/nummering';
+import { formatNummer, jaarVan, versieletter } from '@shared/nummering';
 import { omschrijvingKort } from '@shared/omschrijvingKort';
 import { berekenGeldigTot } from '@shared/periode';
 import { klantSchema, klusInvoerSchema } from '@shared/schemas';
@@ -25,7 +25,10 @@ export interface DefinitiefPlan {
   klant: Klant;
   jaar: number;
   volgnummer: number;
-  /** `JJJJ-NNN`; voorlopig als de offerte nog geen nummer had (`nieuwNummer`). */
+  /**
+   * `JJJJ-MM-DD-NNN` (OFM-033; oude offertes houden `JJJJ-NNN`); voorlopig als de offerte nog geen
+   * nummer had (`nieuwNummer`).
+   */
   nummer: string;
   nieuwNummer: boolean;
   versieletter: string;
@@ -33,13 +36,14 @@ export interface DefinitiefPlan {
 
 /**
  * V-01 stap 2, alleen lezen: bestaand nummer of voorlopig nummer, en de versieletter. Onbekend id of
- * nog geen inhoud → `VALIDATIE`.
+ * nog geen inhoud → `VALIDATIE`. Een nieuw nummer krijgt `datum` (vandaag, OFM-033); het
+ * volgnummer loopt door binnen het jaar van die datum.
  */
-export function planDefinitief(id: string): DefinitiefPlan {
+export function planDefinitief(id: string, datum: string): DefinitiefPlan {
   const db = database();
   const rij = db
     .prepare(
-      `SELECT jaar, volgnummer, nummer, offertedatum, klant_json, inhoud_json FROM offertes
+      `SELECT jaar, volgnummer, nummer, klant_json, inhoud_json FROM offertes
        WHERE id = ? AND verwijderd_op IS NULL`,
     )
     .get(id) as
@@ -47,7 +51,6 @@ export function planDefinitief(id: string): DefinitiefPlan {
         jaar: number | null;
         volgnummer: number | null;
         nummer: string | null;
-        offertedatum: string;
         klant_json: string;
         inhoud_json: string | null;
       }
@@ -70,14 +73,14 @@ export function planDefinitief(id: string): DefinitiefPlan {
       versieletter: versieletter(aantal),
     };
   }
-  const jaar = Number(rij.offertedatum.slice(0, 4));
+  const jaar = jaarVan(datum);
   const volgnummer = volgendNummer(db, jaar);
   return {
     id,
     klant,
     jaar,
     volgnummer,
-    nummer: formatNummer(jaar, volgnummer),
+    nummer: formatNummer(datum, volgnummer),
     nieuwNummer: true,
     versieletter: versieletter(aantal),
   };

@@ -1,9 +1,19 @@
 // Pure delen van de nummering (TDO §8.1, FE-055). `volgendNummer(db, jaar)` hoort bij de repo-kant
 // in main (OFM-015): `src/shared` mag de database niet importeren.
 
-/** `formatNummer(2026, 1)` → `2026-001`; boven 999 gewoon meer cijfers (`2026-1000`). */
-export function formatNummer(jaar: number, volgnummer: number): string {
-  return `${jaar}-${String(volgnummer).padStart(3, '0')}`;
+/**
+ * `formatNummer('2026-09-26', 1)` → `2026-09-26-001` (OFM-033): de datum waarop de offerte voor het
+ * eerst definitief werd, plus het volgnummer per jaar; boven 999 gewoon meer cijfers
+ * (`2026-09-26-1000`). Oude nummers (`2026-001`, vóór OFM-033) blijven zoals ze zijn.
+ */
+export function formatNummer(datum: string, volgnummer: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) throw new RangeError(`Geen datum: ${datum}`);
+  return `${datum}-${String(volgnummer).padStart(3, '0')}`;
+}
+
+/** Het jaar van een datum `YYYY-MM-DD`; bepaalt de reeks van het volgnummer en de PDF-map. */
+export function jaarVan(datum: string): number {
+  return Number(datum.slice(0, 4));
 }
 
 /**
