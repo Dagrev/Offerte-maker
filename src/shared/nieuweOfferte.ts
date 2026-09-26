@@ -1,3 +1,4 @@
+import { STANDAARDKEUZE_STARTSET, type Standaardkeuzes } from './keuzelijsten';
 import { volledigeNaam } from './labels';
 import type { Adres, Dakvlak, Klant, KlusInvoer } from './types';
 
@@ -35,17 +36,21 @@ export function nieuwDakvlak(n: number, id: string = nieuwId()): Dakvlak {
   return { id, naam: `Dakvlak ${n}`, modus: 'lxb', lengteM: null, breedteM: null, m2: null };
 }
 
-/** Lege `KlusInvoer` (§5): keuzes `null`, één leeg dakvlak, geen werkzaamheden (OFM-044), `false`. */
-export function legeKlusInvoer(): KlusInvoer {
+/**
+ * Lege `KlusInvoer` (§5): één leeg dakvlak, geen werkzaamheden (OFM-044), `false`. De keuzes krijgen de
+ * ingestelde standaardkeuze (OFM-049, `offerte:nieuw` leest ze uit de database) of `null` bij geen
+ * standaard. Zonder parameter: de standaardkeuzes van de startset (hoogte 1, garantie 10).
+ */
+export function legeKlusInvoer(standaard: Standaardkeuzes = STANDAARDKEUZE_STARTSET): KlusInvoer {
   return {
-    soortWerk: null,
-    soortDak: null,
+    soortWerk: standaard.soortWerk ?? null,
+    soortDak: standaard.soortDak ?? null,
     dakvlakken: [nieuwDakvlak(1)],
-    huidigeBedekking: null,
-    ondergrond: null,
-    hoogte: '1',
+    huidigeBedekking: standaard.huidigeBedekking ?? null,
+    ondergrond: standaard.ondergrond ?? null,
+    hoogte: standaard.hoogte ?? null,
     steigerNodig: false,
-    garantieJaren: '10',
+    garantieJaren: standaard.garantie ?? null,
     werkzaamheden: [],
     gewensteUitvoering: '',
     overig: '',

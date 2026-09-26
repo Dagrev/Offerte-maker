@@ -200,8 +200,9 @@ export function uitvoering(m: PdfModel): string {
   return `<section class="uitvoering"><h2>${SECTIEKOPPEN.uitvoering}</h2>${alineas(m.inhoud.uitvoering)}</section>`;
 }
 
-// 8. Garantie.
+// 8. Garantie; weg als er geen garantie is gekozen (OFM-049: "geen standaard" bij garantie).
 export function garantie(m: PdfModel): string {
+  if (m.garantietekst.trim() === '') return '';
   return `<section class="garantie"><h2>${SECTIEKOPPEN.garantie}</h2>${alineas(m.garantietekst)}</section>`;
 }
 

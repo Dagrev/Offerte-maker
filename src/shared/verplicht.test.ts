@@ -49,6 +49,18 @@ describe('ontbrekendeVelden', () => {
     expect(met('Kerkstraat 12a')).toEqual([]);
   });
 
+  it('OFM-049: hoogte zonder standaard (null) ontbreekt als hij verplicht is', () => {
+    const invoer = legeKlusInvoer({});
+    expect(invoer.hoogte).toBeNull();
+    expect(ontbrekendeVelden(legeKlant(), invoer, { ...standaardVerplicht(), hoogte: true })).toContain(
+      'hoogte',
+    );
+    expect(ontbrekendeVelden(legeKlant(), invoer, standaardVerplicht())).not.toContain('hoogte');
+    expect(
+      ontbrekendeVelden(legeKlant(), legeKlusInvoer(), { ...standaardVerplicht(), hoogte: true }),
+    ).not.toContain('hoogte');
+  });
+
   it('witruimte telt als leeg', () => {
     const v = ontbrekendeVelden({ ...legeKlant(), voornaam: '  ' }, legeKlusInvoer(), standaardVerplicht());
     expect(v).toContain('voornaam');

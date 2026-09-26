@@ -14,6 +14,8 @@ import { useAutoBewaar } from './autoBewaar';
 
 // Tab Keuzelijsten (OFM-034): per lijst de opties van de wizard, met toevoegen, hernoemen, verbergen,
 // verwijderen en de volgorde. Elke wijziging bewaart vanzelf (FE-075); namen na 800 ms of bij verlaten.
+// OFM-049: per optie een keuzerondje Standaard plus Geen standaard; de standaard is niet te verbergen of
+// te verwijderen (dan een melding: eerst een andere kiezen).
 
 const t = nl.keuzelijsten;
 const invoerKlasse =
@@ -76,12 +78,18 @@ export function LijstBewerker({
   const [teVerwijderen, setTeVerwijderen] = useState<Keuzeoptie | null>(null);
   const [herstellen, setHerstellen] = useState(false);
   const [herstelFout, setHerstelFout] = useState<ReturnType<typeof alsFout> | null>(null);
+  const [melding, setMelding] = useState<string | null>(null);
 
   const bewaren = useAutoBewaar(
     (waarde: Keuzeoptie[]) =>
       bewaarKeuzelijst(
         lijst,
-        waarde.map(({ id, label, verborgen }) => ({ id, label: label.trim(), verborgen })),
+        waarde.map(({ id, label, verborgen, standaardkeuze }) => ({
+          id,
+          label: label.trim(),
+          verborgen,
+          standaardkeuze,
+        })),
       ).then((bewaard) => {
         // Een nieuwe optie heeft nu een id (en een sleutel): neem de bewaarde lijst over.
         if (waarde.some((r) => r.id === '')) setRijen(bewaard);
@@ -91,6 +99,7 @@ export function LijstBewerker({
   const nieuwBezig = rijen.some((r) => r.id === '');
 
   const wijzig = (nieuweRijen: Keuzeoptie[], direct: boolean) => {
+    setMelding(null);
     setRijen(nieuweRijen);
     if (direct) bewaren.bewaarDirect(nieuweRijen);
     else bewaren.wijzig(nieuweRijen);
@@ -117,12 +126,18 @@ export function LijstBewerker({
       label,
       verborgen: false,
       standaard: false,
-      vast: false,
+      standaardkeuze: false,
       inGebruik: false,
     };
     setNieuw('');
     wijzig([...rijen, optie], true);
   };
+  /** `null` = Geen standaard. */
+  const kiesStandaard = (index: number | null) =>
+    wijzig(
+      rijen.map((r, i) => ({ ...r, standaardkeuze: i === index })),
+      true,
+    );
   const verwijder = (optie: Keuzeoptie) =>
     wijzig(
       rijen.filter((r) => r !== optie),
@@ -140,6 +155,14 @@ export function LijstBewerker({
       )}
       {bewaren.fout && <Foutmelding fout={bewaren.fout} />}
       {herstelFout && <Foutmelding fout={herstelFout} />}
+      {melding && (
+        <p
+          role="alert"
+          className="rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-4 py-3 font-semibold text-waarschuwing"
+        >
+          {melding}
+        </p>
+      )}
 
       <ul aria-label={t.lijst[lijst]} className="flex flex-col">
         {rijen.map((optie, index) => {
@@ -164,11 +187,18 @@ export function LijstBewerker({
                 {optie.verborgen && (
                   <span className="rounded-full bg-vlak px-3 py-1 text-tekst-zacht">{t.verborgen}</span>
                 )}
-                {optie.vast && (
-                  <span className="rounded-full bg-vlak px-3 py-1 text-tekst-zacht" title={t.vastUitleg}>
-                    {t.vast}
-                  </span>
-                )}
+                <label className="flex min-h-12 cursor-pointer items-center gap-2 has-[:disabled]:cursor-default has-[:disabled]:text-tekst-zacht">
+                  <input
+                    type="radio"
+                    name={`standaard-${lijst}`}
+                    className="size-6 accent-accent"
+                    checked={optie.standaardkeuze}
+                    disabled={optie.id === '' || optie.verborgen}
+                    onChange={() => kiesStandaard(index)}
+                  />
+                  {t.standaard}
+                  <span className="sr-only">{t.standaardVoor(naam)}</span>
+                </label>
               </div>
               <div className="flex items-center gap-2">
                 <Knop
@@ -185,29 +215,43 @@ export function LijstBewerker({
                   disabled={index === rijen.length - 1}
                   onClick={() => verplaats(index, 1)}
                 />
-                {!optie.vast && (
-                  <>
-                    <Knop
-                      label={optie.verborgen ? t.toon(naam) : t.verberg(naam)}
-                      icoon={optie.verborgen ? Eye : EyeOff}
-                      alleenIcoon
-                      disabled={optie.id === ''}
-                      onClick={() => zet(index, { verborgen: !optie.verborgen }, true)}
-                    />
-                    <Knop
-                      label={t.verwijder(naam)}
-                      icoon={Trash2}
-                      alleenIcoon
-                      disabled={optie.id === ''}
-                      onClick={() => setTeVerwijderen(optie)}
-                    />
-                  </>
-                )}
+                <Knop
+                  label={optie.verborgen ? t.toon(naam) : t.verberg(naam)}
+                  icoon={optie.verborgen ? Eye : EyeOff}
+                  alleenIcoon
+                  disabled={optie.id === ''}
+                  onClick={() =>
+                    optie.standaardkeuze
+                      ? setMelding(t.standaardNietWeg(naam))
+                      : zet(index, { verborgen: !optie.verborgen }, true)
+                  }
+                />
+                <Knop
+                  label={t.verwijder(naam)}
+                  icoon={Trash2}
+                  alleenIcoon
+                  disabled={optie.id === ''}
+                  onClick={() =>
+                    optie.standaardkeuze ? setMelding(t.standaardNietWeg(naam)) : setTeVerwijderen(optie)
+                  }
+                />
               </div>
             </li>
           );
         })}
       </ul>
+
+      <label className="flex min-h-12 cursor-pointer items-center gap-2 px-2">
+        <input
+          type="radio"
+          name={`standaard-${lijst}`}
+          className="size-6 accent-accent"
+          checked={!rijen.some((r) => r.standaardkeuze)}
+          onChange={() => kiesStandaard(null)}
+        />
+        {t.geenStandaard}
+        <span className="text-tekst-zacht">— {t.geenStandaardUitleg}</span>
+      </label>
 
       <form
         className="flex flex-wrap items-end gap-4"

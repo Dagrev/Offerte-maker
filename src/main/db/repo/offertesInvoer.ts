@@ -16,7 +16,7 @@ import { KLANT_VELDNAMEN, validatieMelding } from '@shared/teksten/validatie';
 import { controleerKlantVelden } from '@shared/validatie';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { invullen } from '../../privacy/invullen';
-import { controleerKeuzes, haalKeuzes } from './keuzeopties';
+import { controleerKeuzes, haalKeuzes, haalStandaardkeuzes } from './keuzeopties';
 import { controleerWerkzaamheden } from './werkzaamheden';
 import { database } from '../verbinding';
 
@@ -65,7 +65,8 @@ export interface NieuweOfferte {
  */
 export function maakOfferte(opties: NieuweOfferte, nu: Date = new Date()): string {
   let klant: Klant = legeKlant();
-  let invoer: KlusInvoer = legeKlusInvoer();
+  // OFM-049: een nieuwe offerte start met de ingestelde standaardkeuzes.
+  let invoer: KlusInvoer = legeKlusInvoer(haalStandaardkeuzes());
   let stap = 1;
   if (opties.bronId !== undefined) {
     const bron = haalRij(opties.bronId);

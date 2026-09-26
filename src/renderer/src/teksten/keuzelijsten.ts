@@ -3,7 +3,7 @@ import type { KeuzeLijst } from '@shared/types';
 // Interfacetekst van Instellingen › Keuzelijsten (OFM-034, NFE-006, V-11).
 export const keuzelijsten = {
   uitleg:
-    'Dit zijn de keuzes in de wizard. Een nieuwe naam geldt meteen overal, ook in bestaande offertes. Een keuze die in een offerte staat kun je niet verwijderen, wel verbergen.',
+    'Dit zijn de keuzes in de wizard. Een nieuwe naam geldt meteen overal, ook in bestaande offertes. Een keuze die in een offerte staat kun je niet verwijderen, wel verbergen. Met Standaard kies je waarmee een nieuwe offerte begint.',
   kiesLijst: 'Welke lijst',
   lijst: {
     soortWerk: 'Soort werk',
@@ -27,8 +27,13 @@ export const keuzelijsten = {
   toon: (label: string) => `${label} weer tonen`,
   verwijder: (label: string) => `${label} verwijderen`,
   verborgen: 'Verborgen',
-  vast: 'Standaardkeuze',
-  vastUitleg: 'Een nieuwe offerte begint met deze keuze. Je kunt hem alleen een andere naam geven.',
+  /** OFM-049: keuzerondje per optie; de naam van de optie staat er onzichtbaar achter (schermlezer). */
+  standaard: 'Standaard',
+  standaardVoor: (label: string) => ` voor ${label}`,
+  geenStandaard: 'Geen standaard',
+  geenStandaardUitleg: 'Een nieuwe offerte begint dan zonder keuze in deze lijst.',
+  standaardNietWeg: (label: string) =>
+    `"${label}" is de standaard voor een nieuwe offerte. Kies eerst een andere standaard of Geen standaard.`,
   inGebruik: (label: string) =>
     `"${label}" staat nog in een offerte en kan daarom niet worden verwijderd. Je kunt hem wel verbergen.`,
   verbergInPlaats: 'Verbergen',
@@ -44,7 +49,7 @@ export const keuzelijsten = {
   herstel: 'Herstel standaardlijst',
   herstelTitel: 'Standaardlijst herstellen?',
   herstelTekst:
-    'De standaardkeuzes krijgen hun oorspronkelijke naam en volgorde terug en worden weer getoond. Je eigen keuzes blijven bestaan.',
+    'De keuzes van de standaardlijst krijgen hun oorspronkelijke naam en volgorde terug en worden weer getoond, en de standaard wordt weer die van de standaardlijst. Je eigen keuzes blijven bestaan.',
   herstelJa: 'Herstellen',
   herstelNee: 'Annuleren',
 };

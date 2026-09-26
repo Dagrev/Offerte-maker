@@ -1,11 +1,16 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SEED_NAMEN, vulMetSeed } from '../../scripts/seedGegevens';
 import { klusInvoerSchema } from '../../src/shared/schemas';
+
+function hoogsteMigratie(): number {
+  const map = join(import.meta.dirname, '../../src/main/db/migraties');
+  return Math.max(...readdirSync(map).map((n) => Number(/^(\d{3})_/.exec(n)?.[1] ?? 0)));
+}
 
 // Seed-script (OFM-027, TDO §15.4): 5.000 offertes, random-seed 42, 10 % concept, 1–8 regels,
 // namen uit een vaste lijst van 200, 2022–2026, en twee runs geven dezelfde gegevens.
@@ -100,6 +105,14 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    expect(a.pragma('user_version', { simple: true })).toBe(5);
+    // Hoogste migratie (OFM-049: 007); niet hardgecodeerd, zodat een nieuwe migratie deze test niet breekt.
+    expect(a.pragma('user_version', { simple: true })).toBe(hoogsteMigratie());
+    // OFM-049: de standaardkeuzes van de startset (hoogte 1, garantie 10), net als na migratie 007.
+    expect(
+      a.prepare('SELECT lijst, sleutel FROM keuzeopties WHERE standaardkeuze = 1 ORDER BY lijst').all(),
+    ).toEqual([
+      { lijst: 'garantie', sleutel: '10' },
+      { lijst: 'hoogte', sleutel: '1' },
+    ]);
   });
 });

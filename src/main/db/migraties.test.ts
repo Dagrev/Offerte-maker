@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
+import { KEUZE_LIJSTEN, KEUZE_STARTSET, STANDAARDKEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/database';
 
@@ -43,13 +43,16 @@ describe('verbinding', () => {
 });
 
 describe('migratiebestanden', () => {
-  it.each(['001_basis.sql', '002_keuzelijsten.sql', '003_naam.sql', '004_werkzaamheden.sql'])(
-    '%s bevat geen INSERTs (V-13)',
-    (naam) => {
-      const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
-      expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
-    },
-  );
+  it.each([
+    '001_basis.sql',
+    '002_keuzelijsten.sql',
+    '003_naam.sql',
+    '004_werkzaamheden.sql',
+    '007_standaardkeuze.sql',
+  ])('%s bevat geen INSERTs (V-13)', (naam) => {
+    const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
+    expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
+  });
 });
 
 describe('migreer', () => {
@@ -82,6 +85,7 @@ describe('migreer', () => {
         'materialen',
         'werkzaamheid_materiaal',
         'idx_een_standaardmateriaal',
+        'idx_keuzeopties_standaardkeuze',
       ]),
     );
   });
@@ -110,7 +114,7 @@ describe('migreer', () => {
     t = await maakTestDatabase();
     const rijen = t.db
       .prepare(
-        'SELECT id, lijst, sleutel, label, volgorde, verborgen, standaard FROM keuzeopties ORDER BY lijst, volgorde',
+        'SELECT id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze FROM keuzeopties ORDER BY lijst, volgorde',
       )
       .all();
     const verwacht = KEUZE_LIJSTEN.flatMap((lijst) =>
@@ -122,6 +126,8 @@ describe('migreer', () => {
         volgorde: (i + 1) * 10,
         verborgen: 0,
         standaard: 1,
+        // OFM-049: migratie 007 zet de standaardkeuzes van de startset.
+        standaardkeuze: STANDAARDKEUZE_STARTSET[lijst] === o.sleutel ? 1 : 0,
       })),
     ).sort((a, b) => (a.lijst < b.lijst ? -1 : a.lijst > b.lijst ? 1 : a.volgorde - b.volgorde));
     expect(rijen).toEqual(verwacht);
@@ -189,6 +195,32 @@ describe('migreer', () => {
     expect(JSON.parse(klant('klaar'))).not.toHaveProperty('naam');
     expect(JSON.parse(klant('al-nieuw'))).toEqual({ aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Bos' });
     expect(klant('kapot')).toBe('geen json');
+  });
+
+  it('007: standaardkeuze = de oude vaste waarden (hoogte 1, garantie 10), eigen opties niet (OFM-049)', async () => {
+    t = await maakTestDatabase({ migreren: false });
+    const alle = laadMigraties(
+      import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
+    );
+    // Alles vóór 007 (ook een eventuele 006 van een ander ticket); daarna alleen 007.
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr < 7), backup: () => Promise.resolve() });
+    t.db
+      .prepare(
+        "INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde) VALUES ('eigen', 'hoogte', 'kelder', 'Kelder', 99)",
+      )
+      .run();
+    t.db.prepare("UPDATE keuzeopties SET label = 'Laagbouw' WHERE lijst = 'hoogte' AND sleutel = '1'").run();
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 7), backup: () => Promise.resolve() });
+    const standaard = t.db
+      .prepare('SELECT lijst, sleutel, label FROM keuzeopties WHERE standaardkeuze = 1 ORDER BY lijst')
+      .all();
+    expect(standaard).toEqual([
+      { lijst: 'garantie', sleutel: '10', label: '10 jaar' },
+      { lijst: 'hoogte', sleutel: '1', label: 'Laagbouw' },
+    ]);
+    expect(t.db.prepare('SELECT COUNT(*) AS n FROM keuzeopties WHERE standaardkeuze = 0').get()).toEqual({
+      n: 20,
+    });
   });
 
   it('niets te doen: geen back-up, versie blijft', async () => {

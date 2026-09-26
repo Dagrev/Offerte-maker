@@ -45,7 +45,8 @@ export const VALIDATIE_MELDINGEN = {
     'Deze back-up komt van een nieuwere versie van de app en kan niet worden teruggezet.',
   // Keuzelijsten (OFM-034)
   keuzeInGebruik: 'Deze keuze staat nog in een offerte. Je kunt hem wel verbergen.',
-  keuzeVast: 'Dit is de standaardkeuze van een nieuwe offerte. Je kunt hem alleen een andere naam geven.',
+  keuzeVast:
+    'Dit is de standaardkeuze van een nieuwe offerte. Kies eerst een andere standaard of Geen standaard; hernoemen kan wel.',
   onbekendeKeuze: 'Deze keuze bestaat niet (meer). Kies een andere.',
   // Werkzaamheden en materialen (OFM-043)
   werkInGebruik:

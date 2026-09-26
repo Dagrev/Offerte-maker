@@ -78,6 +78,16 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     expect(klus).toMatchObject({ soortWerk: null, soortDak: null, huidigeBedekking: null, ondergrond: null });
   });
 
+  it('OFM-049: zonder hoogte of garantie (geen standaard) ook null', () => {
+    const klus = bouwKlusVoorAgent({
+      invoer: maakInvoer({ hoogte: null, garantieJaren: null }),
+      klant,
+      offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
+    });
+    expect(klus).toMatchObject({ hoogte: null, garantie: null });
+  });
+
   it('filtert vrije tekst en dakvlaknamen; zonder filter blijft de tekst ongewijzigd', () => {
     const bron = {
       invoer: maakInvoer({

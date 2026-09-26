@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
-import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
+import { KEUZE_LIJSTEN, KEUZE_STARTSET, STANDAARDKEUZE_STARTSET } from '../src/shared/keuzelijsten';
 import { legeKlant, legeKlusInvoer, zoektekstVan } from '../src/shared/nieuweOfferte';
 import { formatNummer } from '../src/shared/nummering';
 import { omschrijvingKort } from '../src/shared/omschrijvingKort';
@@ -178,13 +178,15 @@ export function zorgVoorSchema(db: Database.Database): void {
         (index + 1) * 10,
       );
     });
-    // Zelfde startset als `voegKeuzeStartsetIn()` (OFM-034).
+    // Zelfde startset als `voegKeuzeStartsetIn()` (OFM-034), met de standaardkeuzes die migratie 007
+    // zet (OFM-049; hier draait de SQL vóór de startset, dus de UPDATE van 007 vond nog niets).
     const keuze = db.prepare(
-      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
+      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, 0, 1, ?)',
     );
     for (const lijst of KEUZE_LIJSTEN) {
       KEUZE_STARTSET[lijst].forEach((o, index) => {
-        keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10);
+        const standaardkeuze = STANDAARDKEUZE_STARTSET[lijst] === o.sleutel ? 1 : 0;
+        keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10, standaardkeuze);
       });
     }
     // Werkzaamheden, opties en materialen (OFM-043), na de keuzelijsten (koppeling met soort werk).

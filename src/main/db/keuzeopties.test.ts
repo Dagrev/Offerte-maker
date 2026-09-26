@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppFout } from '@shared/fouten';
-import { KEUZE_STARTSET } from '@shared/keuzelijsten';
+import { KEUZE_STARTSET, STANDAARDKEUZE_STARTSET, standaardKeuzes } from '@shared/keuzelijsten';
 import { legeKlusInvoer } from '@shared/nieuweOfferte';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { KeuzeLijst, KlusInvoer } from '@shared/types';
@@ -12,9 +12,15 @@ vi.mock('electron', () => ({ app: { getPath: () => 'C:\\nergens', isPackaged: fa
 vi.mock('../log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../testhaken', () => ({ vandaag: () => '2026-09-25', testhaak: () => false }));
 
-const { bewaarKeuzelijst, controleerKeuzes, haalKeuzes, herstelKeuzelijst, lijstKeuzeopties } =
-  await import('./repo/keuzeopties');
-const { bewaarInvoer, maakOfferte } = await import('./repo/offertesInvoer');
+const {
+  bewaarKeuzelijst,
+  controleerKeuzes,
+  haalKeuzes,
+  haalStandaardkeuzes,
+  herstelKeuzelijst,
+  lijstKeuzeopties,
+} = await import('./repo/keuzeopties');
+const { bewaarInvoer, haalOfferte, maakOfferte } = await import('./repo/offertesInvoer');
 const { verwijderOfferte } = await import('./repo/offertesBeheer');
 const { lijstPrijsposten } = await import('./repo/prijsposten');
 const { keuzelijstenHandlers } = await import('../ipc/keuzelijsten');
@@ -28,7 +34,7 @@ afterEach(() => t.opruimen());
 
 const opties = (lijst: KeuzeLijst) => lijstKeuzeopties()[lijst];
 const alsInvoer = (lijst: KeuzeLijst) =>
-  opties(lijst).map(({ id, label, verborgen }) => ({ id, label, verborgen }));
+  opties(lijst).map(({ id, label, verborgen, standaardkeuze }) => ({ id, label, verborgen, standaardkeuze }));
 
 function offerteMet(deel: Partial<KlusInvoer>): string {
   const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
@@ -46,11 +52,20 @@ function fout(fn: () => unknown): AppFout {
 }
 
 describe('keuzelijsten:haal', () => {
-  it('per lijst de startset in volgorde, met vast en inGebruik', () => {
+  it('per lijst de startset in volgorde, met standaardkeuze en inGebruik', () => {
     const lijsten = lijstKeuzeopties();
     expect(lijsten.soortWerk.map((o) => o.label)).toEqual(KEUZE_STARTSET.soortWerk.map((o) => o.label));
-    expect(lijsten.hoogte.find((o) => o.sleutel === '1')).toMatchObject({ vast: true, standaard: true });
-    expect(lijsten.garantie.find((o) => o.sleutel === '20')).toMatchObject({ vast: false, inGebruik: false });
+    expect(lijsten.hoogte.find((o) => o.sleutel === '1')).toMatchObject({
+      standaardkeuze: true,
+      standaard: true,
+    });
+    expect(lijsten.garantie.find((o) => o.sleutel === '20')).toMatchObject({
+      standaardkeuze: false,
+      inGebruik: false,
+    });
+    // OFM-049: migratie 007 zet de oude vaste waarden als standaardkeuze; de rest zonder standaard.
+    expect(standaardKeuzes(lijsten)).toEqual(STANDAARDKEUZE_STARTSET);
+    expect(haalStandaardkeuzes()).toEqual({ hoogte: '1', garantie: '10' });
     // OFM-045: de lijsten van de oude stap Extra's bestaan niet meer.
     expect(Object.keys(lijsten)).not.toContain('bedekking');
     offerteMet({ soortWerk: 'reparatie', ondergrond: 'hout' });
@@ -72,7 +87,7 @@ describe('keuzelijsten:bewaar', () => {
   it('toevoegen: sleutel uit het label, zonder prijspost; hernoemen, verbergen en volgorde', () => {
     const posten = lijstPrijsposten().length;
     const uit = bewaarKeuzelijst('huidigeBedekking', [
-      { id: '', label: 'Leien  (natuur)', verborgen: false },
+      { id: '', label: 'Leien  (natuur)', verborgen: false, standaardkeuze: false },
       ...alsInvoer('huidigeBedekking').map((o) => (o.label === 'EPDM' ? { ...o, label: 'EPDM (oud)' } : o)),
     ]);
     expect(uit[0]).toMatchObject({ sleutel: 'leien_natuur', label: 'Leien  (natuur)', standaard: false });
@@ -82,7 +97,12 @@ describe('keuzelijsten:bewaar', () => {
 
     const verborgen = bewaarKeuzelijst(
       'huidigeBedekking',
-      uit.map((o) => ({ id: o.id, label: o.label, verborgen: o.sleutel === 'bitumen' })),
+      uit.map((o) => ({
+        id: o.id,
+        label: o.label,
+        verborgen: o.sleutel === 'bitumen',
+        standaardkeuze: false,
+      })),
     );
     expect(verborgen.find((o) => o.sleutel === 'bitumen')?.verborgen).toBe(true);
     expect(verborgen.map((o) => o.sleutel).slice(0, 2)).toEqual(['leien_natuur', 'bitumen']);
@@ -91,8 +111,8 @@ describe('keuzelijsten:bewaar', () => {
   it('sleutels zijn uniek over alle lijsten en prijsposten', () => {
     const ondergrond = bewaarKeuzelijst('ondergrond', [
       ...alsInvoer('ondergrond'),
-      { id: '', label: 'Steiger', verborgen: false },
-      { id: '', label: 'Plat', verborgen: false },
+      { id: '', label: 'Steiger', verborgen: false, standaardkeuze: false },
+      { id: '', label: 'Plat', verborgen: false, standaardkeuze: false },
     ]);
     expect(ondergrond.map((o) => o.sleutel).slice(-2)).toEqual(['steiger_2', 'plat_2']);
     expect(lijstPrijsposten().some((p) => p.sleutel === 'steiger_2')).toBe(false);
@@ -103,7 +123,7 @@ describe('keuzelijsten:bewaar', () => {
     const zonder = (sleutel: string) =>
       opties('ondergrond')
         .filter((o) => o.sleutel !== sleutel)
-        .map(({ id, label, verborgen }) => ({ id, label, verborgen }));
+        .map(({ id, label, verborgen, standaardkeuze }) => ({ id, label, verborgen, standaardkeuze }));
     const f = fout(() => bewaarKeuzelijst('ondergrond', zonder('staal')));
     expect(f).toBeInstanceOf(AppFout);
     expect(f.melding).toBe(VALIDATIE_MELDINGEN.keuzeInGebruik);
@@ -134,11 +154,75 @@ describe('keuzelijsten:bewaar', () => {
     expect(hernoemd[0]?.label).toBe('10 jaar schriftelijk');
   });
 
+  it('OFM-049: standaardkeuze verzetten, daarna mag de oude weg; hoogstens één per lijst', () => {
+    const lijst = alsInvoer('garantie');
+    // Standaard naar 20 jaar: 10 jaar is daarna gewoon te verbergen en te verwijderen.
+    const verzet = bewaarKeuzelijst(
+      'garantie',
+      lijst.map((o) => ({ ...o, standaardkeuze: o.label === '20 jaar verzekerde garantie' })),
+    );
+    expect(verzet.map((o) => [o.sleutel, o.standaardkeuze])).toEqual([
+      ['10', false],
+      ['20', true],
+    ]);
+    expect(haalStandaardkeuzes().garantie).toBe('20');
+    const zonder10 = bewaarKeuzelijst(
+      'garantie',
+      verzet
+        .filter((o) => o.sleutel !== '10')
+        .map(({ id, label, verborgen, standaardkeuze }) => ({ id, label, verborgen, standaardkeuze })),
+    );
+    expect(zonder10.map((o) => o.sleutel)).toEqual(['20']);
+
+    // Twee standaarden in één lijst: VALIDATIE (en de unieke index in de database).
+    const soortDak = alsInvoer('soortDak').map((o) => ({ ...o, standaardkeuze: true }));
+    expect(fout(() => bewaarKeuzelijst('soortDak', soortDak)).code).toBe('VALIDATIE');
+    expect(() =>
+      t.db.prepare("UPDATE keuzeopties SET standaardkeuze = 1 WHERE lijst = 'soortDak'").run(),
+    ).toThrow();
+
+    // Een nieuwe optie kan meteen de standaard zijn; geen standaard = alles uit.
+    const nieuw = bewaarKeuzelijst('ondergrond', [
+      ...alsInvoer('ondergrond'),
+      { id: '', label: 'Riet', verborgen: false, standaardkeuze: true },
+    ]);
+    expect(nieuw.find((o) => o.standaardkeuze)?.sleutel).toBe('riet');
+    bewaarKeuzelijst(
+      'ondergrond',
+      alsInvoer('ondergrond').map((o) => ({ ...o, standaardkeuze: false })),
+    );
+    expect(haalStandaardkeuzes().ondergrond).toBeUndefined();
+  });
+
+  it('OFM-049: een nieuwe offerte start met de ingestelde standaardkeuzes; geen standaard = leeg', () => {
+    bewaarKeuzelijst(
+      'soortDak',
+      alsInvoer('soortDak').map((o) => ({ ...o, standaardkeuze: o.label === 'hellend dak' })),
+    );
+    bewaarKeuzelijst(
+      'hoogte',
+      alsInvoer('hoogte').map((o) => ({ ...o, standaardkeuze: false })),
+    );
+    const invoer = haalOfferte(maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 })).invoer;
+    expect(invoer).toMatchObject({
+      soortWerk: null,
+      soortDak: 'hellend',
+      huidigeBedekking: null,
+      ondergrond: null,
+      hoogte: null,
+      garantieJaren: '10',
+    });
+  });
+
   it('weigert onbekende of dubbele id’s', () => {
     const lijst = alsInvoer('hoogte');
     expect(
-      fout(() => bewaarKeuzelijst('hoogte', [...lijst, { id: 'bestaat-niet', label: 'x', verborgen: false }]))
-        .code,
+      fout(() =>
+        bewaarKeuzelijst('hoogte', [
+          ...lijst,
+          { id: 'bestaat-niet', label: 'x', verborgen: false, standaardkeuze: false },
+        ]),
+      ).code,
     ).toBe('VALIDATIE');
     expect(fout(() => bewaarKeuzelijst('hoogte', [...lijst, lijst[1]!])).code).toBe('VALIDATIE');
     // Een id van een andere lijst telt ook als onbekend.
@@ -163,14 +247,20 @@ describe('keuzelijsten:bewaar', () => {
     const evt = {} as Parameters<typeof bewaar>[0];
     expect(await bewaar(evt, { lijst: 'bestaat', opties: [] })).toMatchObject({ ok: false });
     expect(
-      await bewaar(evt, { lijst: 'soortDak', opties: [{ id: '', label: '  ', verborgen: false }] }),
+      await bewaar(evt, {
+        lijst: 'soortDak',
+        opties: [{ id: '', label: '  ', verborgen: false, standaardkeuze: false }],
+      }),
     ).toMatchObject({
       ok: false,
       fout: { code: 'VALIDATIE' },
     });
     const ok = await bewaar(evt, {
       lijst: 'soortDak',
-      opties: [...alsInvoer('soortDak'), { id: '', label: 'Rond dak', verborgen: false }],
+      opties: [
+        ...alsInvoer('soortDak'),
+        { id: '', label: 'Rond dak', verborgen: false, standaardkeuze: false },
+      ],
     });
     expect(ok).toMatchObject({ ok: true });
     const haal = maakIpcHandler('keuzelijsten:haal', keuzelijstenHandlers['keuzelijsten:haal']);
@@ -182,13 +272,14 @@ describe('keuzelijsten:herstel', () => {
   it('standaardopties terug met oorspronkelijk label, zichtbaar en in volgorde; eigen opties blijven erachter', async () => {
     const lijst = alsInvoer('ondergrond');
     bewaarKeuzelijst('ondergrond', [
-      { id: '', label: 'Riet', verborgen: false },
+      { id: '', label: 'Riet', verborgen: false, standaardkeuze: false },
       ...lijst
         .filter((o) => o.label !== 'Staal')
         .map((o) => (o.label === 'Beton' ? { ...o, label: 'Beton (gewapend)', verborgen: true } : o)),
     ]);
     const herstel = maakIpcHandler('keuzelijsten:herstel', keuzelijstenHandlers['keuzelijsten:herstel']);
     expect(await herstel({} as never, { lijst: 'ondergrond' })).toEqual({ ok: true, data: null });
+    expect(opties('ondergrond').some((o) => o.standaardkeuze)).toBe(false);
     expect(opties('ondergrond').map((o) => [o.label, o.verborgen, o.standaard])).toEqual([
       ['Hout', false, true],
       ['Beton', false, true],
@@ -199,6 +290,20 @@ describe('keuzelijsten:herstel', () => {
     herstelKeuzelijst('soortWerk');
     expect(opties('soortWerk').map((o) => o.label)).toEqual(KEUZE_STARTSET.soortWerk.map((o) => o.label));
   });
+
+  it('OFM-049: zet ook de standaardkeuze terug (hoogte 1; soort dak zonder standaard)', () => {
+    bewaarKeuzelijst(
+      'hoogte',
+      alsInvoer('hoogte').map((o) => ({ ...o, standaardkeuze: o.label === '2 bouwlagen' })),
+    );
+    bewaarKeuzelijst(
+      'soortDak',
+      alsInvoer('soortDak').map((o) => ({ ...o, standaardkeuze: o.label === 'plat dak' })),
+    );
+    herstelKeuzelijst('hoogte');
+    herstelKeuzelijst('soortDak');
+    expect(haalStandaardkeuzes()).toEqual({ hoogte: '1', garantie: '10' });
+  });
 });
 
 describe('controle bij offerte:bewaarInvoer', () => {
@@ -207,7 +312,10 @@ describe('controle bij offerte:bewaarInvoer', () => {
     expect(
       fout(() => bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), ondergrond: 'riet' } }, 30)).melding,
     ).toBe(VALIDATIE_MELDINGEN.onbekendeKeuze);
-    bewaarKeuzelijst('ondergrond', [...alsInvoer('ondergrond'), { id: '', label: 'Riet', verborgen: false }]);
+    bewaarKeuzelijst('ondergrond', [
+      ...alsInvoer('ondergrond'),
+      { id: '', label: 'Riet', verborgen: false, standaardkeuze: false },
+    ]);
     bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), soortWerk: 'reparatie', ondergrond: 'riet' } }, 30);
 
     // Verwijderde optie die al in de offerte stond: bewaren blijft werken.

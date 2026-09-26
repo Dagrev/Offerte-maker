@@ -128,7 +128,7 @@ const ONTBREEKT: Record<WizardVeld, (b: Bron) => boolean> = {
   soortWerk: ({ invoer }) => invoer.soortWerk === null,
   soortDak: ({ invoer }) => invoer.soortDak === null,
   dakvlak: ({ invoer }) => !invoer.dakvlakken.some((v) => m2VanDakvlak(v) > 0),
-  hoogte: ({ invoer }) => leeg(invoer.hoogte),
+  hoogte: ({ invoer }) => invoer.hoogte === null || leeg(invoer.hoogte),
   werkzaamheid: ({ invoer }) => invoer.werkzaamheden.length === 0,
 };
 

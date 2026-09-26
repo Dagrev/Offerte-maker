@@ -3,11 +3,12 @@ import { AppFout } from '@shared/fouten';
 import {
   KEUZE_LIJSTEN,
   KEUZE_STARTSET,
+  STANDAARDKEUZE_STARTSET,
   gebruikteSleutels,
-  isVasteKeuze,
   maakSleutel,
   type KeuzeLijst,
   type Keuzes,
+  type Standaardkeuzes,
 } from '@shared/keuzelijsten';
 import { omschrijvingKort } from '@shared/omschrijvingKort';
 import { klusInvoerSchema } from '@shared/schemas';
@@ -17,8 +18,8 @@ import { database } from '../verbinding';
 
 // Keuzelijsten van de wizard (OFM-034, TDO §4.2 `keuzeopties`, §6.2 `keuzelijsten:*`). Sleutels zijn
 // stabiel; hernoemen verandert alleen het label. Een optie die in een niet-verwijderde offerte
-// voorkomt kan alleen verborgen worden; de standaardkeuze van een nieuwe offerte (VASTE_KEUZES) ook dat
-// niet.
+// voorkomt kan alleen verborgen worden; de standaardkeuze van een nieuwe offerte (OFM-049, kolom
+// `standaardkeuze`, hoogstens één per lijst) ook dat niet.
 
 interface KeuzeRij {
   id: string;
@@ -28,6 +29,7 @@ interface KeuzeRij {
   volgorde: number;
   verborgen: number;
   standaard: number;
+  standaardkeuze: number;
 }
 
 function rijen(lijst?: KeuzeLijst): KeuzeRij[] {
@@ -44,6 +46,16 @@ export function haalKeuzes(): Keuzes {
   const uit = Object.fromEntries(KEUZE_LIJSTEN.map((l) => [l, [] as { sleutel: string; label: string }[]]));
   for (const rij of rijen()) uit[rij.lijst]?.push({ sleutel: rij.sleutel, label: rij.label });
   return uit as unknown as Keuzes;
+}
+
+/** De ingestelde standaardkeuzes (OFM-049): de beginwaarden van een nieuwe offerte (`offerte:nieuw`). */
+export function haalStandaardkeuzes(): Standaardkeuzes {
+  const alle = database()
+    .prepare('SELECT lijst, sleutel FROM keuzeopties WHERE standaardkeuze = 1')
+    .all() as { lijst: KeuzeLijst; sleutel: string }[];
+  const uit: Standaardkeuzes = {};
+  for (const { lijst, sleutel } of alle) uit[lijst] = sleutel;
+  return uit;
 }
 
 /** Invoer van alle niet-verwijderde offertes (voor "in gebruik"). */
@@ -75,12 +87,12 @@ function naarOptie(rij: KeuzeRij, inGebruik: Set<string>): Keuzeoptie {
     label: rij.label,
     verborgen: rij.verborgen === 1,
     standaard: rij.standaard === 1,
-    vast: isVasteKeuze(rij.lijst, rij.sleutel),
+    standaardkeuze: rij.standaardkeuze === 1,
     inGebruik: inGebruik.has(rij.sleutel),
   };
 }
 
-/** `keuzelijsten:haal`: per lijst de opties in volgorde, met `vast` en `inGebruik`. */
+/** `keuzelijsten:haal`: per lijst de opties in volgorde, met `standaardkeuze` en `inGebruik`. */
 export function lijstKeuzeopties(): Keuzelijsten {
   const gebruik = sleutelsInGebruik();
   const uit = Object.fromEntries(KEUZE_LIJSTEN.map((l) => [l, [] as Keuzeoptie[]])) as Keuzelijsten;
@@ -98,6 +110,8 @@ export interface OptieWijziging {
   id: string;
   label: string;
   verborgen: boolean;
+  /** OFM-049: hoogstens één per lijst; geen enkele = geen standaard. */
+  standaardkeuze: boolean;
 }
 
 /** Sleutels die al bezet zijn: alle keuzeopties (alle lijsten) en alle prijsposten. */
@@ -134,8 +148,10 @@ const ongeldig = (melding: string = VALIDATIE_MELDINGEN.ongeldigeInvoer) => new 
 /**
  * `keuzelijsten:bewaar`: de hele lijst in de nieuwe volgorde. Lege `id` = nieuwe optie (sleutel uit het
  * label; sinds OFM-045 heeft geen enkele lijst nog een eigen prijspost). Een bestaande
- * optie die ontbreekt wordt verwijderd, maar alleen als hij niet vast is en in geen enkele
- * niet-verwijderde offerte voorkomt. Geeft de bewaarde lijst terug (met de id's van nieuwe opties).
+ * optie die ontbreekt wordt verwijderd, maar alleen als hij niet de (bewaarde) standaardkeuze is en in
+ * geen enkele niet-verwijderde offerte voorkomt. De standaardkeuze (OFM-049) staat per optie in de lijst:
+ * hoogstens één, en die mag niet verborgen zijn. Geeft de bewaarde lijst terug (met de id's van nieuwe
+ * opties).
  */
 export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijziging[]): Keuzeoptie[] {
   const db = database();
@@ -144,18 +160,15 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
     const ids = opties.filter((o) => o.id !== '').map((o) => o.id);
     if (new Set(ids).size !== ids.length || ids.some((id) => !bestaand.has(id))) throw ongeldig();
 
+    if (opties.filter((o) => o.standaardkeuze).length > 1) throw ongeldig();
+
     const inGebruik = sleutelsInGebruik()[lijst];
     for (const rij of bestaand.values()) {
       if (ids.includes(rij.id)) continue;
-      if (isVasteKeuze(lijst, rij.sleutel)) throw ongeldig(VALIDATIE_MELDINGEN.keuzeVast);
+      if (rij.standaardkeuze === 1) throw ongeldig(VALIDATIE_MELDINGEN.keuzeVast);
       if (inGebruik.has(rij.sleutel)) throw ongeldig(VALIDATIE_MELDINGEN.keuzeInGebruik);
     }
-    for (const optie of opties) {
-      const rij = bestaand.get(optie.id);
-      if (rij && optie.verborgen && isVasteKeuze(lijst, rij.sleutel)) {
-        throw ongeldig(VALIDATIE_MELDINGEN.keuzeVast);
-      }
-    }
+    if (opties.some((o) => o.standaardkeuze && o.verborgen)) throw ongeldig(VALIDATIE_MELDINGEN.keuzeVast);
 
     let labelsGewijzigd = false;
     for (const rij of bestaand.values()) {
@@ -165,11 +178,13 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
       }
     }
     const bezet = bezetteSleutels();
+    // Eerst alle standaardkeuzes van de lijst uit: de unieke index laat er hoogstens één toe.
+    db.prepare('UPDATE keuzeopties SET standaardkeuze = 0 WHERE lijst = ?').run(lijst);
     const bijwerken = db.prepare(
-      'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = ? WHERE id = ?',
+      'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = ?, standaardkeuze = ? WHERE id = ?',
     );
     const invoegen = db.prepare(
-      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, ?, 0)',
+      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
     );
     opties.forEach((optie, index) => {
       const volgorde = (index + 1) * 10;
@@ -177,12 +192,20 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
       const rij = bestaand.get(optie.id);
       if (rij) {
         if (rij.label !== label) labelsGewijzigd = true;
-        bijwerken.run(label, volgorde, optie.verborgen ? 1 : 0, rij.id);
+        bijwerken.run(label, volgorde, optie.verborgen ? 1 : 0, optie.standaardkeuze ? 1 : 0, rij.id);
         return;
       }
       const sleutel = maakSleutel(label, bezet);
       bezet.add(sleutel);
-      invoegen.run(randomUUID(), lijst, sleutel, label, volgorde, optie.verborgen ? 1 : 0);
+      invoegen.run(
+        randomUUID(),
+        lijst,
+        sleutel,
+        label,
+        volgorde,
+        optie.verborgen ? 1 : 0,
+        optie.standaardkeuze ? 1 : 0,
+      );
     });
     if (labelsGewijzigd && lijst === 'soortWerk') herberekenOmschrijvingen();
   })();
@@ -192,24 +215,28 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
 /**
  * `keuzelijsten:herstel` ("Herstel standaardlijst"): de opties uit de startset weer met hun
  * oorspronkelijke label, zichtbaar en in de oorspronkelijke volgorde (verwijderde worden teruggezet).
- * Eigen opties blijven bestaan, achter de standaardopties.
+ * Eigen opties blijven bestaan, achter de standaardopties. De standaardkeuze wordt weer die van de
+ * startset (`STANDAARDKEUZE_STARTSET`, OFM-049), of geen als de startset er geen heeft.
  */
 export function herstelKeuzelijst(lijst: KeuzeLijst): void {
   const db = database();
   db.transaction(() => {
     const start = KEUZE_STARTSET[lijst];
+    const standaardkeuze = STANDAARDKEUZE_STARTSET[lijst];
+    db.prepare('UPDATE keuzeopties SET standaardkeuze = 0 WHERE lijst = ?').run(lijst);
     const opSleutel = new Map(rijen(lijst).map((r) => [r.sleutel, r]));
     start.forEach((optie, index) => {
       const volgorde = (index + 1) * 10;
       const rij = opSleutel.get(optie.sleutel);
+      const isStandaard = optie.sleutel === standaardkeuze ? 1 : 0;
       if (rij) {
         db.prepare(
-          'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = 0, standaard = 1 WHERE id = ?',
-        ).run(optie.label, volgorde, rij.id);
+          'UPDATE keuzeopties SET label = ?, volgorde = ?, verborgen = 0, standaard = 1, standaardkeuze = ? WHERE id = ?',
+        ).run(optie.label, volgorde, isStandaard, rij.id);
       } else {
         db.prepare(
-          'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
-        ).run(`start-${lijst}-${optie.sleutel}`, lijst, optie.sleutel, optie.label, volgorde);
+          'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, 0, 1, ?)',
+        ).run(`start-${lijst}-${optie.sleutel}`, lijst, optie.sleutel, optie.label, volgorde, isStandaard);
       }
     });
     const startSleutels = new Set(start.map((o) => o.sleutel));

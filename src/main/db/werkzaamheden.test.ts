@@ -372,7 +372,7 @@ describe('werkzaamheden:bewaar', () => {
       'soortWerk',
       lijst
         .filter((o) => o.sleutel !== 'reparatie')
-        .map(({ id, label, verborgen }) => ({ id, label, verborgen })),
+        .map(({ id, label, verborgen, standaardkeuze }) => ({ id, label, verborgen, standaardkeuze })),
     );
     const set = haalWerkzaamheden();
     expect(set.soortenWerk.map((s) => s.sleutel)).not.toContain('reparatie');

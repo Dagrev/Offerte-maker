@@ -54,17 +54,32 @@ export const KEUZE_STARTSET: Keuzes = {
   garantie: [o('10', '10 jaar'), o('20', '20 jaar verzekerde garantie')],
 };
 
+/** Per lijst de sleutel van de standaardkeuze van een nieuwe offerte; ontbreekt = geen standaard. */
+export type Standaardkeuzes = Partial<Record<KeuzeLijst, string>>;
+
 /**
- * De standaardkeuze van een nieuwe offerte (§5, lege KlusInvoer). Die optie kan niet verborgen of
- * verwijderd worden, alleen hernoemd: anders zou elke nieuwe offerte met een onzichtbare keuze starten.
+ * De standaardkeuzes van de startset (OFM-049): wat migratie 007 invult en wat **Herstel
+ * standaardlijst** terugzet. Daarna stelt de gebruiker ze zelf in (kolom `keuzeopties.standaardkeuze`).
  */
-export const VASTE_KEUZES: Partial<Record<KeuzeLijst, string>> = {
+export const STANDAARDKEUZE_STARTSET: Standaardkeuzes = {
   hoogte: '1',
   garantie: '10',
 };
 
-export function isVasteKeuze(lijst: KeuzeLijst, sleutel: string): boolean {
-  return VASTE_KEUZES[lijst] === sleutel;
+/**
+ * De ingestelde standaardkeuzes uit de lijsten van `keuzelijsten:haal` (of de repository): per lijst de
+ * sleutel van de optie met `standaardkeuze`. Die optie is niet te verbergen of te verwijderen, alleen te
+ * hernoemen: anders zou een nieuwe offerte met een onzichtbare of onbekende keuze starten.
+ */
+export function standaardKeuzes(
+  lijsten: Partial<Record<KeuzeLijst, readonly { sleutel: string; standaardkeuze: boolean }[]>>,
+): Standaardkeuzes {
+  const uit: Standaardkeuzes = {};
+  for (const lijst of KEUZE_LIJSTEN) {
+    const optie = lijsten[lijst]?.find((o) => o.standaardkeuze);
+    if (optie) uit[lijst] = optie.sleutel;
+  }
+  return uit;
 }
 
 // ---------- Labels en sleutels ----------
@@ -110,7 +125,7 @@ export function gebruikteSleutels(invoer: KlusInvoer): Record<KeuzeLijst, string
     soortDak: een(invoer.soortDak),
     huidigeBedekking: een(invoer.huidigeBedekking),
     ondergrond: een(invoer.ondergrond),
-    hoogte: [invoer.hoogte],
-    garantie: [invoer.garantieJaren],
+    hoogte: een(invoer.hoogte),
+    garantie: een(invoer.garantieJaren),
   };
 }
