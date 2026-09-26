@@ -17,7 +17,7 @@ export interface MailConcept {
 }
 
 export interface ConceptBron {
-  klant: Pick<Klant, 'aanhef' | 'naam' | 'email'>;
+  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'email'>;
   /** Weergavenummer met versieletter, bijvoorbeeld `2026-09-26-001b`. */
   nummer: string;
   /** `YYYY-MM-DD`. */
@@ -26,17 +26,18 @@ export interface ConceptBron {
   emailTekst: string;
 }
 
-/**
- * Achternaam voor `{achternaam}` en de aanhef. Het naamveld van de klant is (nog) één veld dat na
- * "Geachte heer" komt; OFM-038 splitst het in voor- en achternaam — dan hier `klant.achternaam`.
- */
-export function achternaamVan(klant: Pick<Klant, 'naam'>): string {
-  return klant.naam.trim();
+/** Achternaam voor `{achternaam}` (OFM-038: het eigen veld `klant.achternaam`). */
+export function achternaamVan(klant: Pick<Klant, 'achternaam'>): string {
+  return klant.achternaam.trim();
 }
 
-/** Aanhefregel als op de PDF (§9.2); zonder naam de neutrale vorm in plaats van "Geachte heer ,". */
-export function mailAanhef(klant: Pick<Klant, 'aanhef' | 'naam'>): string {
-  if (klant.aanhef !== 'bedrijf' && achternaamVan(klant) === '') return 'Geachte heer, mevrouw,';
+/**
+ * Aanhefregel als op de PDF (§9.2: achternaam, zonder achternaam de voornaam); zonder enige naam de
+ * neutrale vorm in plaats van "Geachte heer ,".
+ */
+export function mailAanhef(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam'>): string {
+  const geenNaam = achternaamVan(klant) === '' && klant.voornaam.trim() === '';
+  if (klant.aanhef !== 'bedrijf' && geenNaam) return 'Geachte heer, mevrouw,';
   return aanhefRegel(klant);
 }
 

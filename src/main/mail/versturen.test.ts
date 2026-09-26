@@ -66,7 +66,7 @@ const inhoud: OfferteInhoud = {
   controlepunten: [],
 };
 
-const jansen: Klant = maakKlant({ naam: 'Jansen', email: 'jan@voorbeeld.nl' });
+const jansen: Klant = maakKlant({ voornaam: 'Jan', achternaam: 'Jansen', email: 'jan@voorbeeld.nl' });
 
 function offerte(klant: Klant = jansen): string {
   const id = nieuweOfferte({ vandaag: '2026-09-26', geldigheidDagen: 30 });

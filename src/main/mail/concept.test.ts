@@ -3,7 +3,7 @@ import { STANDAARD_EMAILTEKST, standaardInstelling } from '@shared/schemas';
 import { achternaamVan, mailAanhef, maakMailConcept, vulPlaatshouders } from './concept';
 
 const bron = {
-  klant: { aanhef: 'dhr' as const, naam: 'Jansen', email: ' jan@voorbeeld.nl ' },
+  klant: { aanhef: 'dhr' as const, voornaam: 'Jan', achternaam: 'Jansen', email: ' jan@voorbeeld.nl ' },
   nummer: '2026-09-26-001b',
   geldigTot: '2026-10-26',
   bedrijfsnaam: 'Dakwerken Test ',
@@ -50,10 +50,16 @@ describe('mailconcept (OFM-041)', () => {
   });
 
   it('aanhef volgt de PDF; zonder naam de neutrale vorm', () => {
-    expect(mailAanhef({ aanhef: 'mevr', naam: ' de Vries ' })).toBe('Geachte mevrouw de Vries,');
-    expect(mailAanhef({ aanhef: 'fam', naam: 'Bakker' })).toBe('Geachte familie Bakker,');
-    expect(mailAanhef({ aanhef: 'bedrijf', naam: 'Jansen' })).toBe('Geachte heer, mevrouw,');
-    expect(mailAanhef({ aanhef: 'dhr', naam: '  ' })).toBe('Geachte heer, mevrouw,');
-    expect(achternaamVan({ naam: ' Jansen ' })).toBe('Jansen');
+    expect(mailAanhef({ aanhef: 'mevr', voornaam: 'Anna', achternaam: ' de Vries ' })).toBe(
+      'Geachte mevrouw de Vries,',
+    );
+    expect(mailAanhef({ aanhef: 'fam', voornaam: '', achternaam: 'Bakker' })).toBe('Geachte familie Bakker,');
+    expect(mailAanhef({ aanhef: 'bedrijf', voornaam: 'Jan', achternaam: 'Jansen' })).toBe(
+      'Geachte heer, mevrouw,',
+    );
+    expect(mailAanhef({ aanhef: 'dhr', voornaam: '', achternaam: '  ' })).toBe('Geachte heer, mevrouw,');
+    // OFM-038: zonder achternaam de voornaam, zoals op de PDF.
+    expect(mailAanhef({ aanhef: 'dhr', voornaam: 'Jan', achternaam: '' })).toBe('Geachte heer Jan,');
+    expect(achternaamVan({ achternaam: ' Jansen ' })).toBe('Jansen');
   });
 });
