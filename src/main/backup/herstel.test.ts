@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -78,7 +78,21 @@ function zonderHuidigDak(db: Database.Database): void {
 
 /** Vóór OFM-051 (migratie 010): zonder de tabel `daksysteem_materiaal`. */
 function zonderDaksysteem(db: Database.Database): void {
+  zonderSituaties(db);
   db.exec('DROP TABLE daksysteem_materiaal');
+}
+
+/**
+ * Vóór OFM-055 (migratie 011): zonder tags, situaties en `per_situatie`, met de (lege) tabel
+ * `daksysteem_materiaal` van migratie 010.
+ */
+function zonderSituaties(db: Database.Database): void {
+  db.exec(`
+    DROP TABLE werkzaamheid_situatie_materiaal;
+    DROP TABLE materiaal_tag;
+    ALTER TABLE werkzaamheden DROP COLUMN per_situatie;
+  `);
+  db.exec(readFileSync(new URL('../db/migraties/010_daksysteem.sql', import.meta.url), 'utf8'));
 }
 
 function zonderStandaardkeuze(db: Database.Database): void {
@@ -389,7 +403,7 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     }
   });
 
-  it('OFM-051: back-up met schemaversie 9 wordt teruggezet; bij de herstart draait 010 en werkt de tabel', async () => {
+  it('OFM-051: back-up met schemaversie 9 wordt teruggezet; bij de herstart draaien 010 en 011', async () => {
     const bestand = await maakBackup('handmatig', {
       db: t.db,
       backupMap: map,
@@ -407,10 +421,51 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
         van: 9,
         naar: SCHEMA_VERSIE,
       });
-      db.prepare(
+      expect(db.prepare('SELECT COUNT(*) AS n FROM materiaal_tag').get()).toEqual({ n: 3 });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('OFM-055: back-up met schemaversie 10 en een regel wordt teruggezet; 011 zet de regel om naar situaties', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 4, 9, 0, 0),
+    });
+    const kopie = new Database(join(map, bestand));
+    zonderSituaties(kopie);
+    kopie
+      .prepare(
         "INSERT INTO daksysteem_materiaal (werkzaamheid_id, ondergrond, bedekking, materiaal_id) VALUES ('start-werk-isoleren', 'hout', NULL, 'start-mat-pir_100')",
-      ).run();
-      expect(db.prepare('SELECT COUNT(*) AS n FROM daksysteem_materiaal').get()).toEqual({ n: 1 });
+      )
+      .run();
+    kopie.pragma('user_version = 10');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 10,
+        naar: SCHEMA_VERSIE,
+      });
+      const situatie = (o: string, b: string) =>
+        (
+          db
+            .prepare(
+              "SELECT materiaal_id FROM werkzaamheid_situatie_materiaal WHERE werkzaamheid_id = 'start-werk-isoleren' AND ondergrond = ? AND bedekking = ?",
+            )
+            .all(o, b) as { materiaal_id: string }[]
+        ).map((r) => r.materiaal_id);
+      expect(situatie('hout', 'epdm')).toEqual(['start-mat-pir_100']);
+      expect(situatie('beton', 'epdm')).toEqual(['start-mat-pir_80']);
+      expect(
+        db.prepare("SELECT per_situatie FROM werkzaamheden WHERE id = 'start-werk-isoleren'").get(),
+      ).toEqual({ per_situatie: 1 });
+      expect(
+        db.prepare("SELECT name FROM sqlite_master WHERE name = 'daksysteem_materiaal'").get(),
+      ).toBeUndefined();
     } finally {
       db.close();
     }

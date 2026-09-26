@@ -36,6 +36,8 @@ export const CATALOGUS: WerkzaamhedenSet = {
         },
       ],
       materialen: [],
+      perSituatie: false,
+      situaties: [],
     },
     {
       id: 'w-iso',
@@ -54,6 +56,8 @@ export const CATALOGUS: WerkzaamhedenSet = {
         { materiaalId: 'm-pir60', standaard: false },
         { materiaalId: 'm-pir80', standaard: true },
       ],
+      perSituatie: false,
+      situaties: [],
     },
   ],
   materialen: [
@@ -67,6 +71,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       verborgen: false,
       standaard: true,
       inGebruik: false,
+      tags: { ondergrond: 'alle', bedekking: 'alle' },
     },
     {
       id: 'm-pir80',
@@ -78,6 +83,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       verborgen: false,
       standaard: true,
       inGebruik: false,
+      tags: { ondergrond: 'alle', bedekking: 'alle' },
     },
     {
       id: 'm-trim',
@@ -89,9 +95,9 @@ export const CATALOGUS: WerkzaamhedenSet = {
       verborgen: false,
       standaard: false,
       inGebruik: false,
+      tags: { ondergrond: 'alle', bedekking: 'alle' },
     },
   ],
-  daksystemen: [],
 };
 
 /** Een gekozen werkzaamheid met standaardwaarden. */

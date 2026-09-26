@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { zetDaksituatiesOm } from '../src/main/db/daksituatie';
 import { nieuweBedekkingUitWerkzaamheden, zetHuidigDakStartset } from '../src/main/db/huidigDak';
 import { voegPrijzenSamen } from '../src/main/db/prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
@@ -203,6 +204,8 @@ export function zorgVoorSchema(db: Database.Database): void {
     voegPrijzenSamen(db);
     // OFM-050 (migratie 009): startzinnen en de vinkjes "vraagt nieuwe dakbedekking".
     zetHuidigDakStartset(db);
+    // OFM-055 (migratie 011): starttags en startsituaties; daksysteem_materiaal (010) weg.
+    zetDaksituatiesOm(db);
     // Hoogste migratienummer, niet het aantal bestanden (zoals `migreer()`).
     db.pragma(`user_version = ${Number(bestanden.at(-1)?.slice(0, 3) ?? 0)}`);
   })();

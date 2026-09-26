@@ -1,10 +1,10 @@
 import type {
-  DaksysteemRegel,
   Eenheid,
   GekozenMateriaal,
   GekozenWerkzaamheid,
   KlusInvoer,
   Materiaal,
+  MateriaalTags,
   Werkzaamheid,
   WerkzaamhedenSet,
 } from './types';
@@ -38,6 +38,11 @@ export interface StartMateriaal {
   sleutel: string;
   label: string;
   eenheid: Eenheid;
+  /**
+   * OFM-055: starttags per groep (sleutels uit de keuzelijst); een groep die ontbreekt is `'alle'`. Een
+   * sleutel die niet (meer) in de keuzelijst staat, telt niet.
+   */
+  tags?: { ondergrond?: readonly string[]; bedekking?: readonly string[] };
 }
 
 export const MATERIALEN_STARTSET: readonly StartMateriaal[] = [
@@ -45,9 +50,9 @@ export const MATERIALEN_STARTSET: readonly StartMateriaal[] = [
   { sleutel: 'pir_80', label: 'PIR 80 mm', eenheid: 'm²' },
   { sleutel: 'pir_100', label: 'PIR 100 mm', eenheid: 'm²' },
   { sleutel: 'eps', label: 'EPS', eenheid: 'm²' },
-  { sleutel: 'bitumen', label: 'Bitumen', eenheid: 'm²' },
-  { sleutel: 'epdm', label: 'EPDM', eenheid: 'm²' },
-  { sleutel: 'pvc', label: 'PVC', eenheid: 'm²' },
+  { sleutel: 'bitumen', label: 'Bitumen', eenheid: 'm²', tags: { bedekking: ['bitumen'] } },
+  { sleutel: 'epdm', label: 'EPDM', eenheid: 'm²', tags: { bedekking: ['epdm'] } },
+  { sleutel: 'pvc', label: 'PVC', eenheid: 'm²', tags: { bedekking: ['pvc'] } },
   { sleutel: 'daktrim_aluminium', label: 'Daktrim aluminium', eenheid: 'm¹' },
   { sleutel: 'boeideel', label: 'Boeideel', eenheid: 'm¹' },
 ];
@@ -284,30 +289,146 @@ export function kiesMateriaal(
   };
 }
 
-/** OFM-051: het daksysteem van een offerte (ondergrond uit stap 2, nieuwe dakbedekking uit stap 3). */
-export type Daksysteem = Pick<KlusInvoer, 'ondergrond' | 'nieuweBedekking'>;
+// ---------- Tags en daksituaties (OFM-055) ----------
 
-const GEEN_DAKSYSTEEM: Daksysteem = { ondergrond: null, nieuweBedekking: null };
+/**
+ * De daksituatie van een offerte: ondergrond uit stap 2 en nieuwe dakbedekking uit stap 3. Vervangt het
+ * "daksysteem" van OFM-051.
+ */
+export type Daksituatie = Pick<KlusInvoer, 'ondergrond' | 'nieuweBedekking'>;
+
+const GEEN_SITUATIE: Daksituatie = { ondergrond: null, nieuweBedekking: null };
+
+/** De optie "Weet ik niet" van de keuzelijst ondergrond: geen tag en geen situatie. */
+export const ONDERGROND_ONBEKEND = 'onbekend';
+
+/** De twee tag-groepen en de keuzelijst waar hun sleutels uit komen. */
+export type TagGroep = keyof MateriaalTags;
+export const TAG_LIJST = { ondergrond: 'ondergrond', bedekking: 'nieuweBedekking' } as const;
+
+/** Tags van een nieuw materiaal: overal te gebruiken. */
+export const ALLE_TAGS: MateriaalTags = { ondergrond: 'alle', bedekking: 'alle' };
+
+/** Past een materiaal met deze tags bij een sleutel van die groep? `null` (niets gekozen) = alles past. */
+export function heeftTag(tags: MateriaalTags, groep: TagGroep, sleutel: string | null): boolean {
+  const waarde = tags[groep];
+  return sleutel === null || waarde === 'alle' || waarde.includes(sleutel);
+}
+
+/**
+ * Past het materiaal bij de daksituatie van de offerte? Een kant zonder keuze (of met ondergrond "Weet ik
+ * niet") telt als "alle".
+ */
+export function pastBijSituatie(materiaal: Pick<Materiaal, 'tags'>, situatie: Daksituatie): boolean {
+  const ondergrond = situatie.ondergrond === ONDERGROND_ONBEKEND ? null : situatie.ondergrond;
+  return (
+    heeftTag(materiaal.tags, 'ondergrond', ondergrond) &&
+    heeftTag(materiaal.tags, 'bedekking', situatie.nieuweBedekking)
+  );
+}
+
+/**
+ * Een tag aan- of uitzetten. `alle` = alle sleutels van de keuzelijst (zonder "Weet ik niet", ook de
+ * verborgen). Staan daarna alle sleutels aan, dan wordt het weer `'alle'` (een later toegevoegde optie
+ * staat dan vanzelf aan); de laatste tag van een groep uitzetten kan niet (dan blijft het zoals het was).
+ */
+export function zetTag(
+  tags: MateriaalTags,
+  groep: TagGroep,
+  sleutel: string,
+  aan: boolean,
+  alle: readonly string[],
+): MateriaalTags {
+  const nu = tags[groep] === 'alle' ? alle : tags[groep];
+  const set = new Set(nu);
+  if (aan) set.add(sleutel);
+  else set.delete(sleutel);
+  if (set.size === 0) return tags;
+  const volgorde = [...alle, ...[...set].filter((s) => !alle.includes(s))];
+  const nieuw = volgorde.filter((s) => set.has(s));
+  return { ...tags, [groep]: alle.every((s) => set.has(s)) ? 'alle' : nieuw };
+}
+
+/** Een situatie waarvoor de wizard materialen voorselecteert: ondergrond (geen "Weet ik niet") × bedekking. */
+export interface SituatieSleutel {
+  ondergrond: string;
+  bedekking: string;
+}
+
+/** Zelfde situatie? */
+export const zelfdeSituatie = (a: SituatieSleutel, b: SituatieSleutel): boolean =>
+  a.ondergrond === b.ondergrond && a.bedekking === b.bedekking;
+
+/**
+ * De situatieknoppen in de tab: elke niet-verborgen ondergrond (zonder "Weet ik niet") × elke niet-verborgen
+ * nieuwe dakbedekking, in lijstvolgorde (ondergrond eerst).
+ */
+export function situatieCombinaties(
+  ondergronden: readonly { sleutel: string; verborgen: boolean }[],
+  bedekkingen: readonly { sleutel: string; verborgen: boolean }[],
+): SituatieSleutel[] {
+  const zichtbaar = <T extends { verborgen: boolean }>(lijst: readonly T[]) =>
+    lijst.filter((o) => !o.verborgen);
+  return zichtbaar(ondergronden)
+    .filter((o) => o.sleutel !== ONDERGROND_ONBEKEND)
+    .flatMap((o) => zichtbaar(bedekkingen).map((b) => ({ ondergrond: o.sleutel, bedekking: b.sleutel })));
+}
+
+/** De situatie van een offerte, of `null` als die niet vaststaat (geen ondergrond, "Weet ik niet", geen bedekking). */
+export function situatieVan(invoer: Daksituatie): SituatieSleutel | null {
+  const { ondergrond, nieuweBedekking } = invoer;
+  if (ondergrond === null || ondergrond === ONDERGROND_ONBEKEND || nieuweBedekking === null) return null;
+  return { ondergrond, bedekking: nieuweBedekking };
+}
+
+const isKiesbaar = (werk: Pick<Werkzaamheid, 'materialen'>, materiaalId: string) =>
+  werk.materialen.some((m) => m.materiaalId === materiaalId);
+
+/**
+ * De standaardmaterialen van een werkzaamheid met "Materiaal per daksituatie" bij de situatie van de
+ * offerte, in de volgorde van de materialenlijst: alleen materialen die (nog) kiesbaar zijn en met hun
+ * tags bij de situatie passen. Leeg zonder vinkje of zonder vaststaande situatie.
+ */
+export function situatieMaterialen(
+  werk: Pick<Werkzaamheid, 'materialen' | 'perSituatie' | 'situaties'>,
+  catalogus: WerkCatalogus,
+  invoer: Daksituatie,
+): Materiaal[] {
+  const situatie = situatieVan(invoer);
+  if (!werk.perSituatie || situatie === null) return [];
+  const ids = new Set(werk.situaties.find((s) => zelfdeSituatie(s, situatie))?.materiaalIds);
+  return catalogus.materialen.filter(
+    (m) => ids.has(m.id) && isKiesbaar(werk, m.id) && pastBijSituatie(m, invoer),
+  );
+}
+
+/**
+ * Wat de wizard bij het aanvinken van een werkzaamheid voorselecteert: met "Materiaal per daksituatie" de
+ * materialen van de situatie, anders het ene standaardmateriaal (zoals vóór OFM-055).
+ */
+export function standaardMaterialen(
+  werk: Pick<Werkzaamheid, 'materialen' | 'perSituatie' | 'situaties'>,
+  catalogus: WerkCatalogus,
+  invoer: Daksituatie,
+): Materiaal[] {
+  if (werk.perSituatie) return situatieMaterialen(werk, catalogus, invoer);
+  const standaard = werk.materialen.find((m) => m.standaard)?.materiaalId;
+  return catalogus.materialen.filter((m) => m.id === standaard);
+}
 
 /**
  * Een werkzaamheid uit de instellingen zoals hij in de offerte komt: standaardaantal, prijs uit de
- * prijslijst en een voorgeselecteerd materiaal: de gekozen nieuwe dakbedekking als die bij deze
- * werkzaamheid kiesbaar is (OFM-050), anders het standaardmateriaal bij dit daksysteem
- * (`standaardMateriaalVoor`, OFM-051).
+ * prijslijst en de voorgeselecteerde materialen (`standaardMaterialen`, OFM-055), elk met het
+ * standaardaantal.
  */
 export function kiesWerkzaamheid(
   werk: Werkzaamheid,
   catalogus: WerkCatalogus,
   totaalM2: number,
-  daksysteem: Daksysteem = GEEN_DAKSYSTEEM,
-  regels: readonly DaksysteemRegel[] = [],
+  situatie: Daksituatie = GEEN_SITUATIE,
   maakId: () => string = nieuwId,
 ): GekozenWerkzaamheid {
   const aantal = standaardAantal(werk.eenheid, totaalM2);
-  const standaard = standaardMateriaalVoor(werk, daksysteem, regels);
-  const materiaal =
-    bedekkingMateriaal(werk, catalogus, daksysteem.nieuweBedekking) ??
-    catalogus.materialen.find((m) => m.id === standaard);
   return {
     id: maakId(),
     sleutel: werk.sleutel,
@@ -316,190 +437,128 @@ export function kiesWerkzaamheid(
     prijsCent: werk.prijsCent,
     perUur: false,
     notitie: '',
-    materialen: materiaal ? [kiesMateriaal(materiaal, werk.eenheid, aantal, maakId)] : [],
+    materialen: standaardMaterialen(werk, catalogus, situatie).map((m) =>
+      kiesMateriaal(m, werk.eenheid, aantal, maakId),
+    ),
     opties: [],
   };
 }
 
-// ---------- Standaardmaterialen per daksysteem (OFM-051) ----------
-
 /**
- * Waar het standaardmateriaal vandaan komt: een regel voor precies deze combinatie, een algemenere regel
- * (alle ondergronden of alle bedekkingen), of het gewone standaardmateriaal van de werkzaamheid.
+ * De materialen die de wizard bij een gekozen werkzaamheid als vinkje toont: kiesbaar bij de
+ * werkzaamheid, niet verborgen en passend bij de situatie van de offerte, plus wat al gekozen is.
  */
-export type DaksysteemBron = 'combinatie' | 'geerfd' | 'gewoon';
-
-export interface DaksysteemStandaard {
-  /** Materiaal-id, of `null` (geen standaard). */
-  materiaalId: string | null;
-  bron: DaksysteemBron;
-  /** De regel die de waarde levert (`null` bij het gewone standaardmateriaal). */
-  regel: DaksysteemRegel | null;
+export function kiesbareMaterialen(
+  werk: Pick<Werkzaamheid, 'materialen'> | undefined,
+  catalogus: WerkCatalogus,
+  invoer: Daksituatie,
+  gekozen: ReadonlySet<string>,
+): Materiaal[] {
+  return catalogus.materialen.filter(
+    (m) =>
+      gekozen.has(m.sleutel) ||
+      (!m.verborgen && werk !== undefined && isKiesbaar(werk, m.id) && pastBijSituatie(m, invoer)),
+  );
 }
 
-/**
- * Het standaardmateriaal van een werkzaamheid bij een ondergrond en bedekking (`null` = alle), met de bron.
- * Terugvalvolgorde (besluit eigenaar): precies (ondergrond, bedekking) → (alle, bedekking) → (ondergrond,
- * alle) → het gewone standaardmateriaal. Een regel met een materiaal dat niet (meer) kiesbaar is telt niet.
- */
-export function daksysteemStandaard(
-  werk: Pick<Werkzaamheid, 'id' | 'materialen'>,
-  ondergrond: string | null,
-  bedekking: string | null,
-  regels: readonly DaksysteemRegel[],
-): DaksysteemStandaard {
-  const kandidaten: [string | null, string | null][] = [
-    [ondergrond, bedekking],
-    [null, bedekking],
-    [ondergrond, null],
-  ];
-  for (const [index, [o, b]] of kandidaten.entries()) {
-    if (o === null && b === null) continue;
-    const regel = regels.find(
-      (r) =>
-        r.werkzaamheidId === werk.id &&
-        r.ondergrond === o &&
-        r.bedekking === b &&
-        werk.materialen.some((m) => m.materiaalId === r.materiaalId),
-    );
-    if (regel) return { materiaalId: regel.materiaalId, bron: index === 0 ? 'combinatie' : 'geerfd', regel };
-  }
-  return {
-    materiaalId: werk.materialen.find((m) => m.standaard)?.materiaalId ?? null,
-    bron: 'gewoon',
-    regel: null,
-  };
+export interface SituatieHint {
+  /** De standaardmaterialen bij de huidige situatie. */
+  materialen: Materiaal[];
 }
 
 /**
- * Het standaardmateriaal (id) van een werkzaamheid bij het daksysteem van de offerte (OFM-051). Een
- * ondergrond of nieuwe bedekking `null` telt als "alle".
+ * Hint in stap 3 (OFM-051, sinds OFM-055 met de hele set): bij een werkzaamheid met "Materiaal per
+ * daksituatie" staat er nog een standaardmateriaal van een andere situatie in (bijvoorbeeld na een andere
+ * ondergrond), of staat er nog helemaal geen materiaal terwijl de situatie er wel heeft (bijvoorbeeld omdat
+ * de nieuwe dakbedekking pas na de werkzaamheid gekozen is). Geen hint bij een eigen keuze (alleen
+ * niet-standaard materialen), als een deel van de set bewust is uitgevinkt, of als de situatie niet
+ * vaststaat of geen materialen heeft.
  */
-export function standaardMateriaalVoor(
-  werk: Pick<Werkzaamheid, 'id' | 'materialen'>,
-  invoer: Daksysteem,
-  regels: readonly DaksysteemRegel[],
-): string | null {
-  return daksysteemStandaard(werk, invoer.ondergrond, invoer.nieuweBedekking, regels).materiaalId;
-}
-
-/**
- * De regels die na een wijziging in de instellingen nog kloppen: de werkzaamheid bestaat en het materiaal
- * is er nog kiesbaar. `vervallen` telt alleen regels van een werkzaamheid die nog bestaat (verwijderen van
- * de werkzaamheid zelf hoeft geen melding).
- */
-export function geldigeDaksystemen(
-  regels: readonly DaksysteemRegel[],
-  werkzaamheden: readonly Pick<Werkzaamheid, 'id' | 'materialen'>[],
-): { regels: DaksysteemRegel[]; vervallen: number } {
-  let vervallen = 0;
-  const geldig = regels.filter((r) => {
-    const werk = werkzaamheden.find((w) => w.id === r.werkzaamheidId);
-    if (!werk) return false;
-    if (werk.materialen.some((m) => m.materiaalId === r.materiaalId)) return true;
-    vervallen += 1;
-    return false;
-  });
-  return { regels: geldig, vervallen };
-}
-
-/** Wat de wizard nodig heeft om het standaardmateriaal per daksysteem te bepalen. */
-export type DaksysteemCatalogus = Pick<WerkzaamhedenSet, 'werkzaamheden' | 'materialen' | 'daksystemen'>;
-
-export interface DaksysteemHint {
-  /** Het standaardmateriaal bij het huidige daksysteem. */
-  materiaal: Materiaal;
-  /** Id (in de offerte) van het gekozen materiaal dat het vervangt. */
-  vervangt: string;
-}
-
-/**
- * Hint in stap 3 na het wijzigen van ondergrond of nieuwe bedekking (OFM-051): de gekozen materialen
- * blijven staan, maar is het standaardmateriaal bij het huidige daksysteem niet gekozen terwijl er wel
- * een ander "standaard"-materiaal van deze werkzaamheid gekozen is (het gewone standaardmateriaal of een
- * materiaal uit een regel), dan stelt de wizard voor dat te vervangen. Geen hint bij een eenmalige of
- * verwijderde werkzaamheid, bij een werkzaamheid waar de nieuwe dakbedekking al voor zorgt
- * (`pasBedekkingToe`) of bij een eigen materiaalkeuze.
- */
-export function daksysteemHint(
-  gekozen: GekozenWerkzaamheid,
-  set: DaksysteemCatalogus,
-  daksysteem: Daksysteem,
-): DaksysteemHint | null {
-  const werk = set.werkzaamheden.find((w) => w.sleutel === gekozen.sleutel);
-  if (!werk || bedekkingMateriaal(werk, set, daksysteem.nieuweBedekking)) return null;
-  const nu = standaardMateriaalVoor(werk, daksysteem, set.daksystemen);
-  const materiaal = set.materialen.find((m) => m.id === nu);
-  if (!materiaal || gekozen.materialen.some((m) => m.sleutel === materiaal.sleutel)) return null;
-  const standaarden = new Set([
-    ...werk.materialen.filter((m) => m.standaard).map((m) => m.materiaalId),
-    ...set.daksystemen.filter((r) => r.werkzaamheidId === werk.id).map((r) => r.materiaalId),
-  ]);
-  const idVan = (sleutel: string | null) => set.materialen.find((m) => m.sleutel === sleutel)?.id ?? '';
-  const oud = gekozen.materialen.find((m) => standaarden.has(idVan(m.sleutel)));
-  return oud ? { materiaal, vervangt: oud.id } : null;
-}
-
-/** **Gebruik** bij de hint: het voorgestelde materiaal op de plek en met het aantal van het oude. */
-export function gebruikDaksysteem(
+export function situatieHint(
   gekozen: GekozenWerkzaamheid,
   catalogus: WerkCatalogus,
-  hint: DaksysteemHint,
+  invoer: Daksituatie,
+): SituatieHint | null {
+  const werk = catalogus.werkzaamheden.find((w) => w.sleutel === gekozen.sleutel);
+  if (!werk) return null;
+  const set = situatieMaterialen(werk, catalogus, invoer);
+  if (set.length === 0) return null;
+  const inSet = new Set(set.map((m) => m.sleutel));
+  const standaarden = standaardSleutels(werk, catalogus);
+  const vreemd = gekozen.materialen.some(
+    (m) => m.sleutel !== null && standaarden.has(m.sleutel) && !inSet.has(m.sleutel),
+  );
+  return vreemd || gekozen.materialen.length === 0 ? { materialen: set } : null;
+}
+
+/** Sleutels van alle (kiesbare) standaardmaterialen van een werkzaamheid over alle situaties. */
+function standaardSleutels(
+  werk: Pick<Werkzaamheid, 'materialen' | 'situaties'>,
+  catalogus: WerkCatalogus,
+): Set<string> {
+  const ids = new Set(werk.situaties.flatMap((s) => s.materiaalIds));
+  return new Set(
+    catalogus.materialen.filter((m) => ids.has(m.id) && isKiesbaar(werk, m.id)).map((m) => m.sleutel),
+  );
+}
+
+/**
+ * **Gebruik** bij de hint: de standaardmaterialen van andere situaties gaan eruit, die van deze situatie
+ * komen erbij (met het standaardaantal) op de plek van het eerste weggehaalde materiaal. Al gekozen
+ * materialen uit de set en handmatig toegevoegde (ook eenmalige) blijven staan zoals ze zijn.
+ */
+export function gebruikSituatie(
+  gekozen: GekozenWerkzaamheid,
+  catalogus: WerkCatalogus,
+  hint: SituatieHint,
   maakId: () => string = nieuwId,
 ): GekozenWerkzaamheid {
-  const nieuw = kiesMateriaal(hint.materiaal, werkInfo(catalogus, gekozen).eenheid, gekozen.aantal, maakId);
-  return {
-    ...gekozen,
-    materialen: gekozen.materialen.map((m) => (m.id === hint.vervangt ? { ...nieuw, aantal: m.aantal } : m)),
-  };
-}
-
-// ---------- Nieuwe dakbedekking (OFM-050) ----------
-
-/**
- * Het kiesbare materiaal van deze werkzaamheid met dezelfde sleutel als de nieuwe dakbedekking, of
- * `undefined` (geen bedekking gekozen, of de werkzaamheid heeft dat materiaal niet).
- */
-export function bedekkingMateriaal(
-  werk: Pick<Werkzaamheid, 'materialen'>,
-  catalogus: WerkCatalogus,
-  nieuweBedekking: string | null,
-): Materiaal | undefined {
-  if (nieuweBedekking === null) return undefined;
-  const materiaal = catalogus.materialen.find((m) => m.sleutel === nieuweBedekking);
-  return materiaal && werk.materialen.some((x) => x.materiaalId === materiaal.id) ? materiaal : undefined;
+  const werk = catalogus.werkzaamheden.find((w) => w.sleutel === gekozen.sleutel);
+  const standaarden = werk ? standaardSleutels(werk, catalogus) : new Set<string>();
+  const inSet = new Set(hint.materialen.map((m) => m.sleutel));
+  const weg = (m: GekozenMateriaal) =>
+    m.sleutel !== null && standaarden.has(m.sleutel) && !inSet.has(m.sleutel);
+  const aanwezig = new Set(gekozen.materialen.map((m) => m.sleutel));
+  const eenheid = werkInfo(catalogus, gekozen).eenheid;
+  const nieuw = hint.materialen
+    .filter((m) => !aanwezig.has(m.sleutel))
+    .map((m) => kiesMateriaal(m, eenheid, gekozen.aantal, maakId));
+  const plek = gekozen.materialen.findIndex(weg);
+  const blijft = gekozen.materialen.filter((m) => !weg(m));
+  const invoegen =
+    plek === -1 ? blijft.length : gekozen.materialen.slice(0, plek).filter((m) => !weg(m)).length;
+  return { ...gekozen, materialen: [...blijft.slice(0, invoegen), ...nieuw, ...blijft.slice(invoegen)] };
 }
 
 /**
- * Na het kiezen van een nieuwe dakbedekking: bij elke gekozen werkzaamheid uit de instellingen die dat
- * materiaal kiesbaar heeft, komt het erin in plaats van een ander bedekkingsmateriaal (een materiaal
- * met de sleutel van een optie uit `bedekkingen`, de lijst `nieuweBedekking`). Andere materialen, eenmalige
- * items en werkzaamheden zonder dat materiaal blijven zoals ze zijn; handmatig wisselen kan daarna weer.
+ * De situaties die na een wijziging in de instellingen nog kloppen (OFM-055): alleen materialen die bij de
+ * werkzaamheid kiesbaar zijn en met hun tags bij de situatie passen; een situatie zonder materialen
+ * verdwijnt. `vervallen` telt de weggevallen materialen (voor de melding in de tab).
  */
-export function pasBedekkingToe(
-  werkzaamheden: readonly GekozenWerkzaamheid[],
-  set: WerkzaamhedenSet,
-  bedekkingen: ReadonlySet<string>,
-  nieuweBedekking: string | null,
-  maakId: () => string = nieuwId,
-): GekozenWerkzaamheid[] {
-  return werkzaamheden.map((w) => {
-    const item = set.werkzaamheden.find((x) => x.sleutel === w.sleutel);
-    const materiaal = item && bedekkingMateriaal(item, set, nieuweBedekking);
-    if (!item || !materiaal) return w;
-    if (w.materialen.some((m) => m.sleutel === materiaal.sleutel)) return w;
-    const nieuw = kiesMateriaal(materiaal, werkInfo(set, w).eenheid, w.aantal, maakId);
-    const isBedekking = (m: GekozenMateriaal) => m.sleutel !== null && bedekkingen.has(m.sleutel);
-    const plek = w.materialen.findIndex(isBedekking);
-    // Het nieuwe materiaal neemt de plek en het aantal van het eerste oude bedekkingsmateriaal over.
-    const materialen =
-      plek === -1
-        ? [...w.materialen, nieuw]
-        : w.materialen.flatMap((m, i) =>
-            i === plek ? [{ ...nieuw, aantal: m.aantal }] : isBedekking(m) ? [] : [m],
-          );
-    return { ...w, materialen };
+export function geldigeSituaties<W extends Pick<Werkzaamheid, 'materialen' | 'situaties'>>(
+  werkzaamheden: readonly W[],
+  materialen: readonly Pick<Materiaal, 'id' | 'tags'>[],
+): { werkzaamheden: W[]; vervallen: number } {
+  let vervallen = 0;
+  const uit = werkzaamheden.map((w) => {
+    const situaties = w.situaties.flatMap((s) => {
+      const invoer = { ondergrond: s.ondergrond, nieuweBedekking: s.bedekking };
+      const ids = s.materiaalIds.filter((id) => {
+        const m = materialen.find((x) => x.id === id);
+        return m !== undefined && isKiesbaar(w, id) && pastBijSituatie(m, invoer);
+      });
+      vervallen += s.materiaalIds.length - ids.length;
+      return ids.length > 0 ? [{ ...s, materiaalIds: ids }] : [];
+    });
+    return { ...w, situaties };
   });
+  return { werkzaamheden: uit, vervallen };
+}
+
+/** "A", "A en B", "A, B en C" (voor de hint). */
+export function opsomming(labels: readonly string[]): string {
+  if (labels.length <= 1) return labels.join('');
+  return `${labels.slice(0, -1).join(', ')} en ${labels.at(-1)}`;
 }
 
 /** Eén regel die uit een werkzaamheid volgt (voor Maak zonder Claude en de agentopdracht). */

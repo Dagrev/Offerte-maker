@@ -3,6 +3,7 @@ import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
+import { zetDaksituatiesOm } from './daksituatie';
 import { zetHuidigDakStartset, zetNieuweBedekkingOm } from './huidigDak';
 import { zetOffertesOm } from './omzettingWerkzaamheden';
 import { voegPrijzenSamen } from './prijzenSamenvoegen';
@@ -78,6 +79,11 @@ const NA_MIGRATIE: Record<string, (db: Db) => void> = {
   },
   // OFM-050: lijst nieuweBedekking, startzinnen en de vinkjes "vraagt nieuwe dakbedekking".
   '009_huidig_dak.sql': zetHuidigDakStartset,
+  // OFM-055: starttags, regels van OFM-051 en bedekkingsmaterialen naar situaties, daksysteem_materiaal weg.
+  '011_materiaal_situatie.sql': (db) => {
+    const aantal = zetDaksituatiesOm(db);
+    log.info(`materiaal per daksituatie: ${aantal} werkzaamheid(en) omgezet`);
+  },
 };
 
 /**

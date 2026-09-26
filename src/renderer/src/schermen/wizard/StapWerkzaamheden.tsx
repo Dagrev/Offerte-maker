@@ -12,17 +12,19 @@ import type {
   WerkzaamhedenSet,
 } from '@shared/types';
 import {
-  daksysteemHint,
-  gebruikDaksysteem,
+  gebruikSituatie,
+  kiesbareMaterialen,
   kiesMateriaal,
   kiesWerkzaamheid,
   materiaalInfo,
+  opsomming,
   optieInfo,
-  pasBedekkingToe,
+  situatieHint,
   standaardPrijs,
   werkInfo,
   wisselPerUur,
-  type DaksysteemHint,
+  type Daksituatie,
+  type SituatieHint,
   type WerkCatalogus,
 } from '@shared/werkzaamheden';
 import { vraagtNieuweBedekking } from '@shared/keuzelijsten';
@@ -60,8 +62,8 @@ const cent = (waarde: number | null) => (waarde === null ? null : euroNaarCent(w
 
 /**
  * Stap 3 Werkzaamheden (OFM-044): soort werk, sinds OFM-050 de nieuwe dakbedekking (alleen bij een
- * soort werk met het vinkje "vraagt nieuwe dakbedekking"; het gekozen materiaal wordt bij de
- * werkzaamheden voorgeselecteerd), de gekoppelde werkzaamheden als aanvinkbare tegels, per
+ * soort werk met het vinkje "vraagt nieuwe dakbedekking"; samen met de ondergrond bepaalt die de
+ * daksituatie, OFM-055: de voorselectie en de kiesbare materialen), de gekoppelde werkzaamheden als aanvinkbare tegels, per
  * gekozen werkzaamheid aantal, prijs (alleen voor deze offerte), materialen, opties en een notitie, en
  * eenmalige werkzaamheden en materialen. Onderaan steiger, garantie en gewenste uitvoering (uit de oude
  * stap Extra's).
@@ -95,27 +97,16 @@ export function StapWerkzaamheden({
     if (huidig.some((w) => w.sleutel === werk.sleutel)) {
       zetWerkzaamheden(huidig.filter((w) => w.sleutel !== werk.sleutel));
     } else {
-      // OFM-050: de gekozen nieuwe dakbedekking is voorgeselecteerd als hij bij deze werkzaamheid hoort;
-      // OFM-051: anders het standaardmateriaal bij dit daksysteem (ondergrond × nieuwe bedekking).
+      // OFM-055: met Materiaal per daksituatie alle standaardmaterialen van de situatie (ondergrond ×
+      // nieuwe bedekking), anders het ene standaardmateriaal.
       const { ondergrond, nieuweBedekking } = leesInvoer();
-      zetWerkzaamheden([
-        ...huidig,
-        kiesWerkzaamheid(werk, catalogus, m2, { ondergrond, nieuweBedekking }, set.daksystemen),
-      ]);
+      zetWerkzaamheden([...huidig, kiesWerkzaamheid(werk, catalogus, m2, { ondergrond, nieuweBedekking })]);
     }
   };
 
   const vraagtBedekking = vraagtNieuweBedekking(k, invoer.soortWerk);
-  const kiesBedekking = (nieuweBedekking: string) =>
-    opWijzig({
-      nieuweBedekking,
-      werkzaamheden: pasBedekkingToe(
-        leesInvoer().werkzaamheden,
-        set,
-        new Set(k.nieuweBedekking.map((o) => o.sleutel)),
-        nieuweBedekking,
-      ),
-    });
+  // OFM-055: de keuze bepaalt alleen de situatie; al gekozen materialen blijven staan (hint met Gebruik).
+  const kiesBedekking = (nieuweBedekking: string) => opWijzig({ nieuweBedekking });
   const kiesSoortWerk = (soortWerk: string) => {
     // OFM-050: geen nieuwe bedekking bij een soort werk die er niet om vraagt; vraagt hij er wel om en
     // is er nog niets gekozen, dan de ingestelde standaard (als die er is).
@@ -265,7 +256,8 @@ export function StapWerkzaamheden({
           werk={w}
           set={set}
           totaalM2={m2}
-          hint={daksysteemHint(w, set, invoer)}
+          situatie={invoer}
+          hint={situatieHint(w, set, invoer)}
           opWijzig={(deel) => zetEen(w.id, deel)}
           opVerwijder={() => zetWerkzaamheden(leesInvoer().werkzaamheden.filter((x) => x.id !== w.id))}
           opSlaOp={(materiaalId) => void slaOp(w.id, materiaalId)}
@@ -307,6 +299,7 @@ function WerkKaart({
   werk,
   set,
   totaalM2,
+  situatie,
   hint,
   opWijzig,
   opVerwijder,
@@ -315,8 +308,10 @@ function WerkKaart({
   werk: GekozenWerkzaamheid;
   set: WerkzaamhedenSet;
   totaalM2: number;
-  /** OFM-051: het standaardmateriaal bij het huidige daksysteem is een ander dan gekozen. */
-  hint: DaksysteemHint | null;
+  /** OFM-055: ondergrond × nieuwe bedekking van de offerte (filtert de kiesbare materialen). */
+  situatie: Daksituatie;
+  /** OFM-051/055: de standaardmaterialen bij de huidige daksituatie zijn andere dan gekozen. */
+  hint: SituatieHint | null;
   opWijzig: (deel: Partial<GekozenWerkzaamheid>) => void;
   opVerwijder: () => void;
   opSlaOp: (materiaalId: string | null) => void;
@@ -330,12 +325,11 @@ function WerkKaart({
   const prijsHint = geenUurprijs ? undefined : item && standaard === null ? t.geenPrijs : t.prijsHint;
   const rekenwijzeNaam = `rekenwijze-${werk.id}`;
 
-  // Kiesbare materialen: de gekoppelde (niet verborgen) plus wat al gekozen is.
+  // Kiesbare materialen: de gekoppelde (niet verborgen) die met hun tags bij de daksituatie passen
+  // (OFM-055), plus wat al gekozen is.
   const gekozenMat = new Set(werk.materialen.flatMap((m) => (m.sleutel === null ? [] : [m.sleutel])));
-  const kiesbaar = set.materialen.filter(
-    (m) =>
-      gekozenMat.has(m.sleutel) || (!m.verborgen && item?.materialen.some((x) => x.materiaalId === m.id)),
-  );
+  const kiesbaar = kiesbareMaterialen(item, set, situatie, gekozenMat);
+  const hintNamen = hint ? opsomming(hint.materialen.map((m) => m.label)) : '';
   const wisselMateriaal = (sleutel: string, aan: boolean) => {
     const materiaal = set.materialen.find((m) => m.sleutel === sleutel);
     if (!materiaal) return;
@@ -432,12 +426,12 @@ function WerkKaart({
         <legend className="mb-2 font-semibold">{t.materialen}</legend>
         {hint && (
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-4 py-3 text-waarschuwing">
-            <span className="font-semibold">{t.daksysteemHint(hint.materiaal.label)}</span>
+            <span className="font-semibold">{t.daksysteemHint(hintNamen)}</span>
             <Knop
               label={t.gebruik}
-              aria-label={t.daksysteemGebruik(hint.materiaal.label, naam)}
+              aria-label={t.daksysteemGebruik(hintNamen, naam)}
               icoon={Check}
-              onClick={() => opWijzig({ materialen: gebruikDaksysteem(werk, set, hint).materialen })}
+              onClick={() => opWijzig({ materialen: gebruikSituatie(werk, set, hint).materialen })}
             />
           </div>
         )}

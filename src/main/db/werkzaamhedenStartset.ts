@@ -23,6 +23,8 @@ export interface ItemRij {
   volgorde: number;
   verborgen: number;
   standaard: number;
+  /** OFM-055 (migratie 011; alleen bij werkzaamheden). */
+  per_situatie?: number;
 }
 
 export interface OptieRij {

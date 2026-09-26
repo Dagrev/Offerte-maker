@@ -482,6 +482,23 @@ export const keuzeoptieSchema = z.object({
 
 /** Werkzaamheden, opties en materialen (OFM-043, §6.2 `werkzaamheden:*`); prijzen uit de prijslijst. */
 const prijsCentSchema = z.number().int().nonnegative().nullable();
+
+/**
+ * OFM-055: tags van een materiaal: bij welke ondergronden en nieuwe dakbedekkingen het bruikbaar is
+ * (sleutels uit de keuzelijsten `ondergrond` en `nieuweBedekking`), of `'alle'` (standaard).
+ */
+const tagGroepSchema = z.union([z.literal('alle'), z.array(keuzeSleutelSchema).min(1).max(100)]);
+export const materiaalTagsSchema = z.object({ ondergrond: tagGroepSchema, bedekking: tagGroepSchema });
+
+/**
+ * OFM-055: een daksituatie (ondergrond × nieuwe dakbedekking) met de standaardmaterialen die de wizard
+ * voorselecteert. De materialen moeten bij de werkzaamheid kiesbaar zijn en met hun tags passen.
+ */
+export const situatieSchema = z.object({
+  ondergrond: keuzeSleutelSchema,
+  bedekking: keuzeSleutelSchema,
+  materiaalIds: z.array(idSchema).max(200),
+});
 /** Een lege naam weigert main met een eigen melding (`werkLeegLabel`). */
 const itemLabelSchema = z.string().max(80);
 
@@ -515,6 +532,10 @@ export const werkzaamheidSchema = z.object({
   opties: z.array(werkOptieSchema),
   /** Kiesbare materialen (id's uit `materialen`), in de volgorde van de materialenlijst. */
   materialen: z.array(z.object({ materiaalId: idSchema, standaard: z.boolean() })),
+  /** OFM-055: vinkje "Materiaal per daksituatie" (dan geldt `situaties` in plaats van `standaard`). */
+  perSituatie: z.boolean(),
+  /** OFM-055: standaardmaterialen per situatie (alleen situaties met materialen), in lijstvolgorde. */
+  situaties: z.array(situatieSchema),
 });
 
 export const materiaalSchema = z.object({
@@ -528,17 +549,8 @@ export const materiaalSchema = z.object({
   verborgen: z.boolean(),
   standaard: z.boolean(),
   inGebruik: z.boolean(),
-});
-
-/**
- * OFM-051: een afwijkend standaardmateriaal voor een werkzaamheid bij een daksysteem (ondergrond ×
- * nieuwe dakbedekking). `null` = alle; niet allebei `null`. Het materiaal moet kiesbaar zijn.
- */
-export const daksysteemRegelSchema = z.object({
-  werkzaamheidId: idSchema,
-  ondergrond: keuzeSleutelSchema.nullable(),
-  bedekking: keuzeSleutelSchema.nullable(),
-  materiaalId: idSchema,
+  /** OFM-055 */
+  tags: materiaalTagsSchema,
 });
 
 /** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar`: alles in één keer, in volgorde. */
@@ -554,8 +566,6 @@ export const werkzaamhedenSetSchema = z.object({
   ),
   werkzaamheden: z.array(werkzaamheidSchema),
   materialen: z.array(materiaalSchema),
-  /** OFM-051: Standaardmaterialen per daksysteem (alleen de afwijkingen). */
-  daksystemen: z.array(daksysteemRegelSchema),
 });
 
 /** Invoer van `werkzaamheden:bewaar`: de hele set in de nieuwe volgorde. Een onbekende `id` = nieuw. */
@@ -585,6 +595,13 @@ export const werkzaamhedenBewaarSchema = z.object({
           )
           .max(50),
         materialen: z.array(z.object({ materiaalId: idSchema, standaard: z.boolean() })).max(200),
+        /** OFM-055; weglaten = niet wijzigen (nieuw: uit). */
+        perSituatie: z.boolean().optional(),
+        /**
+         * OFM-055; weglaten = niet wijzigen. Alle situaties van deze werkzaamheid; een materiaal dat niet
+         * kiesbaar is of niet bij de tags past, of een onbekende ondergrond/bedekking, vervalt stil.
+         */
+        situaties: z.array(situatieSchema).max(100).optional(),
       }),
     )
     .max(200),
@@ -598,14 +615,11 @@ export const werkzaamhedenBewaarSchema = z.object({
         /** OFM-048; weglaten = btw niet wijzigen (nieuw: 21 %). */
         btwTarief: btwTariefSchema.optional(),
         verborgen: z.boolean(),
+        /** OFM-055; weglaten = niet wijzigen (nieuw: alle). Onbekende sleutels vervallen stil. */
+        tags: materiaalTagsSchema.optional(),
       }),
     )
     .max(200),
-  /**
-   * OFM-051: alle afwijkingen per daksysteem; weglaten = niet wijzigen. Een regel met een materiaal dat
-   * (na deze bewaaractie) niet kiesbaar is of een onbekende ondergrond/bedekking vervalt.
-   */
-  daksystemen: z.array(daksysteemRegelSchema).max(2000).optional(),
 });
 
 // ---------- §6.2 Invoer per kanaal ----------

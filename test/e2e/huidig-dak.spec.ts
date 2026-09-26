@@ -18,8 +18,9 @@ import {
 import { controleerScherm } from '../helpers/toegankelijkheid';
 
 // OFM-050: stap 2 beschrijft het huidige dak, met per keuze een zin in de offerte (Instellingen ›
-// Keuzelijsten); stap 3 begint met soort werk en de nieuwe dakbedekking, die het materiaal bij de
-// werkzaamheid Nieuwe bedekking voorselecteert. Maak zonder Claude zet de zinnen als eerste stap
+// Keuzelijsten); stap 3 begint met soort werk en de nieuwe dakbedekking, die (sinds OFM-055 via de
+// daksituatie hout × EPDM uit de startset) het materiaal bij de werkzaamheid Nieuwe bedekking
+// voorselecteert; een andere bedekking daarna geeft de hint met Gebruik. Maak zonder Claude zet de zinnen als eerste stap
 // "Huidige situatie" in de werkomschrijving; die staat daarna op de PDF.
 
 let mappen: TestMappen;
@@ -93,18 +94,24 @@ test('zin bij ondergrond hout aanpassen, nieuwe bedekking EPDM voorgeselecteerd,
   await bedekking.getByRole('button', { name: 'EPDM', exact: true }).click();
   await expect(bedekking.getByRole('button', { name: /^EPDM/ })).toHaveAttribute('aria-pressed', 'true');
 
-  // Nieuwe bedekking kiezen: EPDM is voorgeselecteerd (niet de standaard Bitumen); wisselen kan.
+  // Nieuwe bedekking kiezen: EPDM is voorgeselecteerd (situatie hout × EPDM uit de startset).
   await knop(page, 'Nieuwe bedekking').click();
   const kaart = page.getByRole('region', { name: 'Nieuwe bedekking' });
   await expect(kaart.getByLabel('EPDM', { exact: true })).toBeChecked();
-  await expect(kaart.getByLabel('Bitumen', { exact: true })).not.toBeChecked();
+  // OFM-055: bitumen past met zijn tag niet bij EPDM en is dus niet kiesbaar.
+  await expect(kaart.getByLabel('Bitumen', { exact: true })).toHaveCount(0);
   await controleerScherm(page, 'Wizard 3 met nieuwe dakbedekking', []);
-  // Een andere bedekking kiezen vervangt het materiaal in de al gekozen werkzaamheid.
+  // OFM-055: een andere bedekking laat de materialen staan en geeft een hint; Gebruik vervangt ze.
   await bedekking.getByRole('button', { name: 'PVC', exact: true }).click();
-  await expect(kaart.getByLabel('PVC', { exact: true })).toBeChecked();
-  await expect(kaart.getByLabel('EPDM', { exact: true })).not.toBeChecked();
-  await bedekking.getByRole('button', { name: 'EPDM', exact: true }).click();
   await expect(kaart.getByLabel('EPDM', { exact: true })).toBeChecked();
+  await expect(kaart.getByText(w.werk.daksysteemHint('PVC'))).toBeVisible();
+  await kaart.getByRole('button', { name: w.werk.daksysteemGebruik('PVC', 'Nieuwe bedekking') }).click();
+  await expect(kaart.getByLabel('PVC', { exact: true })).toBeChecked();
+  await expect(kaart.getByLabel('EPDM', { exact: true })).toHaveCount(0);
+  await bedekking.getByRole('button', { name: 'EPDM', exact: true }).click();
+  await kaart.getByRole('button', { name: w.werk.daksysteemGebruik('EPDM', 'Nieuwe bedekking') }).click();
+  await expect(kaart.getByLabel('EPDM', { exact: true })).toBeChecked();
+  await expect(kaart.getByText(w.werk.daksysteemHint('EPDM'))).toHaveCount(0);
 
   // Stap 4: de samenvatting noemt de nieuwe dakbedekking.
   await knop(page, w.volgende).click();

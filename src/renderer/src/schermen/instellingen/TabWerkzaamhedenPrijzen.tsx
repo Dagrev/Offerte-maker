@@ -1,17 +1,29 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Eye, EyeOff, ListChecks, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Eye, EyeOff, ListChecks, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { euroNaarCent } from '@shared/calc/bedragen';
 import type {
   BtwTarief,
   Eenheid,
   Keuzeoptie,
   Materiaal,
+  MateriaalTags,
   Prijspost,
   WerkOptie,
   Werkzaamheid,
   WerkzaamhedenSet,
 } from '@shared/types';
-import { geldigeDaksystemen, prijsGroep } from '@shared/werkzaamheden';
+import {
+  ALLE_TAGS,
+  ONDERGROND_ONBEKEND,
+  geldigeSituaties,
+  pastBijSituatie,
+  prijsGroep,
+  situatieCombinaties,
+  zelfdeSituatie,
+  zetTag,
+  type SituatieSleutel,
+  type TagGroep,
+} from '@shared/werkzaamheden';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { bewaarPrijspost, usePrijzen } from '../../api/prijzen';
 import { alsFout } from '../../api/roep';
@@ -30,7 +42,6 @@ import { Veld } from '../../componenten/Veld';
 import { Vinkje } from '../../componenten/Vinkje';
 import { leesGetal, schoonGetalInvoer, toonGetal } from '../../componenten/getalNotatie';
 import { useNavigatie } from '../../stores/navigatie';
-import { SectieDaksystemen } from './SectieDaksystemen';
 import { nl } from '../../teksten/nl';
 import { useAutoBewaar } from './autoBewaar';
 
@@ -38,8 +49,10 @@ import { useAutoBewaar } from './autoBewaar';
 // Drie secties: (1) Materialen met naam, eenheid, prijs en btw; (2) Werkzaamheden met naam, eenheid,
 // prijs per eenheid, prijs per uur, btw, bij welke soorten werk ze horen, kiesbare materialen (één
 // standaard) en daaronder de opties; (3) Overige prijzen: de vaste posten (steiger, verzekerde garantie,
-// voorrijkosten) via `prijzen:bewaar`. Sinds OFM-051 tussen 2 en 3 de sectie Standaardmaterialen per
-// daksysteem (`SectieDaksystemen.tsx`), die met de set meebewaart. Secties 1 en 2 bewaren als geheel via `werkzaamheden:bewaar`
+// voorrijkosten) via `prijzen:bewaar`. OFM-055: bij de materialen de tags (ondergrond en nieuwe
+// dakbedekking) en per werkzaamheid het vinkje Materiaal per daksituatie met per combinatie de
+// standaardmaterialen (vervangt de sectie Standaardmaterialen per daksysteem van OFM-051). Secties 1 en 2
+// bewaren als geheel via `werkzaamheden:bewaar`
 // (FE-075): namen en prijzen na 800 ms of bij verlaten van het veld, vinkjes en knoppen meteen. Een nieuw
 // item krijgt hier al een id. De soorten werk zelf staan onder Keuzelijsten.
 
@@ -114,8 +127,6 @@ function Bewerker({
   const [herstellen, setHerstellen] = useState(false);
   const [herstelFout, setHerstelFout] = useState<ReturnType<typeof alsFout> | null>(null);
   const [vervallen, setVervallen] = useState<string | null>(null);
-  // "Bewaard ✓" bij de sectie waar de wijziging vandaan kwam (niet twee keer tegelijk).
-  const [inDaksysteem, setInDaksysteem] = useState(false);
 
   const soortSleutels = useRef(new Set(soorten.map((s) => s.sleutel)));
   useEffect(() => {
@@ -127,12 +138,15 @@ function Bewerker({
     allesBenoemd,
   );
 
-  const wijzig = (gewijzigd: WerkzaamhedenSet, direct: boolean, daksysteem = false) => {
-    setInDaksysteem(daksysteem);
-    // OFM-051: een afwijking per daksysteem met een materiaal dat niet meer kiesbaar is, vervalt (melding).
-    const { regels, vervallen: aantal } = geldigeDaksystemen(gewijzigd.daksystemen, gewijzigd.werkzaamheden);
-    const nieuw = { ...gewijzigd, daksystemen: regels };
-    setVervallen(aantal > 0 ? t.daksysteem.vervallen(aantal) : null);
+  const wijzig = (gewijzigd: WerkzaamhedenSet, direct: boolean) => {
+    // OFM-055: een standaardmateriaal bij een daksituatie dat niet meer kiesbaar is of niet meer bij de
+    // tags past, vervalt (melding).
+    const { werkzaamheden, vervallen: aantal } = geldigeSituaties(
+      gewijzigd.werkzaamheden,
+      gewijzigd.materialen,
+    );
+    const nieuw = { ...gewijzigd, werkzaamheden };
+    setVervallen(aantal > 0 ? t.situatie.vervallen(aantal) : null);
     setSet(nieuw);
     if (direct) bewaren.bewaarDirect(nieuw);
     else bewaren.wijzig(nieuw);
@@ -166,6 +180,8 @@ function Bewerker({
       soortenWerk: [],
       opties: [],
       materialen: [],
+      perSituatie: false,
+      situaties: [],
     };
     setNieuwWerk('');
     wijzig({ ...set, werkzaamheden: [...set.werkzaamheden, nieuw] }, true);
@@ -183,6 +199,7 @@ function Bewerker({
       verborgen: false,
       standaard: false,
       inGebruik: false,
+      tags: ALLE_TAGS,
     };
     setNieuwMateriaal('');
     wijzig({ ...set, materialen: [...set.materialen, nieuw] }, true);
@@ -196,12 +213,16 @@ function Bewerker({
         })),
         materialen: set.materialen.filter((m) => m.id !== id),
         soortenWerk: set.soortenWerk,
-        daksystemen: set.daksystemen,
       },
       true,
     );
   const vraagVerwijderen = (item: Item, naam: string, verwijder: () => void, verberg: () => void) =>
     setTeVerwijderen({ label: naam, inGebruik: item.inGebruik, verwijder, verberg });
+
+  // OFM-055: tags = de niet-verborgen opties zonder "Weet ik niet"; situaties = ondergrond × bedekking.
+  const tagOndergronden = ondergronden.filter((o) => !o.verborgen && o.sleutel !== ONDERGROND_ONBEKEND);
+  const tagBedekkingen = bedekkingen.filter((o) => !o.verborgen);
+  const combinaties = situatieCombinaties(ondergronden, bedekkingen);
 
   const materiaalNamen = beginSetLabels(beginSet.materialen, set.materialen);
   const werkNamen = beginSetLabels(beginSet.werkzaamheden, set.werkzaamheden);
@@ -210,13 +231,22 @@ function Bewerker({
     <div className="flex flex-col gap-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="max-w-3xl text-tekst-zacht">{t.uitleg}</p>
-        <BewaardIndicator signaal={inDaksysteem ? 0 : bewaren.signaal} />
+        <BewaardIndicator signaal={bewaren.signaal} />
       </div>
       {bewaren.fout && <Foutmelding fout={bewaren.fout} />}
       {herstelFout && <Foutmelding fout={herstelFout} />}
+      {vervallen && (
+        <p
+          role="status"
+          className="rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-4 py-3 text-waarschuwing"
+        >
+          {vervallen}
+        </p>
+      )}
 
       {/* 1. Materialen */}
       <Deel titel={t.materialen} uitleg={t.materialenUitleg}>
+        <BeschikbareTags ondergronden={tagOndergronden} bedekkingen={tagBedekkingen} />
         {set.materialen.length === 0 ? (
           <p className="text-tekst-zacht">{t.geenMaterialenLijst}</p>
         ) : (
@@ -267,6 +297,13 @@ function Bewerker({
                         )
                       }
                     />
+                    <TagKnoppen
+                      naam={naam}
+                      tags={m.tags}
+                      ondergronden={tagOndergronden}
+                      bedekkingen={tagBedekkingen}
+                      opWijzig={(tags) => zetMateriaal(m.id, { tags }, true)}
+                    />
                   </li>
                 );
               })}
@@ -307,6 +344,9 @@ function Bewerker({
                   naam={naam}
                   soorten={soorten}
                   materialen={set.materialen}
+                  combinaties={combinaties}
+                  ondergronden={ondergronden}
+                  bedekkingen={bedekkingen}
                   bewaardeOpties={beginSet.werkzaamheden.find((b) => b.id === w.id)?.opties ?? []}
                   eerste={index === 0}
                   laatste={index === set.werkzaamheden.length - 1}
@@ -342,16 +382,6 @@ function Bewerker({
           toevoegenLabel={t.werkToevoegen}
         />
       </Deel>
-
-      {/* OFM-051: Standaardmaterialen per daksysteem */}
-      <SectieDaksystemen
-        set={set}
-        ondergronden={ondergronden}
-        bedekkingen={bedekkingen}
-        opWijzig={(daksystemen) => wijzig({ ...set, daksystemen }, true, true)}
-        signaal={inDaksysteem ? bewaren.signaal : 0}
-        melding={vervallen}
-      />
 
       {/* 3. Overige prijzen */}
       {overig}
@@ -656,6 +686,9 @@ function WerkKaart({
   naam,
   soorten,
   materialen,
+  combinaties,
+  ondergronden,
+  bedekkingen,
   bewaardeOpties,
   eerste,
   laatste,
@@ -669,6 +702,10 @@ function WerkKaart({
   naam: string;
   soorten: Keuzeoptie[];
   materialen: Materiaal[];
+  /** OFM-055: de situatieknoppen (ondergrond × bedekking). */
+  combinaties: SituatieSleutel[];
+  ondergronden: Keuzeoptie[];
+  bedekkingen: Keuzeoptie[];
   bewaardeOpties: WerkOptie[];
   eerste: boolean;
   laatste: boolean;
@@ -818,6 +855,25 @@ function WerkKaart({
         </div>
       </fieldset>
       {gekozen.size > 0 && (
+        <Vinkje
+          label={t.situatie.vinkje}
+          hint={t.situatie.vinkjeHint}
+          aan={werk.perSituatie}
+          opWijzig={(perSituatie) => opWijzig({ perSituatie }, true)}
+        />
+      )}
+      {gekozen.size > 0 && werk.perSituatie && (
+        <SituatieBlok
+          werk={werk}
+          naam={naam}
+          materialen={materialen.filter((m) => gekozen.has(m.id))}
+          combinaties={combinaties}
+          ondergronden={ondergronden}
+          bedekkingen={bedekkingen}
+          opWijzig={(situaties) => opWijzig({ situaties }, true)}
+        />
+      )}
+      {gekozen.size > 0 && !werk.perSituatie && (
         <div className="flex max-w-md flex-col gap-2">
           <label htmlFor={standaardId} className="font-semibold">
             {t.standaardMateriaal(naam)}
@@ -905,6 +961,192 @@ function WerkKaart({
         />
       </div>
     </li>
+  );
+}
+
+const chipKlasse = (aan: boolean) =>
+  'inline-flex min-h-12 items-center gap-2 rounded-full px-4 py-2 font-semibold disabled:cursor-not-allowed ' +
+  (aan
+    ? 'border-3 border-accent bg-achtergrond text-accent'
+    : 'border-2 border-rand bg-achtergrond text-tekst-zacht hover:border-accent');
+
+/** OFM-055: bovenaan de materialen de tags die er zijn (de opties van twee keuzelijsten). */
+function BeschikbareTags({
+  ondergronden,
+  bedekkingen,
+}: {
+  ondergronden: Keuzeoptie[];
+  bedekkingen: Keuzeoptie[];
+}) {
+  const groep = (titel: string, opties: Keuzeoptie[]) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="min-w-48 font-semibold">{titel}</span>
+      {opties.length === 0 ? (
+        <span className="text-tekst-zacht">{t.tags.geen}</span>
+      ) : (
+        <ul aria-label={titel} className="flex flex-wrap gap-2">
+          {opties.map((o) => (
+            <li key={o.id} className="rounded-full bg-vlak px-3 py-1">
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+  return (
+    <section aria-label={t.tags.titel} className="flex flex-col gap-2 rounded-knop border-2 border-rand p-4">
+      <h3 className="text-lg font-semibold">{t.tags.titel}</h3>
+      <p className="max-w-3xl text-tekst-zacht">{t.tags.uitleg}</p>
+      {groep(t.tags.ondergrond, ondergronden)}
+      {groep(t.tags.bedekking, bedekkingen)}
+    </section>
+  );
+}
+
+/**
+ * OFM-055: de tags van één materiaal als aan/uit-knoppen, onder de rij. De laatste tag van een groep kan
+ * niet uit (geen tags = alle, dat zou het omgekeerde doen).
+ */
+function TagKnoppen({
+  naam,
+  tags,
+  ondergronden,
+  bedekkingen,
+  opWijzig,
+}: {
+  naam: string;
+  tags: MateriaalTags;
+  ondergronden: Keuzeoptie[];
+  bedekkingen: Keuzeoptie[];
+  opWijzig: (tags: MateriaalTags) => void;
+}) {
+  const groep = (groep: TagGroep, titel: string, opties: Keuzeoptie[]) => {
+    if (opties.length === 0) return null;
+    const waarde = tags[groep];
+    const aan = (sleutel: string) => waarde === 'alle' || waarde.includes(sleutel);
+    const aantalAan = opties.filter((o) => aan(o.sleutel)).length;
+    const alle = opties.map((o) => o.sleutel);
+    return (
+      <div
+        role="group"
+        aria-label={t.tags.groepVan(titel, naam)}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span aria-hidden="true" className="min-w-48 text-tekst-zacht">
+          {titel}
+        </span>
+        {opties.map((o) => {
+          const isAan = aan(o.sleutel);
+          const laatste = isAan && aantalAan === 1 && waarde !== 'alle';
+          return (
+            <button
+              key={o.id}
+              type="button"
+              aria-pressed={isAan}
+              aria-label={t.tags.tag(o.label, naam)}
+              title={laatste ? t.tags.laatste : undefined}
+              disabled={laatste}
+              onClick={() => opWijzig(zetTag(tags, groep, o.sleutel, !isAan, alle))}
+              className={chipKlasse(isAan)}
+            >
+              {isAan && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+  return (
+    <div className="col-span-full flex flex-col gap-2 pb-2">
+      {groep('ondergrond', t.tags.ondergrond, ondergronden)}
+      {groep('bedekking', t.tags.bedekking, bedekkingen)}
+    </div>
+  );
+}
+
+/**
+ * OFM-055: bij een werkzaamheid met Materiaal per daksituatie één knop per combinatie ondergrond ×
+ * nieuwe dakbedekking (met het aantal materialen) en voor de gekozen situatie vinkjes voor de kiesbare
+ * materialen waarvan de tags passen.
+ */
+function SituatieBlok({
+  werk,
+  naam,
+  materialen,
+  combinaties,
+  ondergronden,
+  bedekkingen,
+  opWijzig,
+}: {
+  werk: Werkzaamheid;
+  naam: string;
+  /** De kiesbare materialen van deze werkzaamheid. */
+  materialen: Materiaal[];
+  combinaties: SituatieSleutel[];
+  ondergronden: Keuzeoptie[];
+  bedekkingen: Keuzeoptie[];
+  opWijzig: (situaties: Werkzaamheid['situaties']) => void;
+}) {
+  const [gekozen, setGekozen] = useState<SituatieSleutel | null>(null);
+  const actief = combinaties.find((c) => gekozen !== null && zelfdeSituatie(c, gekozen)) ?? combinaties[0];
+  const label = (lijst: Keuzeoptie[], sleutel: string) =>
+    lijst.find((o) => o.sleutel === sleutel)?.label ?? sleutel;
+  const naamVan = (c: SituatieSleutel) =>
+    t.situatie.combinatie(label(ondergronden, c.ondergrond), label(bedekkingen, c.bedekking));
+  const idsVan = (c: SituatieSleutel) => werk.situaties.find((s) => zelfdeSituatie(s, c))?.materiaalIds ?? [];
+
+  if (!actief) return <p className="text-tekst-zacht">{t.situatie.geenCombinaties}</p>;
+  const passend = materialen.filter((m) =>
+    pastBijSituatie(m, { ondergrond: actief.ondergrond, nieuweBedekking: actief.bedekking }),
+  );
+  const ids = new Set(idsVan(actief));
+  const zet = (materiaalId: string, aan: boolean) => {
+    const nieuw = new Set(ids);
+    if (aan) nieuw.add(materiaalId);
+    else nieuw.delete(materiaalId);
+    const materiaalIds = materialen.filter((m) => nieuw.has(m.id)).map((m) => m.id);
+    const zonder = werk.situaties.filter((s) => !zelfdeSituatie(s, actief));
+    opWijzig(materiaalIds.length > 0 ? [...zonder, { ...actief, materiaalIds }] : zonder);
+  };
+
+  return (
+    <div className="flex flex-col gap-4 border-l-4 border-accent pl-4">
+      <div role="group" aria-label={t.situatie.knoppen(naam)} className="flex flex-wrap gap-3">
+        {combinaties.map((c) => {
+          const aan = zelfdeSituatie(c, actief);
+          const n = idsVan(c).length;
+          return (
+            <button
+              key={`${c.ondergrond}|${c.bedekking}`}
+              type="button"
+              aria-pressed={aan}
+              onClick={() => setGekozen(c)}
+              className={chipKlasse(aan).replace('text-tekst-zacht', 'text-tekst')}
+            >
+              <span>{naamVan(c)}</span>
+              <span className="rounded-full bg-vlak px-2 text-tekst">
+                <span aria-hidden="true">{n}</span>
+                <span className="sr-only">{`, ${t.situatie.teller(n)}`}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <fieldset className="flex flex-col gap-1">
+        <legend className="mb-2 font-semibold">{t.situatie.materialen(naamVan(actief), naam)}</legend>
+        {passend.length === 0 ? (
+          <p className="text-tekst-zacht">{t.situatie.geenPassend}</p>
+        ) : (
+          <div className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+            {passend.map((m) => (
+              <Vinkje key={m.id} label={m.label} aan={ids.has(m.id)} opWijzig={(aan) => zet(m.id, aan)} />
+            ))}
+          </div>
+        )}
+      </fieldset>
+    </div>
   );
 }
 

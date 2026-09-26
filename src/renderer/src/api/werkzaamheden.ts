@@ -44,17 +44,19 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
         verborgen,
       })),
       materialen: w.materialen,
+      // OFM-055: vinkje en situaties; main laat materialen vallen die niet (meer) kiesbaar zijn of passen.
+      perSituatie: w.perSituatie,
+      situaties: w.situaties,
     })),
-    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, btwTarief, verborgen }) => ({
+    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, btwTarief, verborgen, tags }) => ({
       id,
       label: label.trim(),
       eenheid,
       prijsCent,
       btwTarief,
       verborgen,
+      tags,
     })),
-    // OFM-051: alle afwijkingen per daksysteem; main laat regels vallen die niet meer kloppen.
-    daksystemen: set.daksystemen,
   };
 }
 

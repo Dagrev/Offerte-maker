@@ -142,9 +142,9 @@ export const wizard = {
     standaardPrijs: 'Standaardprijs',
     standaardPrijsVan: (label: string) => `Standaardprijs voor ${label}`,
     materialen: 'Materialen',
-    /** OFM-051: na een andere ondergrond of nieuwe bedekking. */
-    daksysteemHint: (materiaal: string) => `Standaard bij dit daksysteem: ${materiaal}`,
-    daksysteemGebruik: (materiaal: string, werk: string) => `Gebruik ${materiaal} bij ${werk}`,
+    /** OFM-051/055: de standaardmaterialen bij de huidige daksituatie (ondergrond × nieuwe bedekking). */
+    daksysteemHint: (materialen: string) => `Standaard bij dit daksysteem: ${materialen}`,
+    daksysteemGebruik: (materialen: string, werk: string) => `Gebruik ${materialen} bij ${werk}`,
     gebruik: 'Gebruik',
     opties: 'Opties',
     notitie: 'Notitie',

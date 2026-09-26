@@ -18,6 +18,7 @@ import { omschrijvingKort } from '@shared/omschrijvingKort';
 import { klusInvoerSchema } from '@shared/schemas';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { KlusInvoer, Keuzelijsten, Keuzeoptie } from '@shared/types';
+import { voegTagOptieToe } from '../daksituatie';
 import { database } from '../verbinding';
 
 // Keuzelijsten van de wizard (OFM-034, TDO §4.2 `keuzeopties`, §6.2 `keuzelijsten:*`). Sleutels zijn
@@ -244,6 +245,8 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
         zinVan(optie, ''),
         vraagtVan(optie, 0),
       );
+      // OFM-055: een nieuwe ondergrond of dakbedekking staat bij bestaande materialen aan.
+      voegTagOptieToe(db, lijst, sleutel);
     });
     if (labelsGewijzigd && lijst === 'soortWerk') herberekenOmschrijvingen();
   })();
@@ -287,6 +290,7 @@ export function herstelKeuzelijst(lijst: KeuzeLijst): void {
           zin,
           vraagt,
         );
+        voegTagOptieToe(db, lijst, optie.sleutel);
       }
     });
     const startSleutels = new Set(start.map((o) => o.sleutel));

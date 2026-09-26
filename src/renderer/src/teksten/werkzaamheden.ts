@@ -50,35 +50,37 @@ export const werkzaamheden = {
   geenStandaard: 'Geen',
   verborgenAchter: (label: string) => `${label} (verborgen)`,
 
-  // Sectie Standaardmaterialen per daksysteem (OFM-051)
-  daksysteem: {
-    titel: 'Standaardmaterialen per daksysteem',
+  // Tags bij de materialen (OFM-055)
+  tags: {
+    titel: 'Beschikbare tags',
     uitleg:
-      'Gebruik je bij een bepaalde ondergrond of dakbedekking een ander materiaal dan normaal? Kies hier de combinatie en zet alleen wat afwijkt. Wat je niet invult, volgt de algemene regel of de gewone standaard.',
+      'Een materiaal is in de wizard alleen kiesbaar bij de ondergronden en dakbedekkingen waarvan de tag aan staat. Een nieuw materiaal heeft alle tags aan. De tags komen uit de keuzelijsten Ondergrond en Nieuwe dakbedekking.',
     ondergrond: 'Ondergrond',
     bedekking: 'Nieuwe dakbedekking',
-    alleOndergronden: 'Alle ondergronden',
-    alleBedekkingen: 'Alle bedekkingen',
-    teller: (aantal: number) => (aantal === 1 ? '1 afwijking' : `${aantal} afwijkingen`),
-    kiesCombinatie:
-      'Kies hierboven een ondergrond, een nieuwe dakbedekking of allebei. Het gewone standaardmateriaal stel je in bij de werkzaamheid zelf.',
-    geenWerkzaamheden:
-      'Er is nog geen werkzaamheid met twee of meer kiesbare materialen. Vink eerst materialen aan bij een werkzaamheid.',
+    geen: 'Geen opties in deze keuzelijst.',
+    vanMateriaal: (materiaal: string) => `Tags van ${materiaal}`,
+    groepVan: (groep: string, materiaal: string) => `${groep} bij ${materiaal}`,
+    tag: (tag: string, materiaal: string) => `${tag} bij ${materiaal}`,
+    laatste: 'Minstens één tag per groep blijft aan.',
+  },
+
+  // Materiaal per daksituatie bij een werkzaamheid (OFM-055)
+  situatie: {
+    vinkje: 'Materiaal per daksituatie',
+    vinkjeHint:
+      'Aan: per combinatie van ondergrond en nieuwe dakbedekking kies je welke materialen de wizard voorselecteert.',
+    knoppen: (werk: string) => `Daksituaties bij ${werk}`,
     combinatie: (ondergrond: string, bedekking: string) => `${ondergrond} × ${bedekking}`,
-    werkzaamheid: 'Werkzaamheid',
-    standaardmateriaal: 'Standaardmateriaal bij deze combinatie',
-    waarVandaan: 'Waar komt het vandaan',
-    keuzeLabel: (werk: string, combinatie: string) => `Standaardmateriaal bij ${werk} voor ${combinatie}`,
-    geenAfwijking: 'Geen afwijking',
-    geenAfwijkingNu: (materiaal: string) => `Geen afwijking (nu: ${materiaal})`,
-    geenMateriaal: 'geen',
-    bronCombinatie: 'Deze combinatie',
-    bronGeerfd: (combinatie: string) => `Geërfd van ${combinatie}`,
-    bronGewoon: 'Gewone standaard',
+    teller: (aantal: number) => (aantal === 1 ? '1 materiaal' : `${aantal} materialen`),
+    materialen: (combinatie: string, werk: string) => `Standaardmaterialen bij ${combinatie} voor ${werk}`,
+    geenCombinaties:
+      'Er zijn nog geen situaties: zet onder Keuzelijsten minstens één ondergrond en één nieuwe dakbedekking aan.',
+    geenPassend:
+      'Geen kiesbaar materiaal past bij deze situatie. Vink materialen aan bij deze werkzaamheid of zet hun tags aan bij Materialen.',
     vervallen: (aantal: number) =>
       aantal === 1
-        ? 'Eén afwijking bij Standaardmaterialen per daksysteem is vervallen, omdat het materiaal niet meer kiesbaar is.'
-        : `${aantal} afwijkingen bij Standaardmaterialen per daksysteem zijn vervallen, omdat het materiaal niet meer kiesbaar is.`,
+        ? 'Eén standaardmateriaal bij een daksituatie is vervallen, omdat het niet meer kiesbaar is of zijn tag uit staat.'
+        : `${aantal} standaardmaterialen bij een daksituatie zijn vervallen, omdat ze niet meer kiesbaar zijn of hun tag uit staat.`,
   },
 
   // Sectie Overige prijzen (de vaste posten, via prijzen:*)
@@ -117,7 +119,7 @@ export const werkzaamheden = {
   herstel: 'Herstel startset',
   herstelTitel: 'Startset herstellen?',
   herstelTekst:
-    'De standaardwerkzaamheden en -materialen krijgen hun oorspronkelijke naam, volgorde en koppelingen terug en worden weer getoond. Prijzen en je eigen onderdelen blijven. De afwijkingen bij Standaardmaterialen per daksysteem worden gewist.',
+    'De standaardwerkzaamheden en -materialen krijgen hun oorspronkelijke naam, volgorde en koppelingen terug en worden weer getoond. Prijzen en je eigen onderdelen blijven. Ook de tags van de standaardmaterialen en het materiaal per daksituatie van de standaardwerkzaamheden gaan terug naar de startset.',
   herstelJa: 'Herstellen',
   herstelNee: 'Annuleren',
 };
