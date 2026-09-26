@@ -195,7 +195,11 @@ describe('lijstOverzicht (§8.2)', () => {
   });
 
   it('OFM-046: toont het tussenvoegsel; zonder het veld (oude offerte) als vroeger', () => {
-    voegToe({ id: 'a', datum: '2026-09-10', klant: { aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Jansen' } });
+    voegToe({
+      id: 'a',
+      datum: '2026-09-10',
+      klant: { aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Jansen' },
+    });
     voegToe({
       id: 'b',
       datum: '2026-09-11',
@@ -207,7 +211,11 @@ describe('lijstOverzicht (§8.2)', () => {
       klant: { aanhef: 'fam', voornaam: 'Jan', tussenvoegsel: 'van der', achternaam: 'Berg' },
     });
     const items = lijstOverzicht('maand', '2026-09-10').items;
-    expect(items.map((i) => i.klantWeergave)).toEqual(['Fam. Van der Berg', 'Dhr. J. van der Berg', 'Dhr. J. Jansen']);
+    expect(items.map((i) => i.klantWeergave)).toEqual([
+      'Fam. Van der Berg',
+      'Dhr. J. van der Berg',
+      'Dhr. J. Jansen',
+    ]);
   });
 });
 
@@ -257,5 +265,88 @@ describe('ipc/overzicht.ts', () => {
     expect(r1.ok && ids(r1.data.items)).toEqual(['a']);
     const r2 = await zoek(nepEvent, { tekst: 'Jansen' });
     expect(r2.ok && ids(r2.data)).toEqual(['a']);
+  });
+});
+
+describe('OFM-053: filter op status en ordening', () => {
+  function vulMix(): void {
+    voegToe({ id: 'k1', datum: '2026-09-10', nummer: '2026-003', status: 'klaar', totaal: 100_00 });
+    voegToe({ id: 'v1', datum: '2026-09-05', nummer: '2026-001', status: 'verstuurd', totaal: 200_00 });
+    voegToe({ id: 'a1', datum: '2026-09-20', nummer: '2026-002', status: 'akkoord', totaal: 300_00 });
+    voegToe({ id: 'c1', datum: '2026-09-12' });
+    voegToe({ id: 'c2', datum: '2026-09-22' });
+    // Een nummer uit een ander jaar (definitief gemaakt eind 2025, offertedatum later).
+    voegToe({ id: 'o1', datum: '2026-09-01', nummer: '2025-099', status: 'afgewezen' });
+  }
+
+  it('filter op één of meer statussen; lijst en telling volgen het filter', () => {
+    vulMix();
+    const concept = lijstOverzicht('maand', '2026-09-01', { statussen: ['concept'] });
+    expect(ids(concept.items)).toEqual(['c2', 'c1']);
+    expect(concept.samenvatting).toEqual({ aantal: 2, totaalCent: 0, aantalAkkoord: 0 });
+    const twee = lijstOverzicht('maand', '2026-09-01', { statussen: ['klaar', 'akkoord', 'klaar'] });
+    expect(ids(twee.items)).toEqual(['a1', 'k1']);
+    expect(twee.samenvatting).toEqual({ aantal: 2, totaalCent: 400_00, aantalAkkoord: 1 });
+    // Leeg = alle.
+    expect(lijstOverzicht('maand', '2026-09-01', { statussen: [] }).items).toHaveLength(6);
+  });
+
+  it('ordening op nummer: jaar en volgnummer, concepten onderaan op datum', () => {
+    vulMix();
+    const op = lijstOverzicht('maand', '2026-09-01', { ordening: 'nummer_op' });
+    expect(ids(op.items)).toEqual(['o1', 'v1', 'a1', 'k1', 'c2', 'c1']);
+    const af = lijstOverzicht('maand', '2026-09-01', { ordening: 'nummer_af' });
+    expect(ids(af.items)).toEqual(['k1', 'a1', 'v1', 'o1', 'c2', 'c1']);
+    expect(ids(lijstOverzicht('maand', '2026-09-01', { ordening: 'datum' }).items)).toEqual(
+      ids(lijstOverzicht('maand', '2026-09-01').items),
+    );
+  });
+
+  it('jaar: maandgroepen alleen bij datumordening', () => {
+    vulMix();
+    voegToe({ id: 'aug', datum: '2026-08-15', nummer: '2026-004' });
+    expect(lijstOverzicht('jaar', '2026-01-01').groepen).not.toBeNull();
+    const opNummer = lijstOverzicht('jaar', '2026-01-01', { ordening: 'nummer_op' });
+    expect(opNummer.groepen).toBeNull();
+    expect(ids(opNummer.items)).toEqual(['o1', 'v1', 'a1', 'k1', 'aug', 'c2', 'c1']);
+  });
+
+  it('zoeken met filter en ordening', () => {
+    vulMix();
+    expect(ids(zoekOffertes('jansen', { statussen: ['concept'] }))).toEqual(['c2', 'c1']);
+    expect(ids(zoekOffertes('jansen', { ordening: 'nummer_op' }))).toEqual([
+      'o1',
+      'v1',
+      'a1',
+      'k1',
+      'c2',
+      'c1',
+    ]);
+  });
+
+  it('via IPC: filter en ordening optioneel; onbekende status of ordening → VALIDATIE', async () => {
+    vulMix();
+    const nepEvent = {} as Parameters<ReturnType<typeof maakIpcHandler>>[0];
+    const lijst = maakIpcHandler('overzicht:lijst', overzichtHandlers['overzicht:lijst']);
+    const zoek = maakIpcHandler('overzicht:zoek', overzichtHandlers['overzicht:zoek']);
+    const r = await lijst(nepEvent, {
+      weergave: 'maand',
+      datum: '2026-09-01',
+      statussen: ['verstuurd'],
+      ordening: 'nummer_af',
+    });
+    expect(r.ok && ids(r.data.items)).toEqual(['v1']);
+    const z = await zoek(nepEvent, { tekst: 'jansen', statussen: ['akkoord'] });
+    expect(z.ok && ids(z.data)).toEqual(['a1']);
+    expect(
+      await lijst(nepEvent, { weergave: 'maand', datum: '2026-09-01', statussen: ['weg'] }),
+    ).toMatchObject({
+      ok: false,
+      fout: { code: 'VALIDATIE' },
+    });
+    expect(await zoek(nepEvent, { tekst: 'jansen', ordening: 'naam' })).toMatchObject({
+      ok: false,
+      fout: { code: 'VALIDATIE' },
+    });
   });
 });

@@ -1,3 +1,4 @@
+import type { Ordening } from '@shared/types';
 import type { Weergave } from '../stores/navigatie';
 
 // Interfacetekst (NFE-006, V-11). Eigenaar: OFM-009 (schermen/Overzicht.tsx, componenten/OfferteRij.tsx).
@@ -61,6 +62,20 @@ export const overzicht = {
     status: 'Status',
     nietDefinitief: 'Maak de offerte eerst definitief.',
     conceptZelf: 'Concept zet de app zelf, zolang de offerte niet definitief is.',
+  },
+
+  /** OFM-053: filter op status en ordening boven de lijst. */
+  filter: {
+    status: 'Status',
+    statusAantal: (n: number) => (n === 0 ? 'alle' : n === 1 ? '1 gekozen' : `${n} gekozen`),
+    alle: 'Alle',
+    ordening: 'Ordening',
+    ordeningen: {
+      datum: 'Datum',
+      nummer_op: 'Nummer oplopend',
+      nummer_af: 'Nummer aflopend',
+    } satisfies Record<Ordening, string>,
+    geenMetFilter: 'Geen offertes met deze status in deze periode.',
   },
 
   /** FE-014: "4 offertes · € 600 totaal · 1 akkoord" (enkelvoud bij 1, V-27). */

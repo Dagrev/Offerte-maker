@@ -4,7 +4,7 @@ import type { OfferteLijstItem } from '@shared/types';
 import { formatEuroHeel } from '@shared/formatteer';
 import { periodeVan, verschuif } from '@shared/periode';
 import { useClaudeStatus } from '../api/claude';
-import { useNieuweOfferte, useOverzicht, useZoekOffertes } from '../api/overzicht';
+import { useNieuweOfferte, useOverzicht, useZoekOffertes, type OverzichtFilter } from '../api/overzicht';
 import { alsFout } from '../api/roep';
 import { ClaudeBolletje } from '../componenten/ClaudeBolletje';
 import { Foutmelding } from '../componenten/Foutmelding';
@@ -12,6 +12,7 @@ import { Knop } from '../componenten/Knop';
 import { OfferteRij, offerteRijKolommen, type RijMenu } from '../componenten/OfferteRij';
 import { PeriodeKiezer } from '../componenten/PeriodeKiezer';
 import { useNavigatie, type Weergave } from '../stores/navigatie';
+import { FILTER_STATUSSEN, ORDENINGEN, useOverzichtFilter } from '../stores/overzichtFilter';
 import { nl } from '../teksten/nl';
 import { BedrijfHint } from './BedrijfHint';
 import { OfferteMenu } from './OfferteMenu';
@@ -123,6 +124,8 @@ export function Overzicht() {
         <ZoekVeld waarde={zoekInvoer} opWijzig={setZoekInvoer} />
       </div>
 
+      <FilterBalk />
+
       {menu && <OfferteMenu key={menu.nr} menu={menu.doel} />}
 
       {zoekend ? (
@@ -215,8 +218,85 @@ function ZoekVeld({ waarde, opWijzig }: { waarde: string; opWijzig: (w: string) 
   );
 }
 
+/** Het filter uit de store (OFM-053); één object per render is genoeg voor de query-keys. */
+function useFilter(): OverzichtFilter {
+  const statussen = useOverzichtFilter((s) => s.statussen);
+  const ordening = useOverzichtFilter((s) => s.ordening);
+  return { statussen, ordening };
+}
+
+const knopKlasse = (aan: boolean) =>
+  'min-h-12 rounded-knop border-2 px-4 font-semibold ' +
+  (aan ? 'border-accent bg-accent text-white' : 'border-rand bg-achtergrond text-tekst hover:border-accent');
+
+/**
+ * OFM-053: statusfilter (aan/uit-knoppen, niets aan = alle) en ordening (één van drie). Geldt voor de
+ * periodelijst en de zoekresultaten; de keuze staat in `stores/overzichtFilter.ts`.
+ */
+function FilterBalk() {
+  const { statussen, ordening } = useFilter();
+  const wisselStatus = useOverzichtFilter((s) => s.wisselStatus);
+  const wisStatussen = useOverzichtFilter((s) => s.wisStatussen);
+  const zetOrdening = useOverzichtFilter((s) => s.zetOrdening);
+  const f = t.filter;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+      <div
+        role="group"
+        aria-label={`${f.status}: ${f.statusAantal(statussen.length)}`}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span aria-hidden="true" className="font-semibold">
+          {f.status}
+          {statussen.length > 0 && (
+            <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-sm text-white tabular-nums">
+              {statussen.length}
+            </span>
+          )}
+        </span>
+        <button
+          type="button"
+          aria-pressed={statussen.length === 0}
+          onClick={wisStatussen}
+          className={knopKlasse(statussen.length === 0)}
+        >
+          {f.alle}
+        </button>
+        {FILTER_STATUSSEN.map((status) => (
+          <button
+            key={status}
+            type="button"
+            aria-pressed={statussen.includes(status)}
+            onClick={() => wisselStatus(status)}
+            className={knopKlasse(statussen.includes(status))}
+          >
+            {nl.componenten.status[status]}
+          </button>
+        ))}
+      </div>
+      <div role="group" aria-label={f.ordening} className="flex flex-wrap items-center gap-2">
+        <span aria-hidden="true" className="font-semibold">
+          {f.ordening}
+        </span>
+        {ORDENINGEN.map((o) => (
+          <button
+            key={o}
+            type="button"
+            aria-pressed={o === ordening}
+            onClick={() => zetOrdening(o)}
+            className={knopKlasse(o === ordening)}
+          >
+            {f.ordeningen[o]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Periodelijst({ weergave, datum, acties }: { weergave: Weergave; datum: string; acties: RijActies }) {
-  const lijst = useOverzicht(weergave, datum);
+  const filter = useFilter();
+  const lijst = useOverzicht(weergave, datum, filter);
   const gaNaar = useNavigatie((s) => s.gaNaar);
 
   if (lijst.isError) return <Foutmelding fout={alsFout(lijst.error)} opnieuw={() => void lijst.refetch()} />;
@@ -232,7 +312,9 @@ function Periodelijst({ weergave, datum, acties }: { weergave: Weergave; datum: 
   return (
     <div className="contents" aria-busy={lijst.isFetching} data-lijst="periode">
       {items.length === 0 ? (
-        <p className="rounded-knop bg-vlak p-8 text-center text-lg">{t.leeg}</p>
+        <p className="rounded-knop bg-vlak p-8 text-center text-lg">
+          {filter.statussen.length > 0 ? t.filter.geenMetFilter : t.leeg}
+        </p>
       ) : groepen ? (
         <div className="flex flex-col gap-6">
           {groepen.map((groep) => (
@@ -265,7 +347,7 @@ function Periodelijst({ weergave, datum, acties }: { weergave: Weergave; datum: 
 }
 
 function Zoekresultaten({ tekst, acties }: { tekst: string; acties: RijActies }) {
-  const zoek = useZoekOffertes(tekst);
+  const zoek = useZoekOffertes(tekst, useFilter());
   const gaNaar = useNavigatie((s) => s.gaNaar);
 
   if (zoek.isError) return <Foutmelding fout={alsFout(zoek.error)} opnieuw={() => void zoek.refetch()} />;

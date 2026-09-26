@@ -32,6 +32,8 @@ export type Prijsbron = z.infer<typeof s.prijsbronSchema>;
 export type Offerteregel = z.infer<typeof s.offerteregelSchema>;
 export type OfferteInhoud = z.infer<typeof s.offerteInhoudSchema>;
 export type Status = z.infer<typeof s.statusSchema>;
+/** OFM-053: ordening van `overzicht:lijst` en `overzicht:zoek`. */
+export type Ordening = z.infer<typeof s.ordeningSchema>;
 export type Totalen = z.infer<typeof s.totalenSchema>;
 
 // §6.3
