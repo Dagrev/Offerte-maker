@@ -7,7 +7,7 @@ import {
   type ValidatieFout,
 } from '@shared/validatie';
 
-// Pure hulp bij `AdresVelden` (OFM-031), zonder DOM te testen (test/renderer/adresDelen.test.ts).
+// Pure hulp bij `AdresVelden` (OFM-031, OFM-040), zonder DOM te testen (test/renderer/adresDelen.test.ts).
 // Het datamodel houdt één veld "straat en huisnummer" (§5); het scherm toont straat en huisnummer
 // los, zodat postcode + huisnummer vooraan kunnen staan en straat en plaats vanzelf komen.
 
@@ -57,4 +57,45 @@ export function zoekSleutel(postcode: string, huisnummer: string): string | null
   const h = ontleedHuisnummer(huisnummer);
   if (!p.geldig || p.waarde === '' || !h) return null;
   return `${p.waarde}|${h.nummer}${h.toevoeging}`;
+}
+
+/** Vergelijkbare vorm van straat of plaats: kleine letters, witruimte samengevoegd (OFM-040). */
+export function vergelijkVorm(tekst: string): string {
+  return tekst.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Sleutel om andersom op te zoeken (OFM-040): alleen als de postcode leeg is en straat, een geldig
+ * huisnummer en plaats zijn ingevuld; anders `null`.
+ */
+export function terugZoekSleutel(postcode: string, delen: StraatEnNummer, plaats: string): string | null {
+  const h = ontleedHuisnummer(delen.huisnummer);
+  if (postcode.trim() !== '' || !h) return null;
+  if (!/\p{L}/u.test(delen.straat) || !/\p{L}/u.test(plaats)) return null;
+  return `${vergelijkVorm(delen.straat)}|${h.nummer}${h.toevoeging}|${vergelijkVorm(plaats)}`;
+}
+
+/** De laatste treffer bij PDOK: bij welke postcode + huisnummer (`zoekSleutel`) welk adres hoort. */
+export interface Treffer {
+  sleutel: string;
+  straat: string;
+  plaats: string;
+}
+
+/**
+ * OFM-040: wijkt het ingevulde adres af van de laatste treffer bij dezelfde postcode + huisnummer?
+ * Hoofdletterongevoelig en zonder dubbele spaties; lege straat of plaats is geen afwijking.
+ */
+export function wijktAf(
+  treffer: Treffer | null,
+  sleutel: string | null,
+  straat: string,
+  plaats: string,
+): boolean {
+  if (!treffer || sleutel !== treffer.sleutel) return false;
+  if (straat.trim() === '' || plaats.trim() === '') return false;
+  return (
+    vergelijkVorm(straat) !== vergelijkVorm(treffer.straat) ||
+    vergelijkVorm(plaats) !== vergelijkVorm(treffer.plaats)
+  );
 }

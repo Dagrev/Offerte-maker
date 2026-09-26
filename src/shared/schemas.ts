@@ -11,6 +11,16 @@ import { STANDAARD_VERPLICHT, VERPLICHT_VELDEN, type VerplichtVeld } from './ver
 // ---------- Basis ----------
 
 export const idSchema = z.string().min(1).max(100);
+/** `adres:zoek` (OFM-031/040): een huisnummer dat `ontleedHuisnummer` begrijpt. */
+const huisnummerZoekSchema = z
+  .string()
+  .max(20)
+  .refine((h) => ontleedHuisnummer(h) !== null);
+/** `adres:zoek` (OFM-040): straat of plaats, met minstens één letter. */
+const adresTekstSchema = z
+  .string()
+  .max(80)
+  .refine((t) => /\p{L}/u.test(t));
 /** Datum als `YYYY-MM-DD`. */
 export const datumSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const nietNegatief = z.number().finite().nonnegative();
@@ -591,20 +601,27 @@ export const invoerSchemas = {
   'werkzaamheden:bewaar': werkzaamhedenBewaarSchema,
   'werkzaamheden:herstel': geenInvoer,
 
-  /** OFM-031: alleen een geldige postcode en een geldig huisnummer gaan naar PDOK (A-29). */
-  'adres:zoek': z.object({
-    postcode: z
-      .string()
-      .max(10)
-      .refine((p) => {
-        const c = controleerPostcode(p);
-        return c.geldig && c.waarde !== '';
-      }),
-    huisnummer: z
-      .string()
-      .max(20)
-      .refine((h) => ontleedHuisnummer(h) !== null),
-  }),
+  /**
+   * OFM-031/040: postcode + huisnummer, óf straat + huisnummer + plaats (A-29). Alleen geldige
+   * adreswaarden gaan naar PDOK; andere sleutels (bijv. een naam) vallen weg.
+   */
+  'adres:zoek': z.union([
+    z.object({
+      postcode: z
+        .string()
+        .max(10)
+        .refine((p) => {
+          const c = controleerPostcode(p);
+          return c.geldig && c.waarde !== '';
+        }),
+      huisnummer: huisnummerZoekSchema,
+    }),
+    z.object({
+      straat: adresTekstSchema,
+      huisnummer: huisnummerZoekSchema,
+      plaats: adresTekstSchema,
+    }),
+  ]),
 
   'prijzen:lijst': geenInvoer,
   'prijzen:bewaar': prijspostSchema,

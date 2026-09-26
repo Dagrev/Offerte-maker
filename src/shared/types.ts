@@ -119,7 +119,8 @@ export interface KanaalUitvoer {
   'werkzaamheden:bewaar': WerkzaamhedenSet;
   'werkzaamheden:herstel': null;
   /** OFM-031: `null` = niet gevonden, geen internet of time-out (geen foutmelding). */
-  'adres:zoek': { straat: string; plaats: string } | null;
+  /** OFM-040: ook de postcode (genormaliseerd `1234 AB`). */
+  'adres:zoek': { straat: string; plaats: string; postcode: string } | null;
   'prijzen:lijst': Prijspost[];
   'prijzen:bewaar': { id: string };
   'prijzen:verwijder': null;

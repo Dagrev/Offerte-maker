@@ -3,7 +3,10 @@ import { controleerStraatHuisnummer } from '@shared/validatie';
 import {
   adresFouten,
   splitsAdres,
+  terugZoekSleutel,
+  vergelijkVorm,
   voegSamen,
+  wijktAf,
   zoekSleutel,
 } from '../../src/renderer/src/componenten/adresDelen';
 
@@ -63,5 +66,31 @@ describe('zoekSleutel', () => {
     expect(zoekSleutel('', '12')).toBeNull();
     expect(zoekSleutel('1234 SA', '12')).toBeNull();
     expect(zoekSleutel('5611 AB', '')).toBeNull();
+  });
+});
+
+describe('OFM-040: andersom opzoeken en controleren', () => {
+  it('vergelijkVorm: kleine letters, witruimte samengevoegd', () => {
+    expect(vergelijkVorm('  Lange   LAAN ')).toBe('lange laan');
+  });
+
+  it('terugZoekSleutel alleen bij lege postcode, straat en plaats met letters en een geldig huisnummer', () => {
+    const d = (straat: string, huisnummer: string) => ({ straat, huisnummer });
+    expect(terugZoekSleutel('', d(' Dorps  Straat', '12a'), 'Eindhoven ')).toBe('dorps straat|12A|eindhoven');
+    expect(terugZoekSleutel('5611 AB', d('Dorpsstraat', '12'), 'Eindhoven')).toBeNull();
+    expect(terugZoekSleutel(' ', d('Dorpsstraat', 'x'), 'Eindhoven')).toBeNull();
+    expect(terugZoekSleutel('', d('', '12'), 'Eindhoven')).toBeNull();
+    expect(terugZoekSleutel('', d('Dorpsstraat', '12'), '')).toBeNull();
+  });
+
+  it('wijktAf: alleen bij dezelfde postcode + huisnummer, ingevulde velden en een echt verschil', () => {
+    const t = { sleutel: '5611 AB|12', straat: 'Dorpsstraat', plaats: 'Eindhoven' };
+    expect(wijktAf(t, '5611 AB|12', 'dorpsstraat ', 'EINDHOVEN')).toBe(false);
+    expect(wijktAf(t, '5611 AB|12', 'Kerkstraat', 'Eindhoven')).toBe(true);
+    expect(wijktAf(t, '5611 AB|12', 'Dorpsstraat', 'Best')).toBe(true);
+    expect(wijktAf(t, '5611 AB|12', '', 'Best')).toBe(false);
+    expect(wijktAf(t, '5611 AB|12', 'Kerkstraat', ' ')).toBe(false);
+    expect(wijktAf(t, '5611 AB|14', 'Kerkstraat', 'Eindhoven')).toBe(false);
+    expect(wijktAf(null, '5611 AB|12', 'Kerkstraat', 'Eindhoven')).toBe(false);
   });
 });

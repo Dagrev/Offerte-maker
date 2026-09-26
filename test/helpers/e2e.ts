@@ -56,18 +56,39 @@ export interface NepPdok {
 }
 
 /**
- * Nep-PDOK voor E2E (OFM-031): een lokale HTTP-server die antwoordt als de Locatieserver. `adressen`
- * gaat van `postcode:1234AB huisnummer:12` naar straat en plaats; al het andere is "geen treffer".
+ * Nep-PDOK voor E2E (OFM-031, OFM-040): een lokale HTTP-server die antwoordt als de Locatieserver.
+ * `adressen` gaat van `postcode:1234AB huisnummer:12` naar straat en plaats. Beide richtingen: op
+ * postcode + huisnummer, of op `straatnaam:"…"` + `woonplaatsnaam:"…"` + huisnummer
+ * (hoofdletterongevoelig, zoals PDOK). Al het andere is "geen treffer".
  */
 export async function startNepPdok(
   adressen: Record<string, { straat: string; plaats: string }>,
 ): Promise<NepPdok> {
   const verzoeken: string[][] = [];
+  const lijst = Object.entries(adressen).map(([sleutel, adres]) => {
+    const [, postcode = '', huisnummer = ''] = /^postcode:(\S+) huisnummer:(\S+)$/.exec(sleutel) ?? [];
+    return { ...adres, postcode, huisnummer };
+  });
+  const veld = (fq: string[], naam: string) =>
+    fq
+      .find((f) => f.startsWith(`${naam}:`))
+      ?.slice(naam.length + 1)
+      .replace(/^"|"$/g, '')
+      .toLowerCase();
   const server = createServer((req, res) => {
     const fq = new URL(req.url ?? '/', 'http://x').searchParams.getAll('fq');
     verzoeken.push(fq);
-    const gevonden = adressen[fq.filter((f) => f !== 'type:adres').join(' ')];
-    const docs = gevonden ? [{ straatnaam: gevonden.straat, woonplaatsnaam: gevonden.plaats }] : [];
+    const gevonden = lijst.find(
+      (a) =>
+        a.huisnummer === veld(fq, 'huisnummer') &&
+        (veld(fq, 'postcode') !== undefined
+          ? a.postcode.toLowerCase() === veld(fq, 'postcode')
+          : a.straat.toLowerCase() === veld(fq, 'straatnaam') &&
+            a.plaats.toLowerCase() === veld(fq, 'woonplaatsnaam')),
+    );
+    const docs = gevonden
+      ? [{ straatnaam: gevonden.straat, woonplaatsnaam: gevonden.plaats, postcode: gevonden.postcode }]
+      : [];
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ response: { numFound: docs.length, docs } }));
   });
