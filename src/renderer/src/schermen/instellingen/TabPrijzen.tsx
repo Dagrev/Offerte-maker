@@ -8,6 +8,7 @@ import { alsFout } from '../../api/roep';
 import { Bevestiging } from '../../componenten/Bevestiging';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
+import { useSelecteerBijFocus } from '../../componenten/GetalVeld';
 import { Knop } from '../../componenten/Knop';
 import { leesGetal, schoonGetalInvoer, toonGetal } from '../../componenten/getalNotatie';
 import { nl } from '../../teksten/nl';
@@ -117,6 +118,7 @@ function PrijsRij({
     (waarde: Prijspost) => bewaarPrijspost(waarde).then(opBewaard, (e: unknown) => opFout(alsFout(e))),
     (waarde) => waarde.omschrijving.trim() !== '',
   );
+  const selecteer = useSelecteerBijFocus();
   const naam = rij.omschrijving.trim() || t.nieuwePost;
 
   const wijzig = (deel: Partial<Prijspost>, direct = false) => {
@@ -161,6 +163,9 @@ function PrijsRij({
           className={`${invoer} text-right tabular-nums`}
           aria-label={t.rijLabel(naam, t.prijs)}
           inputMode="decimal"
+          onFocus={selecteer.onFocus}
+          onMouseUp={selecteer.onMouseUp}
+          onKeyDown={selecteer.onKeyDown}
           autoComplete="off"
           value={prijsTekst}
           onChange={(e) => {

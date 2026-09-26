@@ -11,6 +11,7 @@ import { GeleBalk } from '../componenten/GeleBalk';
 import { Knop } from '../componenten/Knop';
 import { PdfVoorbeeld } from '../componenten/PdfVoorbeeld';
 import { StatusLabel } from '../componenten/StatusLabel';
+import { isUitgeklapt, useGeleBalk } from '../stores/geleBalk';
 import { useNavigatie } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
 import { ClaudeAanpassen } from './detail/ClaudeAanpassen';
@@ -64,6 +65,8 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
   const voorbeeld = useVoorbeeldHtml(detail.id, detail.inhoud !== null);
   const definitief = useMaakDefinitief(detail.id);
   const pdfActie = usePdfActie(detail.id);
+  const geleBalkKeuze = useGeleBalk((s) => s.keuze);
+  const zetGeleBalk = useGeleBalk((s) => s.zet);
 
   if (detail.inhoud === null) {
     return (
@@ -91,7 +94,18 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
       <div className="flex flex-col gap-4">
         <TerugKnop opKlik={terug} />
         {storeFout && <Foutmelding fout={storeFout} />}
-        <GeleBalk titel={t.controleerEven} punten={punten} />
+        <GeleBalk
+          titel={t.controleerEven}
+          punten={punten}
+          inklappen={{
+            uitgeklapt: isUitgeklapt(geleBalkKeuze, detail.id, punten.length),
+            opWissel: (uitgeklapt) => zetGeleBalk(detail.id, uitgeklapt),
+            aantal: t.aantalPunten(punten.length),
+            toon: t.toonPunten,
+            verberg: t.verbergPunten,
+            lijstNaam: t.controlepunten,
+          }}
+        />
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem] gap-6">
