@@ -1,3 +1,4 @@
+import { oudeVelden } from './oudeInvoer';
 import { describe, expect, it } from 'vitest';
 import {
   KEUZE_LIJSTEN,
@@ -52,7 +53,7 @@ describe('startset (§9.1, OFM-034)', () => {
   });
 
   it('de standaardkeuzes van een lege KlusInvoer staan in de startset en zijn vast', () => {
-    const leeg = legeKlusInvoer();
+    const leeg = { ...legeKlusInvoer(), ...oudeVelden({}) };
     expect(VASTE_KEUZES).toEqual({
       isolatie: leeg.isolatie,
       afwerking: leeg.afwerking,
@@ -98,7 +99,7 @@ describe('maakSleutel', () => {
 
 describe("extra's", () => {
   it('vaste extra in het eigen veld, nieuwe in extraAantallen (0 = weg)', () => {
-    const leeg = legeKlusInvoer();
+    const leeg = oudeVelden({});
     expect(metExtraAantal(leeg, 'hwa', 3)).toEqual({ hwaAantal: 3 });
     expect(metExtraAantal(leeg, 'dakkapel', 2)).toEqual({ extraAantallen: { dakkapel: 2 } });
     expect(metExtraAantal({ extraAantallen: { dakkapel: 2 } }, 'dakkapel', 0)).toEqual({
@@ -114,7 +115,7 @@ describe("extra's", () => {
 
   it('extrasMetAantal volgt de lijst; wat niet in de lijst staat komt erachter', () => {
     const invoer = {
-      ...legeKlusInvoer(),
+      ...oudeVelden({}),
       daktrimM1: 4,
       hwaAantal: 1,
       extraAantallen: { dakkapel: 2, weg: 1 },
@@ -170,10 +171,11 @@ describe('overige hulpfuncties', () => {
     expect(prijspostOmschrijving('extras', 'Dakkapel')).toBe('Dakkapel');
   });
 
-  it('schema: garantie is een sleutel, extraAantallen ontbreekt = leeg (invoer van vóór OFM-034)', () => {
+  it('schema: garantie is een sleutel; extraAantallen en werkzaamheden mogen ontbreken (oude invoer)', () => {
     const oud: Record<string, unknown> = { ...legeKlusInvoer() };
-    delete oud['extraAantallen'];
-    expect(klusInvoerSchema.parse(oud).extraAantallen).toEqual({});
+    delete oud['werkzaamheden'];
+    expect(klusInvoerSchema.parse(oud).extraAantallen).toBeUndefined();
+    expect(klusInvoerSchema.parse(oud).werkzaamheden).toEqual([]);
     expect(klusInvoerSchema.safeParse({ ...oud, garantieJaren: 20 }).success).toBe(false);
     expect(klusInvoerSchema.safeParse({ ...oud, soortWerk: 'Met Hoofdletter' }).success).toBe(false);
     expect(klusInvoerSchema.safeParse({ ...oud, extraAantallen: { dakkapel: -1 } }).success).toBe(false);

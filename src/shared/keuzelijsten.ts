@@ -1,3 +1,4 @@
+import { oudeVelden, type OudeVelden } from './oudeInvoer';
 import type { Eenheid, KlusInvoer } from './types';
 
 // Instelbare keuzelijsten van de wizard (OFM-034, TDO §4.2 `keuzeopties`, §9.1). De startset hieronder
@@ -19,6 +20,13 @@ export const KEUZE_LIJSTEN = [
 ] as const;
 
 export type KeuzeLijst = (typeof KEUZE_LIJSTEN)[number];
+
+/**
+ * Lijsten van de oude wizardstap Extra's (vóór OFM-044). De wizard toont ze niet meer (dat doen de
+ * werkzaamheden en materialen); ze blijven bestaan voor de labels van oude offertes tot OFM-045, maar
+ * staan niet meer in de tab Keuzelijsten.
+ */
+export const OUDE_LIJSTEN: readonly KeuzeLijst[] = ['bedekking', 'isolatie', 'extras', 'afwerking'];
 
 /** Sleutel van een keuzeoptie: 1–40 tekens `a-z`, `0-9` en `_`. */
 export const KEUZE_SLEUTEL_PATROON = /^[a-z0-9_]{1,40}$/;
@@ -138,7 +146,7 @@ export function extraInMeters(sleutel: string): boolean {
 }
 
 export function extraAantal(
-  invoer: Pick<KlusInvoer, VasteExtraVeld | 'extraAantallen'>,
+  invoer: Pick<OudeVelden, VasteExtraVeld | 'extraAantallen'>,
   sleutel: string,
 ): number {
   if (isVasteExtra(sleutel)) return invoer[VASTE_EXTRAS[sleutel]];
@@ -149,10 +157,10 @@ type VasteExtraVeld = (typeof VASTE_EXTRAS)[VasteExtra];
 
 /** Het deel van KlusInvoer dat verandert als het aantal van een extra verandert. */
 export function metExtraAantal(
-  invoer: Pick<KlusInvoer, 'extraAantallen'>,
+  invoer: Pick<OudeVelden, 'extraAantallen'>,
   sleutel: string,
   aantal: number,
-): Partial<KlusInvoer> {
+): Partial<OudeVelden> {
   if (isVasteExtra(sleutel)) return { [VASTE_EXTRAS[sleutel]]: aantal };
   const extraAantallen = { ...invoer.extraAantallen };
   if (aantal > 0) extraAantallen[sleutel] = aantal;
@@ -165,7 +173,7 @@ export function metExtraAantal(
  * lijst staan (verwijderde optie in een oude offerte), zodat er nooit iets wegvalt.
  */
 export function extrasMetAantal(
-  invoer: Pick<KlusInvoer, VasteExtraVeld | 'extraAantallen'>,
+  invoer: Pick<OudeVelden, VasteExtraVeld | 'extraAantallen'>,
   keuzes: Pick<Keuzes, 'extras'>,
 ): { sleutel: string; label: string; aantal: number }[] {
   const volgorde = [
@@ -222,18 +230,20 @@ export function maakSleutel(label: string, bezet: ReadonlySet<string>): string {
 /** Per lijst de sleutels die deze invoer gebruikt (extra's alleen met een aantal > 0). */
 export function gebruikteSleutels(invoer: KlusInvoer): Record<KeuzeLijst, string[]> {
   const een = (waarde: string | null): string[] => (waarde === null ? [] : [waarde]);
+  // De lijsten van de oude stap Extra's: alleen oude offertes (vóór OFM-044) gebruiken ze nog.
+  const oud = oudeVelden(invoer);
   return {
     soortWerk: een(invoer.soortWerk),
     soortDak: een(invoer.soortDak),
-    bedekking: een(invoer.bedekking),
+    bedekking: een(oud.bedekking),
     huidigeBedekking: een(invoer.huidigeBedekking),
     ondergrond: een(invoer.ondergrond),
-    isolatie: [invoer.isolatie],
+    isolatie: [oud.isolatie],
     extras: [
-      ...Object.keys(VASTE_EXTRAS).filter((s) => extraAantal(invoer, s) > 0),
-      ...Object.keys(invoer.extraAantallen).filter((s) => extraAantal(invoer, s) > 0),
+      ...Object.keys(VASTE_EXTRAS).filter((s) => extraAantal(oud, s) > 0),
+      ...Object.keys(oud.extraAantallen).filter((s) => extraAantal(oud, s) > 0),
     ],
-    afwerking: [invoer.afwerking],
+    afwerking: [oud.afwerking],
     hoogte: [invoer.hoogte],
     garantie: [invoer.garantieJaren],
   };

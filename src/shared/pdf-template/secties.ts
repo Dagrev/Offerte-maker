@@ -1,7 +1,7 @@
-import { regelbedragCent } from '../calc/bedragen';
+import { groepeerRegels, regelbedragCent } from '../calc/bedragen';
 import { formatAantal, formatDatum, formatDatumLang, formatEuro } from '../formatteer';
 import { klantWeergave, naamMetVoorletters } from '../labels';
-import type { Bedrijf, Klant } from '../types';
+import type { Bedrijf, Klant, Offerteregel } from '../types';
 import { telefoonWeergave } from '../validatie';
 import type { PdfModel } from './render';
 
@@ -155,14 +155,23 @@ export function werkomschrijving(m: PdfModel): string {
 
 // 6. Prijsopgave: tabel en totalen.
 export function prijsopgave(m: PdfModel): string {
-  const rijen = m.inhoud.regels
+  const rij = (r: Offerteregel, klasse: string) =>
+    `<tr${klasse}><td class="omschrijving">${escapeHtml(r.omschrijving)}</td>` +
+    `<td class="getal">${formatAantal(r.aantalHonderdsten)}</td>` +
+    `<td class="eenheid">${escapeHtml(r.eenheid)}</td>` +
+    `<td class="getal">${formatEuro(r.prijsCent)}</td>` +
+    `<td class="getal">${formatEuro(regelbedragCent(r))}</td></tr>`;
+  // OFM-044: per werkzaamheid de regel, materialen en opties ingesprongen eronder, en een subtotaal.
+  const rijen = groepeerRegels(m.inhoud.regels)
     .map(
-      (r) =>
-        `<tr><td class="omschrijving">${escapeHtml(r.omschrijving)}</td>` +
-        `<td class="getal">${formatAantal(r.aantalHonderdsten)}</td>` +
-        `<td class="eenheid">${escapeHtml(r.eenheid)}</td>` +
-        `<td class="getal">${formatEuro(r.prijsCent)}</td>` +
-        `<td class="getal">${formatEuro(regelbedragCent(r))}</td></tr>`,
+      (g) =>
+        rij(g.regel, '') +
+        g.subregels.map((s) => rij(s, ' class="sub"')).join('') +
+        (g.subregels.length === 0
+          ? ''
+          : `<tr class="groepstotaal"><td class="omschrijving" colspan="4">Subtotaal ${escapeHtml(
+              g.regel.omschrijving,
+            )}</td><td class="getal">${formatEuro(g.subtotaalCent)}</td></tr>`),
     )
     .join('');
   const t = m.totalen;

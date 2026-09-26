@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { legeKlant, legeKlusInvoer } from './nieuweOfferte';
 import { puntTekst, wizardPuntenMelding } from './teksten/wizardPunten';
-import type { Dakvlak, Klant } from './types';
+import type { Dakvlak, GekozenWerkzaamheid, Klant } from './types';
 import { standaardVerplicht, type Verplicht } from './verplicht';
 import { ontbrekendInStap1, puntenPerStap, puntSleutel, wizardPunten } from './wizardControle';
 
@@ -27,10 +27,27 @@ const volledig: Klant = {
   email: 'jan@mail.nl',
 };
 const klant = (deel: Partial<Klant> = {}): Klant => ({ ...volledig, ...deel });
+const slopen: GekozenWerkzaamheid = {
+  id: 'w1',
+  sleutel: 'slopen',
+  eenmalig: null,
+  aantal: 20,
+  prijsCent: null,
+  notitie: '',
+  materialen: [],
+  opties: [],
+};
+const eenmalig: GekozenWerkzaamheid = {
+  ...slopen,
+  id: 'w2',
+  sleutel: null,
+  eenmalig: { label: ' Dakkapel ', eenheid: 'post' },
+};
 const compleet = {
   ...legeKlusInvoer(),
   soortWerk: 'reparatie',
   dakvlakken: [vlak({ lengteM: 5, breedteM: 4 })],
+  werkzaamheden: [slopen],
 };
 /** Alleen wat altijd verplicht is: soort werk en een dakvlak. */
 const niets: Verplicht = Object.fromEntries(
@@ -54,19 +71,24 @@ describe('wizardPunten', () => {
       'plaats',
       'telefoon',
       'email',
-      'soortWerk',
       'dakvlak',
+      'soortWerk',
+      'werkzaamheid',
     ]);
-    expect(puntenPerStap(punten)).toEqual([8, 2, 0, 0]);
+    expect(puntenPerStap(punten)).toEqual([8, 1, 2, 0]);
     expect(punten.map(puntTekst).slice(0, 2)).toEqual(['Voornaam ontbreekt', 'Achternaam ontbreekt']);
-    expect(punten.map(puntTekst).slice(-2)).toEqual(['Soort werk is niet gekozen', 'Geen dakvlak ingevuld']);
+    expect(punten.map(puntTekst).slice(-3)).toEqual([
+      'Geen dakvlak ingevuld',
+      'Soort werk is niet gekozen',
+      'Geen werkzaamheid gekozen',
+    ]);
   });
 
-  it('alles uit: alleen soort werk en dakvlak blijven verplicht', () => {
+  it('alles uit: alleen dakvlak (stap 2) en soort werk (stap 3, OFM-044) blijven verplicht', () => {
     const punten = wizardPunten(legeKlant(), legeKlusInvoer(), niets);
     expect(punten).toEqual([
-      { stap: 2, soort: 'ontbreekt', veld: 'soortWerk' },
       { stap: 2, soort: 'ontbreekt', veld: 'dakvlak' },
+      { stap: 3, soort: 'ontbreekt', veld: 'soortWerk' },
     ]);
   });
 
@@ -105,17 +127,38 @@ describe('wizardPunten', () => {
     expect(punten.map(puntSleutel)).toEqual(['ontbreekt:huisnummer', 'ongeldig:adres.straatHuisnummer']);
   });
 
-  it('stap 2 en 3 instelbaar: soort dak, hoogte en minstens één extra', () => {
-    const aan = { ...niets, soortDak: true, hoogte: true, extra: true };
-    const punten = wizardPunten(klant(), compleet, aan);
+  it('stap 2 en 3 instelbaar: soort dak, hoogte en minstens één werkzaamheid (OFM-044)', () => {
+    const aan = { ...niets, soortDak: true, hoogte: true, werkzaamheid: true };
+    const zonder = { ...compleet, werkzaamheden: [] };
+    const punten = wizardPunten(klant(), zonder, aan);
     expect(punten).toEqual([
       { stap: 2, soort: 'ontbreekt', veld: 'soortDak' },
-      { stap: 3, soort: 'ontbreekt', veld: 'extra' },
+      { stap: 3, soort: 'ontbreekt', veld: 'werkzaamheid' },
     ]);
-    expect(wizardPunten(klant(), { ...compleet, soortDak: 'plat', hwaAantal: 2 }, aan)).toEqual([]);
-    expect(
-      wizardPunten(klant(), { ...compleet, soortDak: 'plat', extraAantallen: { zink: 1 } }, aan),
-    ).toEqual([]);
+    expect(wizardPunten(klant(), { ...compleet, soortDak: 'plat' }, aan)).toEqual([]);
+    expect(wizardPunten(klant(), zonder, niets)).toEqual([]);
+  });
+
+  it('OFM-044: een werkzaamheid met aantal 0 is altijd een punt, met de naam', () => {
+    const nul = {
+      ...compleet,
+      werkzaamheden: [
+        { ...slopen, aantal: 0 },
+        { ...eenmalig, aantal: 0 },
+      ],
+    };
+    const punten = wizardPunten(klant(), nul, niets);
+    expect(punten).toEqual([
+      { stap: 3, soort: 'aantalNul', id: 'w1', label: 'slopen' },
+      { stap: 3, soort: 'aantalNul', id: 'w2', label: 'Dakkapel' },
+    ]);
+    expect(wizardPunten(klant(), nul, niets, (w) => `naam ${w.id}`)[0]).toMatchObject({ label: 'naam w1' });
+    expect(puntSleutel(punten[0]!)).toBe('aantalNul:w1');
+    expect(puntTekst(punten[1]!)).toBe('Vul het aantal in bij Dakkapel');
+    expect(puntTekst({ stap: 3, soort: 'aantalNul', id: 'x', label: '' })).toBe(
+      'Vul het aantal in bij een werkzaamheid',
+    );
+    expect(puntenPerStap(punten)).toEqual([0, 0, 2, 0]);
   });
 
   it('ongeldige klantvelden (OFM-030) tellen mee, met veldnaam en uitleg', () => {

@@ -2,7 +2,7 @@
 // Alleen het eigenaarticket vult deze module. Keuzelabels komen uit `@shared/labels` (§9.1).
 export const wizard = {
   titel: 'Nieuwe offerte',
-  stappen: ['Klant', 'Het dak', "Extra's", 'Overig en maken'] as const,
+  stappen: ['Klant', 'Het dak', 'Werkzaamheden', 'Overig en maken'] as const,
   terugNaarOverzicht: 'Terug naar overzicht',
   vorige: 'Vorige',
   volgende: 'Volgende',
@@ -58,6 +58,8 @@ export const wizard = {
     bedekkingAnders: 'Welke dakbedekking?',
     huidigeBedekking: 'Huidige dakbedekking',
     ondergrond: 'Ondergrond',
+    /** OFM-044: hoogte staat sinds de stap Werkzaamheden bij het dak. */
+    hoogte: 'Hoogte',
   },
 
   extras: {
@@ -110,5 +112,47 @@ export const wizard = {
     steiger: 'Steiger of hoogwerker',
     garantie: 'Garantie',
     gewensteUitvoering: 'Gewenste uitvoering',
+    /** OFM-044 */
+    werkzaamheden: 'Werkzaamheden',
+  },
+
+  /** OFM-044: stap 3 Werkzaamheden. */
+  werk: {
+    soortWerk: 'Soort werk',
+    kiesSoortEerst: 'Kies eerst een soort werk; daarna verschijnen de werkzaamheden die erbij horen.',
+    werkzaamheden: 'Werkzaamheden',
+    geenGekoppeld:
+      'Bij deze soort werk horen nog geen werkzaamheden. Voeg er een toe met Andere werkzaamheid, of stel ze in onder Instellingen › Werkzaamheden.',
+    nietBijSoort: 'hoort niet bij deze soort werk',
+    aantal: 'Aantal',
+    prijs: 'Prijs per eenheid (excl. btw)',
+    euro: '€',
+    prijsHint: 'Alleen voor deze offerte; de prijslijst verandert niet.',
+    geenPrijs: 'Geen prijs in de prijslijst: Claude schat hem, of vul hem hier in.',
+    standaardPrijs: 'Standaardprijs',
+    standaardPrijsVan: (label: string) => `Standaardprijs voor ${label}`,
+    materialen: 'Materialen',
+    opties: 'Opties',
+    notitie: 'Notitie',
+    notitieHint: 'Bijzonderheden bij deze werkzaamheid. Zet hier geen namen of adressen in.',
+    subtotaal: 'Subtotaal excl. btw',
+    aantalVan: (label: string) => `Aantal ${label}`,
+    prijsVan: (label: string) => `Prijs per eenheid ${label}`,
+    eenmalig: 'eenmalig',
+    eenmaligUitleg: 'Alleen voor deze offerte.',
+    naam: 'Naam',
+    naamVan: (soort: string) => `Naam van ${soort}`,
+    eenheid: 'Eenheid',
+    eenheidVan: (label: string) => `Eenheid ${label}`,
+    andereWerkzaamheid: 'Andere werkzaamheid',
+    anderMateriaal: 'Ander materiaal',
+    anderMateriaalBij: (label: string) => `Ander materiaal bij ${label}`,
+    verwijder: (label: string) => `${label} verwijderen`,
+    opslaanInInstellingen: 'Ook opslaan in instellingen',
+    opslaanUitleg: 'Dan staat hij voortaan in de lijst, met deze prijs in de prijslijst.',
+    opslaanNaamNodig: 'Vul eerst een naam in.',
+    nieuweWerkzaamheid: 'Nieuwe werkzaamheid',
+    nieuwMateriaal: 'Nieuw materiaal',
+    overig: 'Verder',
   },
 };

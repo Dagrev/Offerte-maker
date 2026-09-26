@@ -18,6 +18,8 @@ const regel = z.strictObject({
   btwTarief: z.union([z.literal(0), z.literal(9), z.literal(21)]),
   prijsbron: z.enum(['prijslijst', 'voorbeeld', 'schatting', 'handmatig']),
   prijspostId: z.string().nullable(),
+  // OFM-044: volgnummer van de werkzaamheidregel erboven, of null.
+  onderdeelVan: z.number().int().nullable(),
 });
 
 const uitvoer = z.strictObject({

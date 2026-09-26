@@ -1,4 +1,7 @@
 import {
+  Building,
+  Building2,
+  Droplets,
   Hammer,
   HelpCircle,
   Home,
@@ -12,7 +15,6 @@ import {
   Trash2,
   Triangle,
   Wrench,
-  Droplets,
   type LucideIcon,
 } from 'lucide-react';
 import { aantalNaarHonderdsten, totaalM2 } from '@shared/calc/bedragen';
@@ -30,7 +32,8 @@ import { hoofdletter, keuzeTegels } from './opties';
 const t = nl.wizard.dak;
 
 // Iconen per sleutel van de startset; een zelf toegevoegde keuze krijgt een neutraal icoon (OFM-034).
-const SOORT_WERK_ICONEN: Record<string, LucideIcon> = {
+// Soort werk staat sinds OFM-044 in stap 3 (Werkzaamheden).
+export const SOORT_WERK_ICONEN: Record<string, LucideIcon> = {
   nieuw_dak: Home,
   dak_vervangen: Layers,
   reparatie: Wrench,
@@ -51,22 +54,14 @@ export interface StapDakProps {
   keuzelijsten: Keuzelijsten;
 }
 
-/** Stap 2 (FE-022, FE-023): soort werk, soort dak, dakvlakken, bedekking en ondergrond. */
+/**
+ * Stap 2 (FE-022, FE-023, OFM-044): soort dak, dakvlakken, huidige bedekking, ondergrond en hoogte. De
+ * huidige bedekking staat er zolang er nog geen soort werk is gekozen, of bij vervangen en reparatie.
+ */
 export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
   return (
     <div className="flex flex-col gap-6">
       <Kaart>
-        <TegelKeuze
-          label={t.soortWerk}
-          opties={keuzeTegels(k.soortWerk, invoer.soortWerk, SOORT_WERK_ICONEN)}
-          waarde={invoer.soortWerk}
-          opKies={(soortWerk) =>
-            // Huidige bedekking hoort alleen bij vervangen en reparatie; anders niet meesturen.
-            opWijzig(
-              vraagtHuidigeBedekking(soortWerk) ? { soortWerk } : { soortWerk, huidigeBedekking: null },
-            )
-          }
-        />
         <TegelKeuze
           label={t.soortDak}
           opties={keuzeTegels(k.soortDak, invoer.soortDak, { plat: Square, hellend: Triangle }, hoofdletter)}
@@ -78,26 +73,7 @@ export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
       <Dakvlakken vlakken={invoer.dakvlakken} opWijzig={(dakvlakken) => opWijzig({ dakvlakken })} />
 
       <Kaart>
-        <TegelKeuze
-          label={t.bedekking}
-          opties={keuzeTegels(k.bedekking, invoer.bedekking, {
-            epdm_11: SquareStack,
-            epdm_15: SquareStack,
-            resitrix: SquareStack,
-            bitumen: Layers,
-            anders: HelpCircle,
-          })}
-          waarde={invoer.bedekking}
-          opKies={(bedekking) => opWijzig({ bedekking })}
-        />
-        {invoer.bedekking === 'anders' && (
-          <Veld
-            label={t.bedekkingAnders}
-            waarde={invoer.bedekkingAnders}
-            opWijzig={(bedekkingAnders) => opWijzig({ bedekkingAnders })}
-          />
-        )}
-        {vraagtHuidigeBedekking(invoer.soortWerk) && (
+        {(invoer.soortWerk === null || vraagtHuidigeBedekking(invoer.soortWerk)) && (
           <TegelKeuze
             label={t.huidigeBedekking}
             opties={keuzeTegels(k.huidigeBedekking, invoer.huidigeBedekking, {
@@ -120,6 +96,12 @@ export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
           })}
           waarde={invoer.ondergrond}
           opKies={(ondergrond) => opWijzig({ ondergrond })}
+        />
+        <TegelKeuze
+          label={t.hoogte}
+          opties={keuzeTegels(k.hoogte, invoer.hoogte, { '1': Home, '2': Building, '3plus': Building2 })}
+          waarde={invoer.hoogte}
+          opKies={(hoogte) => opWijzig({ hoogte })}
         />
       </Kaart>
     </div>

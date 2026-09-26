@@ -35,11 +35,11 @@ export function lijstPrijsposten(): Prijspost[] {
 }
 
 /**
- * De prijslijst voor de agentopdracht (§10.5): zonder de posten van werkzaamheden, opties en
- * materialen, want de wizard kent die pas vanaf OFM-044 (dat ze hier toelaat).
+ * De prijslijst voor de agentopdracht (§10.5). Sinds OFM-044 met de posten van werkzaamheden, opties
+ * en materialen (in OFM-043 bleven die nog weg, toen de wizard ze niet kende).
  */
 export function prijslijstVoorAgent(): Prijspost[] {
-  return lijstPrijsposten().filter((p) => prijsGroep(p.sleutel) === null);
+  return lijstPrijsposten();
 }
 
 export function haalPrijspost(id: string): Prijspost | null {

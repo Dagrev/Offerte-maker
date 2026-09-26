@@ -8,7 +8,7 @@ export const verplicht = {
   stap: {
     1: 'Stap 1: Klant',
     2: 'Stap 2: Het dak',
-    3: "Stap 3: Extra's",
+    3: 'Stap 3: Werkzaamheden',
   },
   /** Bij de velden van het werkadres. */
   werkadresHint: 'Alleen als "Het werk is op een ander adres" is aangevinkt.',
@@ -18,6 +18,8 @@ export const verplicht = {
   altijd: 'Altijd verplicht: Claude heeft dit nodig om de offerte te schrijven.',
   hoogteHint: 'Heeft altijd een waarde (standaard "Begane grond / 1 bouwlaag").',
   aanhefHint: 'Heeft altijd een waarde (standaard Dhr.).',
+  /** OFM-044 */
+  werkzaamheidHint: 'Een gekozen werkzaamheid met aantal 0 wordt altijd gemeld, ook als dit uit staat.',
   herstel: 'Herstel standaard',
   veld: WIZARD_VELDNAMEN,
 };

@@ -61,6 +61,19 @@ export function maakInvoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
     steigerNodig: false,
     garantieJaren: '10',
     extraAantallen: {},
+    // OFM-044: minstens één werkzaamheid (standaard verplicht).
+    werkzaamheden: [
+      {
+        id: 'w1',
+        sleutel: 'slopen',
+        eenmalig: null,
+        aantal: 22.5,
+        prijsCent: null,
+        notitie: '',
+        materialen: [],
+        opties: [],
+      },
+    ],
     gewensteUitvoering: '',
     overig: '',
     ...deel,

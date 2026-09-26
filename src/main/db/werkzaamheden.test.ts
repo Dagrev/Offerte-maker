@@ -3,7 +3,7 @@ import { AppFout } from '@shared/fouten';
 import { legeKlusInvoer } from '@shared/nieuweOfferte';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { GebruikteWerkzaamheden } from '@shared/werkzaamheden';
-import type { WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
+import type { GekozenWerkzaamheid, WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
 import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/database';
 
 // OFM-043: werkzaamheden, opties en materialen (migratie 004, startset, repository en kanalen).
@@ -134,8 +134,8 @@ describe('startset na migratie 004', () => {
     );
     expect(haalPrijspostOpSleutel('mat:daktrim_aluminium')?.eenheid).toBe('m¹');
     expect(lijstPrijsposten().filter((p) => p.sleutel?.includes(':'))).toHaveLength(8 + 1 + 9);
-    // De agent krijgt ze nog niet (pas vanaf OFM-044).
-    expect(prijslijstVoorAgent()).toHaveLength(22);
+    // Sinds OFM-044 gaan ze ook naar de agent.
+    expect(prijslijstVoorAgent()).toHaveLength(22 + 8 + 1 + 9);
   });
 
   it('op een database van versie 2 zonder een gekoppelde soort werk: die koppeling wordt overgeslagen', async () => {
@@ -470,6 +470,59 @@ describe('prijsposten van werkzaamheden (tab Prijzen)', () => {
     verwijderPrijspost(sloop.id);
     expect(haalPrijspostOpSleutel('sloop')).toBeNull();
     verwijderPrijspost('bestaat-niet');
+  });
+});
+
+describe('offerte:bewaarInvoer met werkzaamheden (OFM-044)', () => {
+  const gw = (deel: Partial<GekozenWerkzaamheid> = {}): GekozenWerkzaamheid => ({
+    id: 'g1',
+    sleutel: 'slopen',
+    eenmalig: null,
+    aantal: 20,
+    prijsCent: 1500,
+    notitie: '',
+    materialen: [],
+    opties: [],
+    ...deel,
+  });
+  const bewaar = (id: string, werkzaamheden: GekozenWerkzaamheid[]) =>
+    bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), werkzaamheden } }, 30);
+
+  it('bekende sleutels en eenmalige items mogen; onbekend geeft VALIDATIE; wat er al stond blijft mogen', () => {
+    const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
+    const goed = gw({
+      opties: [{ sleutel: 'afvalcontainer', prijsCent: null }],
+      materialen: [
+        { id: 'm1', sleutel: 'pir_80', eenmalig: null, aantal: 1, prijsCent: null },
+        { id: 'm2', sleutel: null, eenmalig: { label: '', eenheid: 'm¹' }, aantal: 1, prijsCent: null },
+      ],
+    });
+    const eenmalig = gw({ id: 'g2', sleutel: null, eenmalig: { label: '', eenheid: 'post' } });
+    bewaar(id, [goed, eenmalig]);
+    const melding = VALIDATIE_MELDINGEN.onbekendeKeuze;
+    expect(fout(() => bewaar(id, [gw({ sleutel: 'bestaat_niet' })])).melding).toBe(melding);
+    expect(
+      fout(() =>
+        bewaar(id, [
+          gw({ materialen: [{ id: 'm', sleutel: 'weg', eenmalig: null, aantal: 1, prijsCent: null }] }),
+        ]),
+      ).melding,
+    ).toBe(melding);
+    // Een optie hoort bij zijn eigen werkzaamheid.
+    expect(
+      fout(() =>
+        bewaar(id, [gw({ sleutel: 'isoleren', opties: [{ sleutel: 'afvalcontainer', prijsCent: null }] })]),
+      ).melding,
+    ).toBe(melding);
+
+    // In gebruik: niet te verwijderen. Daarna verwijderd (na verbergen kan dat niet) → de oude waarde blijft geldig.
+    expect(werk(haalWerkzaamheden(), 'slopen')?.inGebruik).toBe(true);
+    const set = haalWerkzaamheden();
+    const zonderSlopen = alsInvoer(set);
+    zonderSlopen.werkzaamheden = zonderSlopen.werkzaamheden.filter((w) => w.id !== 'start-werk-slopen');
+    expect(fout(() => bewaarWerkzaamheden(zonderSlopen)).melding).toBe(VALIDATIE_MELDINGEN.werkInGebruik);
+    t.db.prepare("DELETE FROM werkzaamheden WHERE sleutel = 'slopen'").run();
+    bewaar(id, [goed]);
   });
 });
 

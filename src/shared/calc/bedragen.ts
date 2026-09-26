@@ -68,3 +68,53 @@ export function euroNaarCent(e: number): number {
 export function aantalNaarHonderdsten(a: number): number {
   return rondAf(a * 100);
 }
+
+// ---------- Werkzaamheden (OFM-044) ----------
+
+export type RegelInGroep = Pick<Offerteregel, 'id' | 'aantalHonderdsten' | 'prijsCent' | 'onderdeelVan'>;
+
+export interface Regelgroep<R> {
+  regel: R;
+  /** Materialen en opties onder deze regel, in hun volgorde; leeg bij een gewone regel. */
+  subregels: R[];
+  /** Regelbedrag plus alle subregels, in centen. */
+  subtotaalCent: number;
+}
+
+/**
+ * Regels gegroepeerd per werkzaamheid: elke regel zonder (geldige) `onderdeelVan` begint een groep; de
+ * regels die ernaar verwijzen komen eronder, ook als ze elders in de lijst staan. Een subregel waarvan
+ * de hoofdregel ontbreekt of zelf een subregel is, wordt een gewone regel, zodat er nooit iets wegvalt.
+ */
+export function groepeerRegels<R extends RegelInGroep>(regels: readonly R[]): Regelgroep<R>[] {
+  const hoofdIds = new Set(regels.filter((r) => !r.onderdeelVan).map((r) => r.id));
+  const isSub = (r: R) => !!r.onderdeelVan && hoofdIds.has(r.onderdeelVan);
+  return regels
+    .filter((r) => !isSub(r))
+    .map((regel) => {
+      const subregels = regels.filter((r) => isSub(r) && r.onderdeelVan === regel.id);
+      const subtotaalCent = [regel, ...subregels].reduce((som, r) => som + regelbedragCent(r), 0);
+      return { regel, subregels, subtotaalCent };
+    });
+}
+
+export interface WerkzaamheidVoorBedrag {
+  aantal: number;
+  prijsCent: number | null;
+  materialen: readonly { aantal: number; prijsCent: number | null }[];
+  opties: readonly { prijsCent: number | null }[];
+}
+
+/**
+ * Bedrag van één werkzaamheid in de wizard (excl. btw): aantal × prijs, plus elk materiaal (aantal ×
+ * prijs) en elke optie (één keer de prijs). Zonder prijs telt een onderdeel als 0.
+ */
+export function bedragWerkzaamheidCent(w: WerkzaamheidVoorBedrag): number {
+  const bedrag = (aantal: number, prijsCent: number | null) =>
+    regelbedragCent({ aantalHonderdsten: aantalNaarHonderdsten(aantal), prijsCent: prijsCent ?? 0 });
+  return (
+    bedrag(w.aantal, w.prijsCent) +
+    w.materialen.reduce((som, m) => som + bedrag(m.aantal, m.prijsCent), 0) +
+    w.opties.reduce((som, o) => som + bedrag(1, o.prijsCent), 0)
+  );
+}

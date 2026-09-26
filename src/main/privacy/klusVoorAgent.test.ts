@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { maakInvoer, maakKlant } from '../../../test/privacy/testset';
-import { bouwKlusVoorAgent, gebruikersTekst } from './klusVoorAgent';
+import type { Prijspost } from '@shared/types';
+import { CATALOGUS, gekozen } from '../../../test/helpers/werkCatalogus';
+import { bouwKlusVoorAgent, gebruikersTekst, vastePrijzen } from './klusVoorAgent';
 
 const klant = maakKlant({
   aanhef: 'mevr',
@@ -74,6 +76,18 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       totaalM2: 34.8,
       offertedatum: '2026-09-25',
       klant: { naam: '[KLANT_NAAM]', isBedrijf: false, bedrijf: null, heeftWerkadres: false },
+      werkzaamheden: [
+        {
+          naam: 'slopen',
+          eenheid: 'post',
+          aantal: 22.5,
+          prijsEuro: null,
+          prijspostId: null,
+          notitie: '',
+          materialen: [],
+          opties: [],
+        },
+      ],
     });
   });
 
@@ -124,6 +138,7 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       'Mail [VERWIJDERD], [KLANT_ADRES]',
       '',
       'Schuur [KLANT_NAAM]',
+      '',
     ]);
     const ongefilterd = bouwKlusVoorAgent(bron, { filteren: false });
     expect(ongefilterd.overig).toBe('Mail devries@mail.nl, Dorpsstraat 12');
@@ -179,5 +194,114 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     });
     const json = JSON.stringify(klus);
     for (const w of ['Hendriks', 'Industrieweg', 'Eindhoven', 'aanhef']) expect(json).not.toContain(w);
+  });
+});
+
+describe('werkzaamheden in de klus (OFM-044)', () => {
+  const postOpSleutel = (sleutel: string): Prijspost | null =>
+    sleutel === 'werk:slopen' || sleutel === 'mat:pir_80'
+      ? {
+          id: `post-${sleutel}`,
+          sleutel,
+          omschrijving: sleutel,
+          eenheid: 'm²',
+          prijsCent: 1,
+          btwTarief: 21,
+          volgorde: 0,
+        }
+      : null;
+  const invoer = maakInvoer({
+    // Geen oude keuzes: dan staan de velden van de oude stap Extra's er niet in.
+    bedekking: null,
+    werkzaamheden: [
+      gekozen({
+        notitie: 'Bel mevrouw de Vries vooraf op 06-12345678',
+        opties: [{ sleutel: 'afvalcontainer', prijsCent: 30000 }],
+        materialen: [
+          { id: 'm1', sleutel: 'pir_80', eenmalig: null, aantal: 20, prijsCent: 1800 },
+          {
+            id: 'm2',
+            sleutel: null,
+            eenmalig: { label: 'Zink van de Vries', eenheid: 'm¹' },
+            aantal: 4,
+            prijsCent: null,
+          },
+        ],
+      }),
+      gekozen({
+        id: 'g2',
+        sleutel: null,
+        eenmalig: { label: 'Dakkapel', eenheid: 'post' },
+        aantal: 1,
+        prijsCent: 25000,
+      }),
+    ],
+  });
+  const bron = {
+    invoer,
+    klant,
+    offertedatum: '2026-09-25',
+    keuzes: KEUZE_STARTSET,
+    catalogus: CATALOGUS,
+    postOpSleutel,
+  };
+
+  it('namen, aantallen, prijzen en prijspost-id; eenmalige namen en notities door het filter', () => {
+    const klus = bouwKlusVoorAgent(bron);
+    expect(klus).not.toHaveProperty('bedekking');
+    expect(klus.werkzaamheden).toEqual([
+      {
+        naam: 'Slopen',
+        eenheid: 'm²',
+        aantal: 20,
+        prijsEuro: 12,
+        prijspostId: 'post-werk:slopen',
+        notitie: 'Bel mevrouw [KLANT_NAAM] vooraf op [VERWIJDERD]',
+        materialen: [
+          { naam: 'PIR 80 mm', eenheid: 'm²', aantal: 20, prijsEuro: 18, prijspostId: 'post-mat:pir_80' },
+          {
+            naam: 'Zink van [KLANT_NAAM]',
+            eenheid: 'm¹',
+            aantal: 4,
+            prijsEuro: null,
+            prijspostId: 'eenmalig-w1-m2',
+          },
+        ],
+        opties: [{ naam: 'Afvalcontainer', eenheid: 'stuk', aantal: 1, prijsEuro: 300, prijspostId: null }],
+      },
+      {
+        naam: 'Dakkapel',
+        eenheid: 'post',
+        aantal: 1,
+        prijsEuro: 250,
+        prijspostId: 'eenmalig-w2',
+        notitie: '',
+        materialen: [],
+        opties: [],
+      },
+    ]);
+    expect(gebruikersTekst(klus)).toEqual([
+      klus.gewensteUitvoering,
+      klus.overig,
+      '',
+      ...klus.dakvlakken.map((v) => v.naam),
+      'Bel mevrouw [KLANT_NAAM] vooraf op [VERWIJDERD]',
+      'Zink van [KLANT_NAAM]',
+      '',
+      'Dakkapel',
+    ]);
+  });
+
+  it('vastePrijzen: prijspost-id of eenmalig-id → centen, alleen met een prijs', () => {
+    expect([...vastePrijzen(bouwKlusVoorAgent(bron))]).toEqual([
+      ['post-werk:slopen', 1200],
+      ['post-mat:pir_80', 1800],
+      ['eenmalig-w2', 25000],
+    ]);
+  });
+
+  it('zonder catalogus en posten: sleutel als naam en geen prijspost-id', () => {
+    const klus = bouwKlusVoorAgent({ ...bron, catalogus: undefined, postOpSleutel: undefined });
+    expect(klus.werkzaamheden[0]).toMatchObject({ naam: 'slopen', prijspostId: null });
   });
 });

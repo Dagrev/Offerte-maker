@@ -4,14 +4,15 @@ import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
 import { haalKeuzes } from '../db/repo/keuzeopties';
+import { haalWerkzaamheden } from '../db/repo/werkzaamheden';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
-import { haalPrijspost, prijslijstVoorAgent } from '../db/repo/prijsposten';
+import { haalPrijspost, haalPrijspostOpSleutel, prijslijstVoorAgent } from '../db/repo/prijsposten';
 import { schrijfLogregel, type Logregel } from '../db/repo/privacylog';
 import { log } from '../log';
 import { anonimiseer } from '../privacy/anonimiseer';
 import { controleer } from '../privacy/controle';
 import { tekstvelden, terugNaarPlaatshouders } from '../privacy/invullen';
-import { bouwKlusVoorAgent, gebruikersTekst } from '../privacy/klusVoorAgent';
+import { bouwKlusVoorAgent, gebruikersTekst, vastePrijzen } from '../privacy/klusVoorAgent';
 import { bouwPiiSet } from '../privacy/piiSet';
 import { testhaak } from '../testhaken';
 import { bepaalClaudeStatus } from './claudeStatus';
@@ -315,6 +316,8 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
         klant: offerte.klant,
         offertedatum: offerte.offertedatum,
         keuzes: haalKeuzes(),
+        catalogus: haalWerkzaamheden(),
+        postOpSleutel: haalPrijspostOpSleutel,
       },
       { filteren: testhaak('privacyfilter-uit') === false },
     );
@@ -354,7 +357,12 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
 
     // 6. Nabewerking; 7. opslaan in één transactie. Stoppen na het antwoord telt nog.
     afgebroken(ctx.signal);
-    const inhoud = nabewerk(uitvoer, { soort: 'maken', klant: offerte.klant, prijspost: haalPrijspost });
+    const inhoud = nabewerk(uitvoer, {
+      soort: 'maken',
+      klant: offerte.klant,
+      prijspost: haalPrijspost,
+      vastePrijzen: vastePrijzen(klus),
+    });
     bewaarNieuweVersie({ id, inhoud, bron: 'agent', wizardStap: 4 });
     return { controlepunten: inhoud.controlepunten.length };
   });
@@ -390,6 +398,8 @@ export function pasAanMetClaude(
         klant: offerte.klant,
         offertedatum: offerte.offertedatum,
         keuzes: haalKeuzes(),
+        catalogus: haalWerkzaamheden(),
+        postOpSleutel: haalPrijspostOpSleutel,
       },
       { filteren },
     );

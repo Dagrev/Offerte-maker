@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Offerteregel, Prijspost } from '@shared/types';
 import { maakKlant } from '../../../test/privacy/testset';
 import { type AgentUitvoer, agentUitvoerSchema } from './uitvoerSchema';
-import { controlepuntPrijslijst, nabewerk, type NabewerkOpties } from './verwerk';
+import { controlepuntPrijslijst, controlepuntVastePrijs, nabewerk, type NabewerkOpties } from './verwerk';
 
 const fixture = (): AgentUitvoer =>
   agentUitvoerSchema.parse(
@@ -70,6 +70,7 @@ const regel = (deel: Partial<Regel> = {}): Regel => ({
   btwTarief: 21,
   prijsbron: 'schatting',
   prijspostId: null,
+  onderdeelVan: null,
   ...deel,
 });
 const metRegels = (...regels: Regel[]): AgentUitvoer => ({ ...fixture(), regels, controlepunten: [] });
@@ -256,5 +257,60 @@ describe('nabewerk (§10.7 stap 6)', () => {
     const uit = nabewerk(f, opties());
     expect(uit.controlepunten).toEqual(f.controlepunten);
     expect(uit.controlepunten).toHaveLength(2);
+  });
+});
+
+describe('werkzaamheden (OFM-044)', () => {
+  const vast = new Map([
+    ['start-epdm_11', 6000],
+    ['laag', 1000],
+    ['eenmalig-w1', 25000],
+  ]);
+
+  it('vaste prijs uit de wizard wint van de agent; prijsbron prijslijst of handmatig', () => {
+    const uit = nabewerk(
+      metRegels(
+        regel({ prijspostId: 'start-epdm_11', prijsEuro: 55, prijsbron: 'prijslijst' }),
+        regel({ omschrijving: 'Laag', prijspostId: 'laag', prijsEuro: 10, prijsbron: 'prijslijst' }),
+        regel({ omschrijving: 'Dakkapel', prijspostId: 'eenmalig-w1', prijsEuro: 100, eenheid: 'post' }),
+      ),
+      opties({ vastePrijzen: vast }),
+    );
+    expect(uit.regels.map((r) => [r.prijsCent, r.prijsbron, r.prijspostId, r.btwTarief])).toEqual([
+      [6000, 'handmatig', 'start-epdm_11', 21],
+      [1000, 'prijslijst', 'laag', 9],
+      [25000, 'handmatig', null, 21],
+    ]);
+    expect(uit.controlepunten).toEqual([
+      controlepuntVastePrijs('EPDM dakbedekking 1,1 mm', 6000),
+      controlepuntVastePrijs('Dakkapel', 25000),
+    ]);
+  });
+
+  it('onderdeelVan: volgnummer van een eerdere gewone regel wordt het id; anders een gewone regel', () => {
+    const uit = nabewerk(
+      metRegels(
+        regel({ omschrijving: 'Slopen' }),
+        regel({ omschrijving: 'Container', onderdeelVan: 1 }),
+        regel({ omschrijving: 'Naar subregel', onderdeelVan: 2 }),
+        regel({ omschrijving: 'Vooruit', onderdeelVan: 5 }),
+        regel({ omschrijving: 'Nul', onderdeelVan: 0 }),
+        regel({ omschrijving: 'Zichzelf', onderdeelVan: 6 }),
+      ),
+      opties(),
+    );
+    expect(uit.regels.map((r) => r.onderdeelVan ?? null)).toEqual([
+      null,
+      uit.regels[0]?.id,
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('het uitvoerschema kent onderdeelVan (verplicht, nullable) en laat hem weg = null', () => {
+    const f = fixture();
+    expect(f.regels.every((r) => r.onderdeelVan === null)).toBe(true);
   });
 });

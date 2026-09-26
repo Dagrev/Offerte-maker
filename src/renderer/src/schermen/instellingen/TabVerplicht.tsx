@@ -28,13 +28,16 @@ function hintVan(veld: WizardVeld): string | undefined {
   if (veld === 'bedrijfsnaam') return t.bedrijfsnaamHint;
   if (veld === 'hoogte') return t.hoogteHint;
   if (veld === 'aanhef') return t.aanhefHint;
+  if (veld === 'werkzaamheid') return t.werkzaamheidHint;
   return undefined;
 }
 
-/** Velden per stap, met de altijd-verplichte op hun plek (soort werk vóór soort dak, dakvlak erna). */
+/** Velden per stap, met de altijd-verplichte op hun plek (dakvlak na het dak, soort werk vóór de werkzaamheden). */
 function veldenVan(stap: 1 | 2 | 3): WizardVeld[] {
   const instelbaar = VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === stap);
-  return stap === 2 ? ['soortWerk', ...instelbaar, 'dakvlak'] : instelbaar;
+  // OFM-044: soort werk staat in stap 3 (Werkzaamheden), het dakvlak in stap 2.
+  if (stap === 2) return [...instelbaar, 'dakvlak'];
+  return stap === 3 ? ['soortWerk', ...instelbaar] : instelbaar;
 }
 
 /**

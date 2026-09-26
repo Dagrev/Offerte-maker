@@ -18,6 +18,11 @@ export interface NabewerkOpties {
    * `r1`, `r2`, … in de opdracht stonden (V-06).
    */
   huidigeRegels?: readonly Offerteregel[];
+  /**
+   * OFM-044: prijzen die in deze offerte vastliggen (prijspost-id of `eenmalig-…` → centen, uit
+   * `vastePrijzen`). Een regel met zo'n id krijgt die prijs, wat de agent ook gaf.
+   */
+  vastePrijzen?: ReadonlyMap<string, number>;
 }
 
 const WEGGELATEN = /\[(?:VERWIJDERD|BEDRIJF)\]/g;
@@ -34,6 +39,10 @@ export function zonderWeggelaten(tekst: string): string {
 
 export function controlepuntPrijslijst(omschrijving: string, prijsCent: number): string {
   return `Prijs van "${omschrijving}" gelijkgezet aan de prijslijst (${formatEuro(prijsCent)}).`;
+}
+
+export function controlepuntVastePrijs(omschrijving: string, prijsCent: number): string {
+  return `Prijs van "${omschrijving}" gelijkgezet aan de prijs in de wizard (${formatEuro(prijsCent)}).`;
 }
 
 export function controlepuntOnbekendePlaatshouder(plaatshouder: string): string {
@@ -62,6 +71,19 @@ function verwerkRegel(r: AgentUitvoerRegel, opties: NabewerkOpties, controlepunt
   }
 
   const post = r.prijspostId === null ? null : opties.prijspost(r.prijspostId);
+  const vast = r.prijspostId === null ? undefined : opties.vastePrijzen?.get(r.prijspostId);
+  if (vast !== undefined) {
+    if (basis.prijsCent !== vast) controlepunten.push(controlepuntVastePrijs(r.omschrijving, vast));
+    // Een eenmalig item heeft geen post; een aangepaste prijs is handmatig (§9.5, OFM-044).
+    return {
+      ...basis,
+      prijsCent: vast,
+      eenheid: post?.eenheid ?? basis.eenheid,
+      btwTarief: post?.btwTarief ?? basis.btwTarief,
+      prijspostId: post ? post.id : null,
+      prijsbron: post?.prijsCent === vast ? 'prijslijst' : 'handmatig',
+    };
+  }
   if (post && post.prijsCent !== null) {
     if (basis.prijsCent !== post.prijsCent) {
       controlepunten.push(controlepuntPrijslijst(r.omschrijving, post.prijsCent));
@@ -105,6 +127,17 @@ export function nabewerk(uitvoer: AgentUitvoer, opties: NabewerkOpties): Offerte
     const ref = opties.soort === 'maken' || r.ref === null || gebruikteRefs.has(r.ref) ? null : r.ref;
     if (ref !== null) gebruikteRefs.add(ref);
     return verwerkRegel({ ...r, ref }, opties, extraPunten);
+  });
+  // OFM-044: `onderdeelVan` (volgnummer) wordt het id van die regel, als die eerder staat en zelf een
+  // gewone regel is; anders blijft het een gewone regel.
+  uitvoer.regels.forEach((r, i) => {
+    if (r.onderdeelVan === null || r.onderdeelVan < 1 || r.onderdeelVan > i) return;
+    const hoofd = uitvoer.regels[r.onderdeelVan - 1];
+    const hoofdRegel = regels[r.onderdeelVan - 1];
+    const regel = regels[i];
+    if (hoofd?.onderdeelVan === null && hoofdRegel && regel) {
+      regels[i] = { ...regel, onderdeelVan: hoofdRegel.id };
+    }
   });
 
   let inhoud: OfferteInhoud = {

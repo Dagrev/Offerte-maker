@@ -3,6 +3,7 @@ import { haalInstelling } from '../db/repo/instellingen';
 import { haalKeuzes } from '../db/repo/keuzeopties';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspostOpSleutel } from '../db/repo/prijsposten';
+import { haalWerkzaamheden } from '../db/repo/werkzaamheden';
 import { log } from '../log';
 import { terugNaarPlaatshouders } from '../privacy/invullen';
 
@@ -16,6 +17,7 @@ export function maakZonderClaude(id: string): { controlepunten: number } {
   const inhoud = maakInhoudZonderClaude({
     invoer: offerte.invoer,
     keuzes: haalKeuzes(),
+    catalogus: haalWerkzaamheden(),
     postOpSleutel: haalPrijspostOpSleutel,
     teksten: { inleiding: teksten.inleiding, afsluiting: teksten.afsluiting },
   });

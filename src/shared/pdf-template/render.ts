@@ -78,6 +78,8 @@ th { font-weight: 700; }
 .werkadres { margin: 4pt 0 0; }
 .aanhef { margin-bottom: 8pt; }
 .prijstabel .omschrijving { width: 52%; }
+.prijstabel tr.sub td.omschrijving { padding-left: 16pt; }
+.prijstabel tr.groepstotaal td { font-style: italic; }
 .totalen { width: 60%; margin: 6pt 0 0 auto; break-inside: avoid; }
 .totalen td { padding: 2pt 5pt; }
 .totalen .totaal td { font-weight: 700; color: var(--accent); border-top: 1pt solid currentColor; padding-top: 4pt; }

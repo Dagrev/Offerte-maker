@@ -140,6 +140,40 @@ function haalSet(db: Db): WerkzaamhedenSet {
   };
 }
 
+/**
+ * Controle bij `offerte:bewaarInvoer` (OFM-044): elke werkzaamheid, elk materiaal en elke optie met een
+ * sleutel moet in de instellingen staan (een optie bij zijn werkzaamheid), of al zo in deze offerte
+ * staan (een inmiddels verwijderd item gaat niet verloren). Eenmalige items mogen altijd.
+ */
+export function controleerWerkzaamheden(invoer: KlusInvoer, vorige: KlusInvoer | null): void {
+  const db = database();
+  const sleutels = (sql: string) => new Set((db.prepare(sql).all() as { s: string }[]).map((r) => r.s));
+  const werken = sleutels('SELECT sleutel AS s FROM werkzaamheden');
+  const materialen = sleutels('SELECT sleutel AS s FROM materialen');
+  const opties = sleutels(
+    "SELECT w.sleutel || ':' || o.sleutel AS s FROM werkzaamheid_opties o JOIN werkzaamheden w ON w.id = o.werkzaamheid_id",
+  );
+  const eerder = gebruikteWerkzaamheden(vorige ?? {});
+  const eerderOpties = new Set(
+    (vorige?.werkzaamheden ?? []).flatMap((w) => w.opties.map((o) => `${w.sleutel}:${o.sleutel}`)),
+  );
+  for (const w of invoer.werkzaamheden) {
+    if (w.sleutel !== null && !werken.has(w.sleutel) && !eerder.werkzaamheden.includes(w.sleutel)) {
+      throw ongeldig(VALIDATIE_MELDINGEN.onbekendeKeuze);
+    }
+    for (const m of w.materialen) {
+      if (m.sleutel !== null && !materialen.has(m.sleutel) && !eerder.materialen.includes(m.sleutel)) {
+        throw ongeldig(VALIDATIE_MELDINGEN.onbekendeKeuze);
+      }
+    }
+    for (const o of w.opties) {
+      const sleutel = `${w.sleutel}:${o.sleutel}`;
+      if (!opties.has(sleutel) && !eerderOpties.has(sleutel))
+        throw ongeldig(VALIDATIE_MELDINGEN.onbekendeKeuze);
+    }
+  }
+}
+
 /** `werkzaamheden:haal`: soorten werk, werkzaamheden (met opties en materialen) en materialen. */
 export function haalWerkzaamheden(): WerkzaamhedenSet {
   return haalSet(database());

@@ -55,11 +55,8 @@ function invoerVanOffertes(): KlusInvoer[] {
   const alle = database().prepare('SELECT invoer_json FROM offertes WHERE verwijderd_op IS NULL').all() as {
     invoer_json: string;
   }[];
-  // Zonder zod (snel bij duizenden offertes); extraAantallen ontbreekt in invoer van vóór OFM-034.
-  return alle.map((r) => {
-    const invoer = JSON.parse(r.invoer_json) as Omit<KlusInvoer, 'extraAantallen'> & Partial<KlusInvoer>;
-    return { ...invoer, extraAantallen: invoer.extraAantallen ?? {} };
-  });
+  // Zonder zod (snel bij duizenden offertes); ontbrekende oude velden vult `gebruikteSleutels` aan.
+  return alle.map((r) => JSON.parse(r.invoer_json) as KlusInvoer);
 }
 
 /** Per lijst de sleutels die in een niet-verwijderde offerte voorkomen. */
@@ -262,5 +259,5 @@ export function controleerKeuzes(invoer: KlusInvoer, vorige: KlusInvoer | null):
       throw ongeldig(VALIDATIE_MELDINGEN.onbekendeKeuze);
     }
   }
-  if (Object.keys(invoer.extraAantallen).some((s) => Object.hasOwn(VASTE_EXTRAS, s))) throw ongeldig();
+  if (Object.keys(invoer.extraAantallen ?? {}).some((s) => Object.hasOwn(VASTE_EXTRAS, s))) throw ongeldig();
 }

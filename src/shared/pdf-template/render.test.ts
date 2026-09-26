@@ -160,6 +160,28 @@ describe('renderOfferteHtml', () => {
     expect(html).toContain('<body class="layout-klassiek pdf">');
   });
 
+  it('OFM-044: materialen en opties ingesprongen onder hun werkzaamheid, met een subtotaal', () => {
+    const regels = [
+      regel({ id: 'w', omschrijving: 'Isoleren', prijsCent: 1000 }),
+      regel({ id: 'm', omschrijving: 'PIR 80 mm', prijsCent: 500, onderdeelVan: 'w' }),
+      regel({ id: 'x', omschrijving: 'Voorrijkosten', prijsCent: 2500 }),
+    ];
+    const html = renderOfferteHtml(
+      model({ inhoud: { ...VOORBEELD_INHOUD, regels }, totalen: berekenTotalen(regels) }),
+      'pdf',
+    );
+    const isoleren = html.indexOf('>Isoleren<');
+    const pir = html.indexOf('<tr class="sub"><td class="omschrijving">PIR 80 mm</td>');
+    const sub = html.indexOf(
+      '<tr class="groepstotaal"><td class="omschrijving" colspan="4">Subtotaal Isoleren</td><td class="getal">€ 15,00</td></tr>',
+    );
+    const voorrij = html.indexOf('>Voorrijkosten<');
+    expect([isoleren, pir, sub, voorrij].every((i) => i > 0)).toBe(true);
+    expect(isoleren < pir && pir < sub && sub < voorrij).toBe(true);
+    // Een regel zonder materialen of opties krijgt geen subtotaal.
+    expect(html).not.toContain('Subtotaal Voorrijkosten');
+  });
+
   it('prijstabel met bedragen en een btw-regel per tarief in totalen', () => {
     const regels = [
       regel({ omschrijving: 'A', aantalHonderdsten: 3480, prijsCent: 1250 }),

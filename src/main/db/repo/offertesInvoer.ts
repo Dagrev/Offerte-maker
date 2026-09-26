@@ -17,6 +17,7 @@ import { controleerKlantVelden } from '@shared/validatie';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { invullen } from '../../privacy/invullen';
 import { controleerKeuzes, haalKeuzes } from './keuzeopties';
+import { controleerWerkzaamheden } from './werkzaamheden';
 import { database } from '../verbinding';
 
 // Offerte aanmaken, ophalen en de wizardinvoer bewaren (TDO §6.2, §6.3, §8.2, V-12). Eigenaar: OFM-010.
@@ -166,6 +167,8 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
     const opgeslagen = klusInvoerSchema.parse(JSON.parse(rij.invoer_json));
     // OFM-034: alleen bestaande keuzes (of de keuze die er al stond).
     if (w.invoer) controleerKeuzes(w.invoer, opgeslagen);
+    // OFM-044: alleen bestaande werkzaamheden, materialen en opties (of wat er al stond).
+    if (w.invoer) controleerWerkzaamheden(w.invoer, opgeslagen);
     const invoer = w.invoer ?? opgeslagen;
     const offertedatum = w.offertedatum ?? rij.offertedatum;
     const geldigTot =

@@ -35,30 +35,18 @@ export function nieuwDakvlak(n: number, id: string = nieuwId()): Dakvlak {
   return { id, naam: `Dakvlak ${n}`, modus: 'lxb', lengteM: null, breedteM: null, m2: null };
 }
 
-/** Lege `KlusInvoer` (§5): keuzes `null`, één leeg dakvlak, getallen 0, booleans `false`. */
+/** Lege `KlusInvoer` (§5): keuzes `null`, één leeg dakvlak, geen werkzaamheden (OFM-044), `false`. */
 export function legeKlusInvoer(): KlusInvoer {
   return {
     soortWerk: null,
     soortDak: null,
     dakvlakken: [nieuwDakvlak(1)],
-    bedekking: null,
-    bedekkingAnders: '',
     huidigeBedekking: null,
     ondergrond: null,
-    slopenEnAfvoeren: false,
-    isolatie: 'geen',
-    isolatieAndersMm: null,
-    daktrimM1: 0,
-    dakgootM1: 0,
-    hwaAantal: 0,
-    noodoverloopAantal: 0,
-    doorvoerAantal: 0,
-    lichtkoepelAantal: 0,
-    afwerking: 'geen',
     hoogte: '1',
     steigerNodig: false,
     garantieJaren: '10',
-    extraAantallen: {},
+    werkzaamheden: [],
     gewensteUitvoering: '',
     overig: '',
   };

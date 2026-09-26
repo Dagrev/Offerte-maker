@@ -1,23 +1,40 @@
-import { m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
+import { euroNaarCent, m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
 import { VASTE_EXTRAS, extrasMetAantal, keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
 import { labelBedekking, labelIsolatie } from '@shared/labels';
-import type { Klant, KlusInvoer } from '@shared/types';
+import { heeftOudeKeuzes, oudeVelden } from '@shared/oudeInvoer';
+import type { Klant, KlusInvoer, Prijspost } from '@shared/types';
+import { werkGroepen, type WerkCatalogus, type WerkRegel } from '@shared/werkzaamheden';
 import { anonimiseer } from './anonimiseer';
 import { bouwPiiSet } from './piiSet';
 
 // Klusgegevens zoals de agent ze krijgt (TDO §10.5 laatste alinea, V-26, FO §8.2, A-12).
-// Codes worden labels uit de keuzelijsten (OFM-034); van de klant gaan alleen plaatshouders mee, nooit aanhef, adres, postcode,
-// telefoon of e-mail. Vrije tekst (gewensteUitvoering, overig, bedekkingAnders, dakvlaknamen) gaat
-// door het privacyfilter.
+// Codes worden labels uit de keuzelijsten (OFM-034); van de klant gaan alleen plaatshouders mee, nooit
+// aanhef, adres, postcode, telefoon of e-mail. Vrije tekst (gewensteUitvoering, overig,
+// bedekkingAnders, dakvlaknamen, en sinds OFM-044 de notities en namen van eenmalige werkzaamheden en
+// materialen) gaat door het privacyfilter. Sinds OFM-044 staan de gekozen werkzaamheden erin met de
+// prijzen van deze offerte; de velden van de oude stap Extra's alleen bij een oude offerte (tot OFM-045).
 
-export interface KlusVoorAgent {
-  soortWerk: string | null;
-  soortDak: string | null;
-  dakvlakken: { naam: string; m2: number }[];
+/** Een regel die uit een werkzaamheid volgt, zoals de agent hem krijgt. */
+export interface WerkRegelVoorAgent {
+  naam: string;
+  eenheid: string;
+  aantal: number;
+  /** Prijs voor deze offerte (excl. btw); `null` = geen prijs, de agent schat. */
+  prijsEuro: number | null;
+  /** Id van de prijspost; bij een eenmalig item `eenmalig-…` (geen post). */
+  prijspostId: string | null;
+}
+
+export interface WerkzaamheidVoorAgent extends WerkRegelVoorAgent {
+  notitie: string;
+  materialen: WerkRegelVoorAgent[];
+  opties: WerkRegelVoorAgent[];
+}
+
+/** De velden van de oude stap Extra's (alleen bij oude offertes, tot OFM-045). */
+export interface OudeKlusVelden {
   bedekking: string | null;
   bedekkingAnders: string;
-  huidigeBedekking: string | null;
-  ondergrond: string | null;
   slopenEnAfvoeren: boolean;
   isolatie: string;
   isolatieAndersMm: number | null;
@@ -30,7 +47,17 @@ export interface KlusVoorAgent {
   /** Zelf toegevoegde extra's (OFM-034) met een aantal > 0: label en aantal. */
   extras: { naam: string; aantal: number }[];
   afwerking: string;
+}
+
+export interface KlusVoorAgent extends Partial<OudeKlusVelden> {
+  soortWerk: string | null;
+  soortDak: string | null;
+  dakvlakken: { naam: string; m2: number }[];
+  huidigeBedekking: string | null;
+  ondergrond: string | null;
   hoogte: string;
+  /** OFM-044: de gekozen werkzaamheden, met materialen en opties. */
+  werkzaamheden: WerkzaamheidVoorAgent[];
   steigerNodig: boolean;
   /** Label van de garantiekeuze, bv. "10 jaar" (OFM-034; was garantieJaren: 10 | 20). */
   garantie: string;
@@ -52,6 +79,10 @@ export interface KlusBron {
   offertedatum: string;
   /** Keuzelijsten uit de database (OFM-034). */
   keuzes: Keuzes;
+  /** Werkzaamheden en materialen uit de instellingen (OFM-044); standaard leeg. */
+  catalogus?: WerkCatalogus;
+  /** Prijspost op sleutel (`werk:`, `mat:`, `optie:`), voor het id; standaard geen. */
+  postOpSleutel?: (sleutel: string) => Prijspost | null;
 }
 
 export interface KlusOpties {
@@ -62,38 +93,56 @@ export interface KlusOpties {
   filteren?: boolean;
 }
 
+export const EENMALIG_ID = 'eenmalig-';
+
 export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): KlusVoorAgent {
   const { invoer, klant, offertedatum, keuzes } = bron;
   const label = (lijst: Parameters<typeof keuzeLabel>[1], sleutel: string) =>
     keuzeLabel(keuzes, lijst, sleutel);
   const piiSet = bouwPiiSet(klant);
   const filter = opties.filteren === false ? (t: string) => t : (t: string) => anonimiseer(t, piiSet);
-  const bedekkingAnders = filter(invoer.bedekkingAnders);
   const isBedrijf = klant.aanhef === 'bedrijf';
+  const postOpSleutel = bron.postOpSleutel ?? (() => null);
+
+  const alsRegel = (r: WerkRegel, eenmaligId: string): WerkRegelVoorAgent => ({
+    // Een eenmalige naam is vrije tekst van de gebruiker: door het filter.
+    naam: r.prijsSleutel === null ? filter(r.omschrijving) : r.omschrijving,
+    eenheid: r.eenheid,
+    aantal: r.aantal,
+    prijsEuro: r.prijsCent === null ? null : r.prijsCent / 100,
+    prijspostId:
+      r.prijsSleutel === null ? `${EENMALIG_ID}${eenmaligId}` : (postOpSleutel(r.prijsSleutel)?.id ?? null),
+  });
+  const werkzaamheden = werkGroepen(
+    invoer.werkzaamheden,
+    bron.catalogus ?? {
+      werkzaamheden: [],
+      materialen: [],
+    },
+  ).map((g, i): WerkzaamheidVoorAgent => {
+    const nr = `w${i + 1}`;
+    const aantalMaterialen = invoer.werkzaamheden[i]?.materialen.length ?? 0;
+    const subs = g.subregels.map((s, j) =>
+      alsRegel(s, j < aantalMaterialen ? `${nr}-m${j + 1}` : `${nr}-o${j - aantalMaterialen + 1}`),
+    );
+    return {
+      ...alsRegel(g.werk, nr),
+      notitie: filter(g.notitie),
+      materialen: subs.slice(0, aantalMaterialen),
+      opties: subs.slice(aantalMaterialen),
+    };
+  });
 
   return {
     soortWerk: invoer.soortWerk === null ? null : label('soortWerk', invoer.soortWerk),
     soortDak: invoer.soortDak === null ? null : label('soortDak', invoer.soortDak),
     dakvlakken: invoer.dakvlakken.map((v) => ({ naam: filter(v.naam), m2: m2VanDakvlak(v) })),
-    bedekking: invoer.bedekking === null ? null : labelBedekking(keuzes, invoer.bedekking, bedekkingAnders),
-    bedekkingAnders,
     huidigeBedekking:
       invoer.huidigeBedekking === null ? null : label('huidigeBedekking', invoer.huidigeBedekking),
     ondergrond: invoer.ondergrond === null ? null : label('ondergrond', invoer.ondergrond),
-    slopenEnAfvoeren: invoer.slopenEnAfvoeren,
-    isolatie: labelIsolatie(keuzes, invoer.isolatie, invoer.isolatieAndersMm),
-    isolatieAndersMm: invoer.isolatieAndersMm,
-    daktrimM1: invoer.daktrimM1,
-    dakgootM1: invoer.dakgootM1,
-    hwaAantal: invoer.hwaAantal,
-    noodoverloopAantal: invoer.noodoverloopAantal,
-    doorvoerAantal: invoer.doorvoerAantal,
-    lichtkoepelAantal: invoer.lichtkoepelAantal,
-    extras: extrasMetAantal(invoer, keuzes)
-      .filter((e) => !Object.hasOwn(VASTE_EXTRAS, e.sleutel))
-      .map((e) => ({ naam: e.label, aantal: e.aantal })),
-    afwerking: label('afwerking', invoer.afwerking),
     hoogte: label('hoogte', invoer.hoogte),
+    werkzaamheden,
+    ...(heeftOudeKeuzes(invoer) && oudeKlusVelden(invoer, keuzes, filter)),
     steigerNodig: invoer.steigerNodig,
     garantie: label('garantie', invoer.garantieJaren),
     gewensteUitvoering: filter(invoer.gewensteUitvoering),
@@ -110,12 +159,59 @@ export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): Klus
   };
 }
 
+function oudeKlusVelden(invoer: KlusInvoer, keuzes: Keuzes, filter: (t: string) => string): OudeKlusVelden {
+  const oud = oudeVelden(invoer);
+  const bedekkingAnders = filter(oud.bedekkingAnders);
+  return {
+    bedekking: oud.bedekking === null ? null : labelBedekking(keuzes, oud.bedekking, bedekkingAnders),
+    bedekkingAnders,
+    slopenEnAfvoeren: oud.slopenEnAfvoeren,
+    isolatie: labelIsolatie(keuzes, oud.isolatie, oud.isolatieAndersMm),
+    isolatieAndersMm: oud.isolatieAndersMm,
+    daktrimM1: oud.daktrimM1,
+    dakgootM1: oud.dakgootM1,
+    hwaAantal: oud.hwaAantal,
+    noodoverloopAantal: oud.noodoverloopAantal,
+    doorvoerAantal: oud.doorvoerAantal,
+    lichtkoepelAantal: oud.lichtkoepelAantal,
+    extras: extrasMetAantal(oud, keuzes)
+      .filter((e) => !Object.hasOwn(VASTE_EXTRAS, e.sleutel))
+      .map((e) => ({ naam: e.label, aantal: e.aantal })),
+    afwerking: keuzeLabel(keuzes, 'afwerking', oud.afwerking),
+  };
+}
+
+/**
+ * De prijzen die in deze offerte vastliggen (OFM-044): prijspost-id (of `eenmalig-…`) → prijs in
+ * centen. De nabewerking (§10.7) zet een regel met zo'n id op deze prijs, ook als de agent iets anders
+ * gaf; een werkzaamheid zonder prijs staat er niet in (die mag de agent schatten).
+ */
+export function vastePrijzen(klus: Pick<KlusVoorAgent, 'werkzaamheden'>): Map<string, number> {
+  const uit = new Map<string, number>();
+  const zet = (r: WerkRegelVoorAgent) => {
+    if (r.prijspostId !== null && r.prijsEuro !== null) uit.set(r.prijspostId, euroNaarCent(r.prijsEuro));
+  };
+  for (const w of klus.werkzaamheden) {
+    zet(w);
+    w.materialen.forEach(zet);
+    w.opties.forEach(zet);
+  }
+  return uit;
+}
+
 /**
  * De delen van `KlusVoorAgent` die uit invoer van de gebruiker komen (§11.3): gewensteUitvoering,
- * overig, bedekkingAnders en de dakvlaknamen. Bij `aanpassen` voegt de opdrachtbouwer de
- * (gefilterde) instructie en de tekstvelden van de huidige inhoud toe (`tekstvelden` in
- * `invullen.ts`). Aan elkaar geplakt met `\n` is dit de `payload` voor `controleer`.
+ * overig, bedekkingAnders, de dakvlaknamen en (OFM-044) de notities en eenmalige namen. Bij `aanpassen`
+ * voegt de opdrachtbouwer de (gefilterde) instructie en de tekstvelden van de huidige inhoud toe
+ * (`tekstvelden` in `invullen.ts`). Aan elkaar geplakt met `\n` is dit de `payload` voor `controleer`.
  */
 export function gebruikersTekst(klus: KlusVoorAgent): string[] {
-  return [klus.gewensteUitvoering, klus.overig, klus.bedekkingAnders, ...klus.dakvlakken.map((v) => v.naam)];
+  const eenmalig = (r: WerkRegelVoorAgent) => (r.prijspostId?.startsWith(EENMALIG_ID) ? [r.naam] : []);
+  return [
+    klus.gewensteUitvoering,
+    klus.overig,
+    klus.bedekkingAnders ?? '',
+    ...klus.dakvlakken.map((v) => v.naam),
+    ...klus.werkzaamheden.flatMap((w) => [w.notitie, ...eenmalig(w), ...w.materialen.flatMap(eenmalig)]),
+  ];
 }

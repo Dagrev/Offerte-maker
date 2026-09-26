@@ -26,7 +26,7 @@ export const WIZARD_VELDNAMEN: Record<WizardVeld, string> = {
   soortDak: 'Soort dak',
   dakvlak: 'Een dakvlak groter dan 0 m²',
   hoogte: 'Hoogte',
-  extra: 'Minstens één extra',
+  werkzaamheid: 'Minstens één werkzaamheid',
 };
 
 /** Eén punt per ontbrekend verplicht veld. */
@@ -49,11 +49,15 @@ export const WIZARD_PUNT_TEKSTEN: Record<WizardVeld, string> = {
   soortDak: 'Soort dak is niet gekozen',
   dakvlak: 'Geen dakvlak ingevuld',
   hoogte: 'Hoogte is niet gekozen',
-  extra: "Geen extra's gekozen",
+  werkzaamheid: 'Geen werkzaamheid gekozen',
 };
+
+/** OFM-044: een gekozen werkzaamheid zonder aantal. */
+export const aantalNulTekst = (label: string) => `Vul het aantal in bij ${label || 'een werkzaamheid'}`;
 
 export function puntTekst(punt: WizardPunt): string {
   if (punt.soort === 'ongeldig') return `${KLANT_VELDNAMEN[punt.veld]}: ${VALIDATIE_FOUTEN[punt.fout]}`;
+  if (punt.soort === 'aantalNul') return aantalNulTekst(punt.label);
   return WIZARD_PUNT_TEKSTEN[punt.veld];
 }
 

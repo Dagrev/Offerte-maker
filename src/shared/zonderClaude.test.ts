@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KEUZE_STARTSET, type Keuzes } from './keuzelijsten';
+import { CATALOGUS, gekozen } from '../../test/helpers/werkCatalogus';
 import { legeKlusInvoer } from './nieuweOfferte';
 import { PRIJS_STARTSET } from './prijsStartset';
 import type { KlusInvoer, Prijspost } from './types';
@@ -290,5 +291,120 @@ describe('zelf toegevoegde keuzes (OFM-034)', () => {
       maakId,
     });
     expect(inhoud.regels[0]).toMatchObject({ omschrijving: 'weg', aantalHonderdsten: 300, eenheid: 'stuk' });
+  });
+});
+
+describe('werkzaamheden (OFM-044)', () => {
+  /** Posten van werkzaamheden, materialen en opties; `prijzen` per sleutel. */
+  const werkPosten =
+    (prijzen: Record<string, number | null>) =>
+    (sleutel: string): Prijspost | null =>
+      sleutel in prijzen
+        ? {
+            id: `post-${sleutel}`,
+            sleutel,
+            omschrijving: sleutel,
+            eenheid: 'stuk',
+            prijsCent: prijzen[sleutel] ?? null,
+            btwTarief: sleutel === 'mat:pir_80' ? 9 : 21,
+            volgorde: 0,
+          }
+        : posten()(sleutel);
+
+  it('per werkzaamheid een regel met materialen en opties als subregels; prijsbron volgt de prijs', () => {
+    n = 0;
+    const inhoud = maakInhoudZonderClaude({
+      invoer: invoer({
+        werkzaamheden: [
+          gekozen({
+            notitie: 'Asbest vooraf laten keuren',
+            opties: [{ sleutel: 'afvalcontainer', prijsCent: 30000 }],
+            materialen: [
+              { id: 'm1', sleutel: 'pir_80', eenmalig: null, aantal: 20, prijsCent: 1800 },
+              {
+                id: 'm2',
+                sleutel: null,
+                eenmalig: { label: 'Zink', eenheid: 'm¹' },
+                aantal: 4,
+                prijsCent: null,
+              },
+            ],
+          }),
+        ],
+      }),
+      keuzes: KEUZE_STARTSET,
+      catalogus: CATALOGUS,
+      postOpSleutel: werkPosten({
+        'werk:slopen': 1200,
+        'mat:pir_80': 1500,
+        'optie:slopen:afvalcontainer': null,
+      }),
+      teksten: TEKSTEN,
+      maakId,
+    });
+    expect(inhoud.regels.slice(0, 4)).toEqual([
+      {
+        id: 'r1',
+        omschrijving: 'Slopen',
+        aantalHonderdsten: 2000,
+        eenheid: 'm²',
+        prijsCent: 1200,
+        btwTarief: 21,
+        prijsbron: 'prijslijst',
+        prijspostId: 'post-werk:slopen',
+      },
+      {
+        id: 'r2',
+        omschrijving: 'PIR 80 mm',
+        aantalHonderdsten: 2000,
+        eenheid: 'm²',
+        prijsCent: 1800,
+        btwTarief: 9,
+        prijsbron: 'handmatig',
+        prijspostId: 'post-mat:pir_80',
+        onderdeelVan: 'r1',
+      },
+      {
+        id: 'r3',
+        omschrijving: 'Zink',
+        aantalHonderdsten: 400,
+        eenheid: 'm¹',
+        prijsCent: 0,
+        btwTarief: 21,
+        prijsbron: 'schatting',
+        prijspostId: null,
+        onderdeelVan: 'r1',
+      },
+      {
+        id: 'r4',
+        omschrijving: 'Afvalcontainer',
+        aantalHonderdsten: 100,
+        eenheid: 'stuk',
+        prijsCent: 30000,
+        btwTarief: 21,
+        prijsbron: 'handmatig',
+        prijspostId: 'post-optie:slopen:afvalcontainer',
+        onderdeelVan: 'r1',
+      },
+    ]);
+    expect(inhoud.regels.at(-1)?.omschrijving).toBe('Voorrijkosten');
+    expect(inhoud.werkomschrijving).toEqual(['Slopen: Asbest vooraf laten keuren', 'Voorrijkosten']);
+    expect(inhoud.controlepunten).toEqual([vulPrijsIn('Zink'), vulPrijsIn('Voorrijkosten')]);
+  });
+
+  it('zonder catalogus en post: de sleutel als naam, geen prijs = schatting', () => {
+    const inhoud = maakInhoudZonderClaude({
+      invoer: invoer({ werkzaamheden: [gekozen({ prijsCent: null })] }),
+      keuzes: KEUZE_STARTSET,
+      postOpSleutel: posten(),
+      teksten: TEKSTEN,
+      maakId,
+    });
+    expect(inhoud.regels[0]).toMatchObject({
+      omschrijving: 'slopen',
+      prijsbron: 'schatting',
+      prijspostId: null,
+    });
+    expect(inhoud.werkomschrijving[0]).toBe('slopen');
   });
 });

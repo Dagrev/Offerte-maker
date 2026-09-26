@@ -78,7 +78,7 @@ describe('offerte:maakZonderClaude (FE-110)', () => {
           'De offerte kan nog niet worden gemaakt. Dit ontbreekt nog of klopt niet:\n' +
           '- Voornaam ontbreekt\n- Achternaam ontbreekt\n- Postcode ontbreekt\n- Huisnummer ontbreekt\n' +
           '- Straat ontbreekt\n- Plaats ontbreekt\n- Telefoon ontbreekt\n- E-mail ontbreekt\n' +
-          '- Soort werk is niet gekozen\n- Geen dakvlak ingevuld',
+          '- Geen dakvlak ingevuld\n- Soort werk is niet gekozen\n- Geen werkzaamheid gekozen',
       },
     });
     expect(rij(id).inhoud_json).toBeNull();

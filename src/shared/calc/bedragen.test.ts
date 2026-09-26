@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { BtwTarief } from '../types';
 import {
   aantalNaarHonderdsten,
+  bedragWerkzaamheidCent,
   berekenTotalen,
   euroNaarCent,
+  groepeerRegels,
   m2VanDakvlak,
   regelbedragCent,
   rondAf,
@@ -152,5 +154,54 @@ describe('euroNaarCent en aantalNaarHonderdsten', () => {
     expect(aantalNaarHonderdsten(34.8)).toBe(3480);
     expect(aantalNaarHonderdsten(1)).toBe(100);
     expect(aantalNaarHonderdsten(1.15)).toBe(115);
+  });
+});
+
+// OFM-044: werkzaamheden met materialen en opties als subregels.
+describe('groepeerRegels', () => {
+  const r = (id: string, bedragCent: number, onderdeelVan?: string | null) => ({
+    id,
+    aantalHonderdsten: 100,
+    prijsCent: bedragCent,
+    ...(onderdeelVan !== undefined && { onderdeelVan }),
+  });
+
+  it('subregels onder hun hoofdregel, met subtotaal; gewone regels zonder subregels', () => {
+    const groepen = groepeerRegels([r('a', 1000), r('m', 250, 'a'), r('b', 500, null), r('o', 100, 'a')]);
+    expect(groepen.map((g) => [g.regel.id, g.subregels.map((s) => s.id), g.subtotaalCent])).toEqual([
+      ['a', ['m', 'o'], 1350],
+      ['b', [], 500],
+    ]);
+  });
+
+  it('een subregel zonder (geldige) hoofdregel wordt een gewone regel', () => {
+    const groepen = groepeerRegels([r('a', 100, 'weg'), r('b', 200, 'a'), r('c', 300, 'b')]);
+    // a verwijst naar een onbekende regel: gewoon. b valt onder a. c verwijst naar een subregel: gewoon.
+    expect(groepen.map((g) => [g.regel.id, g.subregels.map((s) => s.id)])).toEqual([
+      ['a', []],
+      ['b', []],
+      ['c', []],
+    ]);
+  });
+
+  it('hoofdregel zonder onderdeelVan-veld (oude inhoud)', () => {
+    expect(groepeerRegels([r('a', 100), r('b', 50, 'a')])[0]?.subtotaalCent).toBe(150);
+  });
+});
+
+describe('bedragWerkzaamheidCent', () => {
+  it('aantal × prijs, plus materialen (aantal × prijs) en opties (één keer); zonder prijs telt 0', () => {
+    expect(
+      bedragWerkzaamheidCent({
+        aantal: 20,
+        prijsCent: 1250,
+        materialen: [
+          { aantal: 20, prijsCent: 800 },
+          { aantal: 3, prijsCent: null },
+        ],
+        opties: [{ prijsCent: 35000 }, { prijsCent: null }],
+      }),
+    ).toBe(25000 + 16000 + 35000);
+    expect(bedragWerkzaamheidCent({ aantal: 2.5, prijsCent: null, materialen: [], opties: [] })).toBe(0);
   });
 });

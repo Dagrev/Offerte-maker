@@ -21,6 +21,38 @@ async function naWijziging(): Promise<void> {
   ]);
 }
 
+/**
+ * De set (uitvoer van `werkzaamheden:haal`) als invoer voor `werkzaamheden:bewaar`. Met `soorten` vallen
+ * koppelingen met een net verwijderde soort werk weg (de database doet dat ook).
+ */
+export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<string>): WerkzaamhedenBewaar {
+  return {
+    werkzaamheden: set.werkzaamheden.map((w) => ({
+      id: w.id,
+      label: w.label.trim(),
+      eenheid: w.eenheid,
+      prijsCent: w.prijsCent,
+      verborgen: w.verborgen,
+      soortenWerk: soorten ? w.soortenWerk.filter((s) => soorten.has(s)) : w.soortenWerk,
+      opties: w.opties.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
+        id,
+        label: label.trim(),
+        eenheid,
+        prijsCent,
+        verborgen,
+      })),
+      materialen: w.materialen,
+    })),
+    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
+      id,
+      label: label.trim(),
+      eenheid,
+      prijsCent,
+      verborgen,
+    })),
+  };
+}
+
 /** De hele set in de nieuwe volgorde; een onbekende id is nieuw, ontbrekende items worden verwijderd. */
 export async function bewaarWerkzaamheden(set: WerkzaamhedenBewaar): Promise<WerkzaamhedenSet> {
   const uit = await roep(window.api.werkzaamhedenBewaar(set));

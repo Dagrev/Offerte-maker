@@ -3,7 +3,6 @@ import { legeKlant, legeKlusInvoer } from './nieuweOfferte';
 import { standaardInstelling, verplichtSchema } from './schemas';
 import {
   ALTIJD_VERPLICHT,
-  heeftExtra,
   ontbrekendeVelden,
   STANDAARD_VERPLICHT,
   standaardVerplicht,
@@ -14,8 +13,12 @@ import {
 // OFM-038: instelbare verplichte velden.
 
 describe('standaard', () => {
-  it('stap 1 helemaal verplicht, stap 2 en 3 niet (soort werk en dakvlak zijn altijd verplicht)', () => {
-    for (const v of VERPLICHT_VELDEN) expect(STANDAARD_VERPLICHT[v]).toBe(VELD_STAP[v] === 1);
+  it('stap 1 helemaal verplicht, stap 2 niet, stap 3 minstens één werkzaamheid (OFM-044)', () => {
+    for (const v of VERPLICHT_VELDEN) {
+      expect(STANDAARD_VERPLICHT[v]).toBe(VELD_STAP[v] === 1 || v === 'werkzaamheid');
+    }
+    expect(VELD_STAP.soortWerk).toBe(3);
+    expect(VELD_STAP.hoogte).toBe(2);
     expect(ALTIJD_VERPLICHT).toEqual(['soortWerk', 'dakvlak']);
     expect(VERPLICHT_VELDEN).not.toContain('soortWerk');
   });
@@ -49,14 +52,5 @@ describe('ontbrekendeVelden', () => {
   it('witruimte telt als leeg', () => {
     const v = ontbrekendeVelden({ ...legeKlant(), voornaam: '  ' }, legeKlusInvoer(), standaardVerplicht());
     expect(v).toContain('voornaam');
-  });
-});
-
-describe('heeftExtra', () => {
-  it('vaste extra of zelf toegevoegde extra met aantal > 0', () => {
-    expect(heeftExtra(legeKlusInvoer())).toBe(false);
-    expect(heeftExtra({ ...legeKlusInvoer(), daktrimM1: 0.5 })).toBe(true);
-    expect(heeftExtra({ ...legeKlusInvoer(), extraAantallen: { zink: 0 } })).toBe(false);
-    expect(heeftExtra({ ...legeKlusInvoer(), extraAantallen: { zink: 3 } })).toBe(true);
   });
 });

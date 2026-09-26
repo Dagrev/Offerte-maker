@@ -157,6 +157,7 @@ describe('opdracht aanpassen (OFM-017, §10.5, V-06)', () => {
         btwTarief: 9,
         prijsbron: 'handmatig',
         prijspostId: null,
+        onderdeelVan: 'a',
       },
     ],
     uitvoering: 'U',
@@ -178,6 +179,7 @@ describe('opdracht aanpassen (OFM-017, §10.5, V-06)', () => {
         btwTarief: 21,
         prijsbron: 'prijslijst',
         prijspostId: 'start-x',
+        onderdeelVan: null,
       },
       {
         ref: 'r2',
@@ -188,6 +190,7 @@ describe('opdracht aanpassen (OFM-017, §10.5, V-06)', () => {
         btwTarief: 9,
         prijsbron: 'handmatig',
         prijspostId: null,
+        onderdeelVan: 1,
       },
     ]);
   });

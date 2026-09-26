@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { KEUZE_LIJSTEN } from '@shared/keuzelijsten';
+import { KEUZE_LIJSTEN, OUDE_LIJSTEN } from '@shared/keuzelijsten';
 import type { KeuzeLijst, Keuzeoptie } from '@shared/types';
 import { bewaarKeuzelijst, herstelKeuzelijst, useKeuzelijsten } from '../../api/keuzelijsten';
 import { alsFout } from '../../api/roep';
@@ -32,7 +32,7 @@ export function TabKeuzelijsten() {
     <div className="flex flex-col gap-6">
       <p className="text-tekst-zacht">{t.uitleg}</p>
       <nav aria-label={t.kiesLijst} className="flex flex-wrap gap-2">
-        {KEUZE_LIJSTEN.map((l) => (
+        {KEUZE_LIJSTEN.filter((l) => !OUDE_LIJSTEN.includes(l)).map((l) => (
           <button
             key={l}
             type="button"

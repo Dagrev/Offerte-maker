@@ -21,7 +21,12 @@ import type {
 } from '@shared/types';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { alsFout } from '../../api/roep';
-import { bewaarWerkzaamheden, herstelWerkzaamheden, useWerkzaamheden } from '../../api/werkzaamheden';
+import {
+  alsBewaarInvoer,
+  bewaarWerkzaamheden,
+  herstelWerkzaamheden,
+  useWerkzaamheden,
+} from '../../api/werkzaamheden';
 import { Bevestiging } from '../../componenten/Bevestiging';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
@@ -48,35 +53,6 @@ const RIJ =
 
 type Item = { id: string; label: string; verborgen: boolean; inGebruik: boolean };
 type TeVerwijderen = { label: string; inGebruik: boolean; verwijder: () => void; verberg: () => void };
-
-function naarInvoer(set: WerkzaamhedenSet, soorten: ReadonlySet<string>) {
-  return {
-    werkzaamheden: set.werkzaamheden.map((w) => ({
-      id: w.id,
-      label: w.label.trim(),
-      eenheid: w.eenheid,
-      prijsCent: w.prijsCent,
-      verborgen: w.verborgen,
-      // Een soort werk die net uit de keuzelijst is verwijderd, valt weg (de database doet dat ook).
-      soortenWerk: w.soortenWerk.filter((s) => soorten.has(s)),
-      opties: w.opties.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
-        id,
-        label: label.trim(),
-        eenheid,
-        prijsCent,
-        verborgen,
-      })),
-      materialen: w.materialen,
-    })),
-    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
-      id,
-      label: label.trim(),
-      eenheid,
-      prijsCent,
-      verborgen,
-    })),
-  };
-}
 
 const allesBenoemd = (set: WerkzaamhedenSet) =>
   [...set.werkzaamheden, ...set.werkzaamheden.flatMap((w) => w.opties), ...set.materialen].every(
@@ -133,7 +109,7 @@ function Bewerker({
   }, [soorten]);
 
   const bewaren = useAutoBewaar(
-    (waarde: WerkzaamhedenSet) => bewaarWerkzaamheden(naarInvoer(waarde, soortSleutels.current)),
+    (waarde: WerkzaamhedenSet) => bewaarWerkzaamheden(alsBewaarInvoer(waarde, soortSleutels.current)),
     allesBenoemd,
   );
 

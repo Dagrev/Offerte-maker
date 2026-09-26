@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Uitvoerschema van de agent (TDO §10.6): het JSON Schema dat met `--json-schema` meegaat, en de
 // aanvullende zod-validatie die `taken.ts` op het antwoord toepast (§10.7 stap 4).
 
-/** Letterlijk §10.6. */
+/** Letterlijk §10.6; sinds OFM-044 met `onderdeelVan` per regel. */
 export const UITVOER_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -35,6 +35,7 @@ export const UITVOER_SCHEMA = {
           'btwTarief',
           'prijsbron',
           'prijspostId',
+          'onderdeelVan',
         ],
         properties: {
           ref: { type: ['string', 'null'] },
@@ -45,6 +46,7 @@ export const UITVOER_SCHEMA = {
           btwTarief: { type: 'integer', enum: [0, 9, 21] },
           prijsbron: { type: 'string', enum: ['prijslijst', 'voorbeeld', 'schatting', 'handmatig'] },
           prijspostId: { type: ['string', 'null'] },
+          onderdeelVan: { type: ['integer', 'null'] },
         },
       },
     },
@@ -67,6 +69,8 @@ const uitvoerRegelSchema = z.object({
   btwTarief: z.union([z.literal(0), z.literal(9), z.literal(21)]),
   prijsbron: z.enum(['prijslijst', 'voorbeeld', 'schatting', 'handmatig']),
   prijspostId: z.string().nullable(),
+  /** OFM-044: volgnummer (vanaf 1) van de werkzaamheidregel waar deze regel onder valt, of null. */
+  onderdeelVan: z.number().int().nullable().default(null),
 });
 
 /** Zod-validatie van het agentantwoord (§10.6 "Aanvullende zod-validatie"). */

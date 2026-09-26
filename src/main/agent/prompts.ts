@@ -26,6 +26,9 @@ Prijzen en bedragen
 - Prijzen zijn in euro exclusief btw. Reken geen totalen uit en noem geen totaalbedragen in je teksten; dat doet het programma.
 - Btw-tarief is 21, tenzij de prijslijst anders zegt.
 
+Werkzaamheden
+- De klusgegevens bevatten de gekozen werkzaamheden, elk met aantal, eenheid, prijs, materialen en opties. Maak per werkzaamheid één regel en zet de materialen en opties als eigen regels direct eronder, met in onderdeelVan het volgnummer (vanaf 1) van de regel van die werkzaamheid; alle andere regels krijgen onderdeelVan null. Neem naam, aantal, eenheid, prijsEuro en prijspostId exact over, met prijsbron "prijslijst"; is prijsEuro null, schat de prijs zoals hierboven. Verwerk een notitie in de werkomschrijving.
+
 Inhoud
 - titel: kort, bijvoorbeeld "Offerte vervangen dakbedekking plat dak".
 - inleiding en afsluiting: gebruik de standaardteksten als basis en pas alleen aan wat de klus nodig maakt.
@@ -173,6 +176,8 @@ export interface HuidigeRegelVoorAgent {
   btwTarief: Offerteregel['btwTarief'];
   prijsbron: Offerteregel['prijsbron'];
   prijspostId: string | null;
+  /** OFM-044: volgnummer van de werkzaamheidregel waar deze regel onder valt, of `null`. */
+  onderdeelVan: number | null;
 }
 
 export interface HuidigeOfferteVoorAgent {
@@ -185,10 +190,16 @@ export interface HuidigeOfferteVoorAgent {
   afsluiting: string;
 }
 
+function volgnummerVan(regels: readonly Offerteregel[], id: string | null | undefined): number | null {
+  const index = id ? regels.findIndex((r) => r.id === id) : -1;
+  return index < 0 ? null : index + 1;
+}
+
 /**
  * "## Huidige offerte" (§10.5): de inhoud zonder regel-id's en zonder controlepunten; prijzen als
  * `prijsEuro`, aantallen als decimaal getal; per regel `ref` (`r1`, `r2`, … in volgorde) en `prijsbron`
- * (V-06). `prijspostId` blijft, zodat een prijslijstregel aan zijn post gekoppeld blijft.
+ * (V-06). `prijspostId` blijft, zodat een prijslijstregel aan zijn post gekoppeld blijft. OFM-044:
+ * `onderdeelVan` is het volgnummer van de werkzaamheidregel erboven.
  */
 export function huidigeOfferteVoorAgent(inhoud: OfferteInhoud): HuidigeOfferteVoorAgent {
   return {
@@ -204,6 +215,7 @@ export function huidigeOfferteVoorAgent(inhoud: OfferteInhoud): HuidigeOfferteVo
       btwTarief: r.btwTarief,
       prijsbron: r.prijsbron,
       prijspostId: r.prijspostId,
+      onderdeelVan: volgnummerVan(inhoud.regels, r.onderdeelVan),
     })),
     uitvoering: inhoud.uitvoering,
     opmerkingen: inhoud.opmerkingen,

@@ -69,36 +69,83 @@ export const dakvlakSchema = z.object({
   m2: nietNegatief.nullable(),
 });
 
-/** Maximaal 20 dakvlakken (V-16). */
+export const eenheidSchema = z.enum(['m²', 'm¹', 'stuk', 'post', 'uur', 'dag']);
+
+/**
+ * Een werkzaamheid, materiaal of optie in de offerte (OFM-044): uit de instellingen (`sleutel`) of
+ * alleen voor deze offerte (`eenmalig`, met eigen naam en eenheid). Precies één van de twee is gezet.
+ * Een half ingevulde eenmalige (lege naam) mag bewaard worden.
+ */
+const eenmaligSchema = z.object({ label: z.string().max(80), eenheid: eenheidSchema });
+const eenVanTweeSchema = <T extends { sleutel: string | null; eenmalig: unknown }>(item: T) =>
+  (item.sleutel === null) !== (item.eenmalig === null);
+
+/** Prijs per eenheid in centen voor alleen deze offerte; `null` = geen prijs (ook niet in de prijslijst). */
+const offertePrijsSchema = z.number().int().nonnegative().nullable();
+
+export const gekozenMateriaalSchema = z
+  .object({
+    id: idSchema,
+    sleutel: keuzeSleutelSchema.nullable(),
+    eenmalig: eenmaligSchema.nullable(),
+    aantal: nietNegatief,
+    prijsCent: offertePrijsSchema,
+  })
+  .refine(eenVanTweeSchema);
+
+export const gekozenOptieSchema = z.object({
+  sleutel: keuzeSleutelSchema,
+  prijsCent: offertePrijsSchema,
+});
+
+export const gekozenWerkzaamheidSchema = z
+  .object({
+    id: idSchema,
+    sleutel: keuzeSleutelSchema.nullable(),
+    eenmalig: eenmaligSchema.nullable(),
+    aantal: nietNegatief,
+    prijsCent: offertePrijsSchema,
+    notitie: z.string().max(2000),
+    materialen: z.array(gekozenMateriaalSchema).max(50),
+    opties: z.array(gekozenOptieSchema).max(50),
+  })
+  .refine(eenVanTweeSchema);
+
+/**
+ * Maximaal 20 dakvlakken (V-16). Sinds OFM-044 bestaat een offerte uit `werkzaamheden`; de velden van
+ * de oude stap Extra's (bedekking, isolatie, afwerking, slopen, de zes extra's en `extraAantallen`)
+ * zijn optioneel: alleen oude offertes hebben ze nog, tot de omzetting in OFM-045.
+ */
 export const klusInvoerSchema = z.object({
   soortWerk: soortWerkSchema.nullable(),
   soortDak: soortDakSchema.nullable(),
   dakvlakken: z.array(dakvlakSchema).max(20),
-  bedekking: bedekkingSchema.nullable(),
-  bedekkingAnders: z.string(),
   huidigeBedekking: huidigeBedekkingSchema.nullable(),
   ondergrond: ondergrondSchema.nullable(),
-  slopenEnAfvoeren: z.boolean(),
-  isolatie: isolatieSchema,
-  isolatieAndersMm: nietNegatief.nullable(),
-  daktrimM1: nietNegatief,
-  dakgootM1: nietNegatief,
-  hwaAantal: aantal,
-  noodoverloopAantal: aantal,
-  doorvoerAantal: aantal,
-  lichtkoepelAantal: aantal,
-  afwerking: afwerkingSchema,
   hoogte: hoogteSchema,
+  werkzaamheden: z.array(gekozenWerkzaamheidSchema).max(40).default([]),
   steigerNodig: z.boolean(),
   /** Sleutel uit de lijst `garantie` ('10', '20', …); vóór migratie 002 een getal. */
   garantieJaren: garantieSchema,
-  /** Aantallen van extra's die de gebruiker zelf toevoegde (sleutel → aantal); ontbreekt = geen. */
-  extraAantallen: z.record(keuzeSleutelSchema, nietNegatief).default({}),
   gewensteUitvoering: z.string(),
   overig: z.string(),
+  // Oude velden (vóór OFM-044), alleen nog lezen.
+  bedekking: bedekkingSchema.nullable().optional(),
+  bedekkingAnders: z.string().optional(),
+  slopenEnAfvoeren: z.boolean().optional(),
+  isolatie: isolatieSchema.optional(),
+  isolatieAndersMm: nietNegatief.nullable().optional(),
+  daktrimM1: nietNegatief.optional(),
+  dakgootM1: nietNegatief.optional(),
+  hwaAantal: aantal.optional(),
+  noodoverloopAantal: aantal.optional(),
+  doorvoerAantal: aantal.optional(),
+  lichtkoepelAantal: aantal.optional(),
+  afwerking: afwerkingSchema.optional(),
+  /** Aantallen van extra's die de gebruiker zelf toevoegde (sleutel → aantal); OFM-034. */
+  extraAantallen: z.record(keuzeSleutelSchema, nietNegatief).optional(),
 });
 
-export const eenheidSchema = z.enum(['m²', 'm¹', 'stuk', 'post', 'uur', 'dag']);
 export const btwTariefSchema = z.union([z.literal(0), z.literal(9), z.literal(21)]);
 export const prijsbronSchema = z.enum(['prijslijst', 'voorbeeld', 'schatting', 'handmatig']);
 
@@ -112,6 +159,11 @@ export const offerteregelSchema = z.object({
   btwTarief: btwTariefSchema,
   prijsbron: prijsbronSchema,
   prijspostId: idSchema.nullable(),
+  /**
+   * OFM-044: id van de regel van de werkzaamheid waar deze regel (materiaal of optie) onder valt; de PDF
+   * toont hem ingesprongen met een subtotaal. Ontbreekt of `null` = gewone regel.
+   */
+  onderdeelVan: idSchema.nullable().optional(),
 });
 
 export const offerteInhoudSchema = z.object({

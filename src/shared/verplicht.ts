@@ -1,5 +1,4 @@
 import { m2VanDakvlak } from './calc/bedragen';
-import { VASTE_EXTRAS } from './keuzelijsten';
 import type { Klant, KlusInvoer } from './types';
 import { splitsStraatHuisnummer } from './validatie';
 
@@ -26,11 +25,11 @@ export const VERPLICHT_VELDEN = [
   'werkHuisnummer',
   'werkStraat',
   'werkPlaats',
-  // stap 2: het dak
+  // stap 2: het dak (hoogte sinds OFM-044)
   'soortDak',
-  // stap 3: extra's
   'hoogte',
-  'extra',
+  // stap 3: werkzaamheden (OFM-044; soort werk staat hier ook)
+  'werkzaamheid',
 ] as const;
 
 export type VerplichtVeld = (typeof VERPLICHT_VELDEN)[number];
@@ -44,7 +43,7 @@ export type WizardVeld = VerplichtVeld | AltijdVerplichtVeld;
 
 export type Verplicht = Record<VerplichtVeld, boolean>;
 
-/** De stap waarop het veld in de wizard staat (hoogte staat bij Extra's). */
+/** De stap waarop het veld in de wizard staat (sinds OFM-044: hoogte bij het dak, soort werk bij stap 3). */
 export const VELD_STAP: Record<WizardVeld, 1 | 2 | 3> = {
   aanhef: 1,
   voornaam: 1,
@@ -60,14 +59,14 @@ export const VELD_STAP: Record<WizardVeld, 1 | 2 | 3> = {
   werkHuisnummer: 1,
   werkStraat: 1,
   werkPlaats: 1,
-  soortWerk: 2,
+  soortWerk: 3,
   soortDak: 2,
   dakvlak: 2,
-  hoogte: 3,
-  extra: 3,
+  hoogte: 2,
+  werkzaamheid: 3,
 };
 
-/** Standaard: alles van stap 1 verplicht; in stap 2 alleen de altijd-verplichte velden; stap 3 niets. */
+/** Standaard: alles van stap 1 verplicht; in stap 2 alleen de altijd-verplichte velden; in stap 3 minstens één werkzaamheid (OFM-044). */
 export const STANDAARD_VERPLICHT: Verplicht = {
   aanhef: true,
   voornaam: true,
@@ -85,7 +84,7 @@ export const STANDAARD_VERPLICHT: Verplicht = {
   werkPlaats: true,
   soortDak: false,
   hoogte: false,
-  extra: false,
+  werkzaamheid: true,
 };
 
 export function standaardVerplicht(): Verplicht {
@@ -106,9 +105,8 @@ function adresDelen(straatHuisnummer: string): { straat: boolean; huisnummer: bo
 
 type Bron = {
   klant: Klant;
-  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak' | 'dakvlakken' | 'hoogte'> & ExtraBron;
+  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak' | 'dakvlakken' | 'hoogte' | 'werkzaamheden'>;
 };
-type ExtraBron = Pick<KlusInvoer, (typeof VASTE_EXTRAS)[keyof typeof VASTE_EXTRAS] | 'extraAantallen'>;
 
 /** Per veld: `true` als het ontbreekt. Werkadres telt alleen als "Het werk is op een ander adres" aan staat. */
 const ONTBREEKT: Record<WizardVeld, (b: Bron) => boolean> = {
@@ -131,21 +129,15 @@ const ONTBREEKT: Record<WizardVeld, (b: Bron) => boolean> = {
   soortDak: ({ invoer }) => invoer.soortDak === null,
   dakvlak: ({ invoer }) => !invoer.dakvlakken.some((v) => m2VanDakvlak(v) > 0),
   hoogte: ({ invoer }) => leeg(invoer.hoogte),
-  extra: ({ invoer }) => !heeftExtra(invoer),
+  werkzaamheid: ({ invoer }) => invoer.werkzaamheden.length === 0,
 };
 
-/** Minstens één extra (vast of zelf toegevoegd) met een aantal > 0. */
-export function heeftExtra(invoer: ExtraBron): boolean {
-  const vast = Object.values(VASTE_EXTRAS).some((veld) => invoer[veld] > 0);
-  return vast || Object.values(invoer.extraAantallen).some((n) => n > 0);
-}
-
-/** Alle velden in wizardvolgorde (altijd-verplicht op hun plek in stap 2). */
+/** Alle velden in wizardvolgorde (altijd-verplicht op hun plek: dakvlak in stap 2, soort werk in stap 3). */
 const ALLE_VELDEN: readonly WizardVeld[] = [
   ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 1),
-  'soortWerk',
   ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 2),
   'dakvlak',
+  'soortWerk',
   ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 3),
 ];
 

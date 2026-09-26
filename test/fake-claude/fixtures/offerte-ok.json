@@ -17,7 +17,8 @@
       "prijsEuro": 12.5,
       "btwTarief": 21,
       "prijsbron": "voorbeeld",
-      "prijspostId": "start-sloop"
+      "prijspostId": "start-sloop",
+      "onderdeelVan": null
     },
     {
       "ref": null,
@@ -27,7 +28,8 @@
       "prijsEuro": 45,
       "btwTarief": 21,
       "prijsbron": "voorbeeld",
-      "prijspostId": "start-epdm_15"
+      "prijspostId": "start-epdm_15",
+      "onderdeelVan": null
     },
     {
       "ref": null,
@@ -37,7 +39,8 @@
       "prijsEuro": 27.5,
       "btwTarief": 21,
       "prijsbron": "schatting",
-      "prijspostId": "start-daktrim"
+      "prijspostId": "start-daktrim",
+      "onderdeelVan": null
     },
     {
       "ref": null,
@@ -47,7 +50,8 @@
       "prijsEuro": 85,
       "btwTarief": 21,
       "prijsbron": "voorbeeld",
-      "prijspostId": "start-hwa"
+      "prijspostId": "start-hwa",
+      "onderdeelVan": null
     }
   ],
   "uitvoering": "Wij kunnen de werkzaamheden binnen vier weken na opdracht uitvoeren, afhankelijk van het weer. De werkzaamheden duren naar verwachting twee dagen.",

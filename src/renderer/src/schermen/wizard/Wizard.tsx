@@ -4,7 +4,15 @@ import { AlertTriangle, ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide
 import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
 import { alsKeuzes } from '@shared/keuzelijsten';
-import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/types';
+import type {
+  GekozenWerkzaamheid,
+  Keuzelijsten,
+  Klant,
+  KlusInvoer,
+  OfferteDetail,
+  WerkzaamhedenSet,
+} from '@shared/types';
+import { werkInfo } from '@shared/werkzaamheden';
 import { bewaarbareKlant } from '@shared/validatie';
 import { puntTekst } from '@shared/teksten/wizardPunten';
 import type { Verplicht } from '@shared/verplicht';
@@ -19,6 +27,7 @@ import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
 import { useInstellingen } from '../../api/instellingen';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
+import { useWerkzaamheden } from '../../api/werkzaamheden';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
@@ -29,7 +38,7 @@ import { markeerMislukt, toonZonderClaude } from '../../stores/mislukteMaken';
 import { useNavigatie, type WizardStap } from '../../stores/navigatie';
 import { nl } from '../../teksten/nl';
 import { StapDak } from './StapDak';
-import { StapExtras } from './StapExtras';
+import { StapWerkzaamheden } from './StapWerkzaamheden';
 import { StapKlant } from './StapKlant';
 import { StapOverig } from './StapOverig';
 
@@ -47,8 +56,10 @@ export function Wizard() {
   const query = useOfferte(offerteId, { vers: true });
   const keuzelijsten = useKeuzelijsten();
   // OFM-038: welke velden verplicht zijn (Instellingen › Verplichte velden).
+  // OFM-044: werkzaamheden en materialen uit de instellingen (stap 3, namen in de samenvatting).
+  const werkzaamheden = useWerkzaamheden();
   const instellingen = useInstellingen();
-  const fout = [query, keuzelijsten, instellingen].find((q) => q.isError)?.error ?? null;
+  const fout = [query, keuzelijsten, instellingen, werkzaamheden].find((q) => q.isError)?.error ?? null;
 
   if (fout !== null) {
     return (
@@ -60,12 +71,20 @@ export function Wizard() {
             void query.refetch();
             void keuzelijsten.refetch();
             void instellingen.refetch();
+            void werkzaamheden.refetch();
           }}
         />
       </main>
     );
   }
-  if (!offerteId || !query.data || !query.isFetchedAfterMount || !keuzelijsten.data || !instellingen.data) {
+  if (
+    !offerteId ||
+    !query.data ||
+    !query.isFetchedAfterMount ||
+    !keuzelijsten.data ||
+    !instellingen.data ||
+    !werkzaamheden.data
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p role="status" className="text-tekst-zacht">
@@ -80,6 +99,7 @@ export function Wizard() {
       detail={query.data}
       keuzelijsten={keuzelijsten.data}
       verplicht={instellingen.data.verplicht}
+      set={werkzaamheden.data}
     />
   );
 }
@@ -127,10 +147,12 @@ function WizardFormulier({
   detail,
   keuzelijsten,
   verplicht,
+  set,
 }: {
   detail: OfferteDetail;
   keuzelijsten: Keuzelijsten;
   verplicht: Verplicht;
+  set: WerkzaamhedenSet;
 }) {
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const vandaag = useNavigatie((s) => s.vandaag);
@@ -185,7 +207,8 @@ function WizardFormulier({
   };
 
   // OFM-035: live de punten die nog ontbreken of ongeldig zijn; ze blokkeren alleen het maken.
-  const punten = wizardPunten(klant, invoer, verplicht);
+  const werkLabel = (w: GekozenWerkzaamheid) => werkInfo(set, w).label;
+  const punten = wizardPunten(klant, invoer, verplicht, werkLabel);
 
   /** Naar een andere stap: altijd toegestaan (OFM-035). Direct bewaren (FE-025). */
   const naarStap = (doel: number) => {
@@ -202,7 +225,7 @@ function WizardFormulier({
   };
 
   const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
-    if (wizardPunten(klantRef.current, invoerRef.current, verplicht).length > 0) {
+    if (wizardPunten(klantRef.current, invoerRef.current, verplicht, werkLabel).length > 0) {
       setToonFouten(true);
       setToonSamenvatting(true);
       return;
@@ -246,7 +269,15 @@ function WizardFormulier({
           />
         )}
         {stap === 2 && <StapDak invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
-        {stap === 3 && <StapExtras invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
+        {stap === 3 && (
+          <StapWerkzaamheden
+            invoer={invoer}
+            opWijzig={wijzigInvoer}
+            leesInvoer={() => invoerRef.current}
+            keuzelijsten={keuzelijsten}
+            set={set}
+          />
+        )}
         {stap === 4 && (
           <StapOverig
             klant={klant}
@@ -256,6 +287,7 @@ function WizardFormulier({
             opWijzigDatum={wijzigDatum}
             geldigTot={berekenGeldigTot(offertedatum, geldigheidDagen)}
             keuzes={alsKeuzes(keuzelijsten)}
+            catalogus={set}
           />
         )}
       </section>

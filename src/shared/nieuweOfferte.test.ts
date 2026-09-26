@@ -29,20 +29,17 @@ describe('fabrieken (§5, §6.2)', () => {
     expect(invoer).toMatchObject({
       soortWerk: null,
       soortDak: null,
-      bedekking: null,
       huidigeBedekking: null,
       ondergrond: null,
-      isolatie: 'geen',
-      afwerking: 'geen',
       hoogte: '1',
       garantieJaren: '10',
-      extraAantallen: {},
-      daktrimM1: 0,
-      hwaAantal: 0,
-      slopenEnAfvoeren: false,
+      werkzaamheden: [],
       steigerNodig: false,
       overig: '',
     });
+    // OFM-044: de velden van de oude stap Extra's bestaan niet meer in een nieuwe offerte.
+    expect(invoer).not.toHaveProperty('bedekking');
+    expect(invoer).not.toHaveProperty('extraAantallen');
     expect(invoer.dakvlakken).toHaveLength(1);
     expect(invoer.dakvlakken[0]).toMatchObject({ naam: 'Dakvlak 1', modus: 'lxb', lengteM: null, m2: null });
     expect(legeKlusInvoer().dakvlakken[0]?.id).not.toBe(invoer.dakvlakken[0]?.id);

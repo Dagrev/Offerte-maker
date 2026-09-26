@@ -140,6 +140,9 @@ function BewerkFormulierScherm({ id, oorspronkelijk }: { id: string; oorspronkel
               key={regel.id}
               regel={regel}
               schatting={nu.regels[i]?.prijsbron === 'schatting'}
+              sub={
+                !!regel.onderdeelVan && f.regels.some((r) => r.id === regel.onderdeelVan && !r.onderdeelVan)
+              }
               nr={i + 1}
               eerste={i === 0}
               laatste={i === f.regels.length - 1}
@@ -234,6 +237,8 @@ interface RegelRijProps {
   eerste: boolean;
   laatste: boolean;
   opWijzig: (deel: Partial<Offerteregel>) => void;
+  /** OFM-044: materiaal of optie onder een werkzaamheid: ingesprongen. */
+  sub: boolean;
   opVerplaats: (richting: -1 | 1) => void;
   opVerwijder: () => void;
 }
@@ -251,6 +256,7 @@ function RegelRij({
   opWijzig,
   opVerplaats,
   opVerwijder,
+  sub,
 }: RegelRijProps) {
   // Een leeg getalveld blijft leeg tijdens het typen; voor de berekening telt het als 0.
   const [aantalLeeg, setAantalLeeg] = useState(false);
@@ -260,7 +266,7 @@ function RegelRij({
     <li
       className={`grid grid-cols-[minmax(10rem,1fr)_6rem_6.5rem_8rem_6rem_7rem_auto] items-end gap-3 rounded-knop p-3 ${
         schatting ? 'bg-schatting-vlak' : 'bg-vlak'
-      } ${eerste ? '' : '[&_label]:sr-only'}`}
+      } ${eerste ? '' : '[&_label]:sr-only'} ${sub ? 'ml-10 border-l-4 border-rand' : ''}`}
     >
       <div className="flex flex-col gap-1">
         <Veld
