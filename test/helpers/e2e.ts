@@ -66,7 +66,7 @@ export async function startNepPdok(
   await new Promise<void>((klaar) => server.listen(0, '127.0.0.1', klaar));
   const { port } = server.address() as AddressInfo;
   return {
-    url: `http://127.0.0.1:${port}/bzk/locatieserver/search/v3/free`,
+    url: `http://127.0.0.1:${port}/bzk/locatieserver/search/v3_1/free`,
     verzoeken,
     stop: () =>
       new Promise<void>((klaar) => {

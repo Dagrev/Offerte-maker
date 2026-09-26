@@ -6,7 +6,7 @@ import { log } from '../log';
 // renderer (`connect-src 'none'`) blijft ongewijzigd. Nooit een fout naar de gebruiker: geen internet,
 // time-out, een raar antwoord of geen treffer geeft `null`. Het log bevat nooit de waarden.
 
-export const PDOK_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3/free';
+export const PDOK_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 export const PDOK_TIMEOUT_MS = 5000;
 
 export interface GevondenAdres {
