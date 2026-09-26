@@ -10,7 +10,8 @@ import { pdfModelVoorOfferte } from './pdfModel';
 // Openen, afdrukken en tonen in de map (TDO §12.4, FE-057). Alleen voor offertes met een PDF;
 // anders `VALIDATIE` "Maak de offerte eerst definitief." (uit `laatstePdf`).
 
-async function bestaandePdf(id: string): Promise<string> {
+/** Pad van de laatste PDF, als die op schijf staat (ook gebruikt door Verstuur per e-mail, OFM-041). */
+export async function bestaandePdf(id: string): Promise<string> {
   const { pad } = laatstePdf(id);
   try {
     await access(pad);

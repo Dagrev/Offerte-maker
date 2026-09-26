@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  STANDAARD_EMAILTEKST,
   backupBestandSchema,
   dakvlakSchema,
   instellingSchemas,
@@ -142,6 +143,7 @@ describe('instellingen (§4.3)', () => {
       afsluiting:
         'Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.',
       voetnoot: '',
+      emailTekst: STANDAARD_EMAILTEKST,
       geldigheidDagen: 30,
     });
   });

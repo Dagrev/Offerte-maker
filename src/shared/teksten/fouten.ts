@@ -30,6 +30,8 @@ export const FOUTMELDINGEN: Record<FoutCode, string> = {
   VALIDATIE: 'Ongeldige invoer.',
   BACKUP_MISLUKT: 'De back-up is niet gelukt. Probeer het opnieuw of vraag de beheerder.',
   HERSTEL_MISLUKT: 'Terugzetten is niet gelukt. Er is niets veranderd.',
+  MAIL_GEEN_PROGRAMMA:
+    'Er is geen mailprogramma ingesteld op deze computer. Stel er een in bij Windows-instellingen › Apps › Standaard-apps, of voeg de PDF zelf toe aan een mail (Toon in map).',
   ONBEKEND: 'Er ging iets mis. Je werk is bewaard.',
 };
 

@@ -94,6 +94,8 @@ export interface KanaalUitvoer {
   'offerte:openPdf': null;
   'offerte:afdrukken': null;
   'offerte:toonInMap': null;
+  /** OFM-041: `mapi` = concept met bijlage geopend; `mailto` = terugval zonder bijlage (PDF in Verkenner). */
+  'offerte:mail': { methode: 'mapi' | 'mailto' };
   'offerte:zetStatus': null;
   'offerte:verwijder': null;
   'offerte:zetTerug': null;

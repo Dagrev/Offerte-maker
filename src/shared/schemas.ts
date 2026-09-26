@@ -210,6 +210,19 @@ export const opmaakSchema = z.object({
   lettertype: z.enum(['inter', 'merriweather', 'source-sans-3']).default('inter'),
 });
 
+/** Startwaarde van de e-mailtekst (OFM-041); de app vult de plaatshouders in, zie `main/mail/concept.ts`. */
+export const STANDAARD_EMAILTEKST = [
+  '{aanhef}',
+  '',
+  'Hierbij ontvangt u onze offerte {nummer}. U vindt de offerte als PDF in de bijlage. De offerte is geldig tot {geldigTot}.',
+  '',
+  'Heeft u vragen, neem dan gerust contact met ons op.',
+  '',
+  'Met vriendelijke groet,',
+  '',
+  '{bedrijfsnaam}',
+].join('\n');
+
 /** Startwaarden letterlijk uit §9.4 (V-13: schema-standaardwaarden, pas opgeslagen na wijzigen). */
 export const tekstenSchema = z.object({
   inleiding: z
@@ -234,6 +247,8 @@ export const tekstenSchema = z.object({
       'Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen, neem dan gerust contact met ons op.',
     ),
   voetnoot: z.string().default(''),
+  /** OFM-041: tekst van de mail bij Verstuur per e-mail, met plaatshouders (`mail/concept.ts`). */
+  emailTekst: z.string().default(STANDAARD_EMAILTEKST),
   geldigheidDagen: z.number().int().min(1).max(365).default(30),
 });
 
@@ -428,6 +443,7 @@ export const invoerSchemas = {
   'offerte:openPdf': metId,
   'offerte:afdrukken': metId,
   'offerte:toonInMap': metId,
+  'offerte:mail': metId,
 
   'offerte:zetStatus': z.object({
     id: idSchema,

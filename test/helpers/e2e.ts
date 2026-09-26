@@ -15,6 +15,8 @@ import { KEUZE_STARTSET } from '../../src/shared/keuzelijsten';
 
 export const REPO = resolve(import.meta.dirname, '..', '..');
 export const NEP_CLAUDE = join(REPO, 'test', 'fake-claude', 'fake-claude.mjs');
+/** Nep-MAPI-hulpscript (OFM-041): vervangt `resources/mail/mapi.ps1`. */
+export const NEP_MAIL = join(REPO, 'test', 'fake-mail', 'fake-mail.mjs');
 export const TEST_VANDAAG = '2026-09-25';
 
 export interface TestMappen {
@@ -23,6 +25,10 @@ export interface TestMappen {
   docs: string;
   /** FAKE_CLAUDE_LOG: één JSON-regel per aanroep van de nep-CLI. */
   claudeLog: string;
+  /** FAKE_MAIL_LOG (OFM-041): één JSON-regel per aanroep van het nep-MAPI-hulpscript. */
+  mailLog: string;
+  /** Testhaak `mail-shell` (OFM-041): mailto en Verkenner worden hier vastgelegd in plaats van geopend. */
+  mailShellLog: string;
   opruimen: () => void;
 }
 
@@ -33,6 +39,8 @@ export function maakTestMappen(): TestMappen {
     data: join(root, 'data'),
     docs: join(root, 'docs'),
     claudeLog: join(root, 'nep-claude.jsonl'),
+    mailLog: join(root, 'nep-mail.jsonl'),
+    mailShellLog: join(root, 'nep-mail-shell.jsonl'),
     opruimen: () => rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
   };
 }
@@ -88,6 +96,8 @@ export interface StartOpties {
    * E2E-test zoekt echt bij PDOK, adressen zijn dan "niet gevonden". Zie `startNepPdok`.
    */
   pdokUrl?: string;
+  /** FAKE_MAIL_MODE (OFM-041, standaard `ok`; kommalijst = per aanroep). */
+  mailModus?: string;
 }
 
 export interface GestarteApp {
@@ -109,7 +119,14 @@ export function appOmgeving(mappen: TestMappen, opties: StartOpties = {}): Recor
     FAKE_CLAUDE_MODE: opties.modus ?? 'ok',
     FAKE_CLAUDE_LOG: mappen.claudeLog,
     OFFERTE_MAKER_PDOK_URL: opties.pdokUrl ?? GEEN_PDOK,
-    OFFERTE_MAKER_TESTHAAK: (opties.haken ?? [`vandaag=${TEST_VANDAAG}`]).join(','),
+    // OFM-041: altijd het nep-MAPI-script en de nep-shell, zodat geen test een echt mailprogramma opent.
+    OFFERTE_MAKER_MAIL_CMD: NEP_MAIL,
+    FAKE_MAIL_MODE: opties.mailModus ?? 'ok',
+    FAKE_MAIL_LOG: mappen.mailLog,
+    OFFERTE_MAKER_TESTHAAK: [
+      ...(opties.haken ?? [`vandaag=${TEST_VANDAAG}`]),
+      `mail-shell=${mappen.mailShellLog}`,
+    ].join(','),
   };
 }
 
