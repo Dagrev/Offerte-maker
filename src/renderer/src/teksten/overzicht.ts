@@ -54,6 +54,15 @@ export const overzicht = {
     status: 'Status',
   },
 
+  /** OFM-052: contextmenu op een rij (rechtermuisknop, Shift+F10, menutoets). De actienamen, vragen en
+   *  meldingen zijn die van het detailscherm (`nl.detail`). */
+  menu: {
+    label: (klant: string) => (klant ? `Acties voor ${klant}` : 'Acties voor deze offerte'),
+    status: 'Status',
+    nietDefinitief: 'Maak de offerte eerst definitief.',
+    conceptZelf: 'Concept zet de app zelf, zolang de offerte niet definitief is.',
+  },
+
   /** FE-014: "4 offertes · € 600 totaal · 1 akkoord" (enkelvoud bij 1, V-27). */
   samenvatting: (aantal: number, totaal: string, akkoord: number) =>
     `${aantal} ${aantal === 1 ? 'offerte' : 'offertes'} · ${totaal} totaal · ${akkoord} akkoord`,

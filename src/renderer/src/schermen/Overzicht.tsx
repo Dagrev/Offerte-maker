@@ -9,13 +9,20 @@ import { alsFout } from '../api/roep';
 import { ClaudeBolletje } from '../componenten/ClaudeBolletje';
 import { Foutmelding } from '../componenten/Foutmelding';
 import { Knop } from '../componenten/Knop';
-import { OfferteRij, offerteRijKolommen } from '../componenten/OfferteRij';
+import { OfferteRij, offerteRijKolommen, type RijMenu } from '../componenten/OfferteRij';
 import { PeriodeKiezer } from '../componenten/PeriodeKiezer';
 import { useNavigatie, type Weergave } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
 import { BedrijfHint } from './BedrijfHint';
+import { OfferteMenu } from './OfferteMenu';
 
-// Hoofdscherm (FO S1, UC-02, UC-03; TDO §8.2, §13.4). Eigenaar: OFM-009.
+// Hoofdscherm (FO S1, UC-02, UC-03; TDO §8.2, §13.4). Eigenaar: OFM-009. Contextmenu per rij: OFM-052.
+
+/** Wat een rij in de lijst kan: openen (klik) en het contextmenu (OFM-052). */
+interface RijActies {
+  opKies: (o: OfferteLijstItem) => void;
+  opMenu: (menu: RijMenu) => void;
+}
 
 const WEERGAVEN: Weergave[] = ['dag', 'week', 'maand', 'jaar'];
 const ZOEK_DEBOUNCE_MS = 200;
@@ -48,6 +55,14 @@ export function Overzicht() {
     offerte.status === 'concept' && offerte.totaalInclCent === null
       ? gaNaar({ scherm: 'wizard', offerteId: offerte.id })
       : gaNaar({ scherm: 'detail', offerteId: offerte.id });
+
+  // OFM-052: één contextmenu tegelijk; elk nieuw menu krijgt een eigen `OfferteMenu` (key = nr), dat
+  // na het sluiten blijft staan voor bevestigingen en foutmeldingen tot het volgende menu.
+  const [menu, setMenu] = useState<{ nr: number; doel: RijMenu } | null>(null);
+  const acties: RijActies = {
+    opKies: openOfferte,
+    opMenu: (doel) => setMenu((m) => ({ nr: (m?.nr ?? 0) + 1, doel })),
+  };
 
   const maakNieuw = () =>
     nieuw.mutate(undefined, {
@@ -108,8 +123,10 @@ export function Overzicht() {
         <ZoekVeld waarde={zoekInvoer} opWijzig={setZoekInvoer} />
       </div>
 
+      {menu && <OfferteMenu key={menu.nr} menu={menu.doel} />}
+
       {zoekend ? (
-        <Zoekresultaten tekst={zoekTekst} opKies={openOfferte} />
+        <Zoekresultaten tekst={zoekTekst} acties={acties} />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
@@ -157,7 +174,7 @@ export function Overzicht() {
               opSluit={() => setKiezerOpen(false)}
             />
           </div>
-          <Periodelijst weergave={weergave} datum={datum} opKies={openOfferte} />
+          <Periodelijst weergave={weergave} datum={datum} acties={acties} />
         </>
       )}
     </div>
@@ -198,15 +215,7 @@ function ZoekVeld({ waarde, opWijzig }: { waarde: string; opWijzig: (w: string) 
   );
 }
 
-function Periodelijst({
-  weergave,
-  datum,
-  opKies,
-}: {
-  weergave: Weergave;
-  datum: string;
-  opKies: (o: OfferteLijstItem) => void;
-}) {
+function Periodelijst({ weergave, datum, acties }: { weergave: Weergave; datum: string; acties: RijActies }) {
   const lijst = useOverzicht(weergave, datum);
   const gaNaar = useNavigatie((s) => s.gaNaar);
 
@@ -234,12 +243,12 @@ function Periodelijst({
                   {t.subtotaal(formatEuroHeel(groep.subtotaalCent))}
                 </span>
               </h3>
-              <Lijst items={groep.items} opKies={opKies} />
+              <Lijst items={groep.items} acties={acties} />
             </section>
           ))}
         </div>
       ) : (
-        <Lijst items={items} opKies={opKies} kop />
+        <Lijst items={items} acties={acties} kop />
       )}
       <footer className="mt-auto flex items-center justify-between gap-4 border-t border-rand pt-4">
         <p className="font-semibold">
@@ -255,7 +264,7 @@ function Periodelijst({
   );
 }
 
-function Zoekresultaten({ tekst, opKies }: { tekst: string; opKies: (o: OfferteLijstItem) => void }) {
+function Zoekresultaten({ tekst, acties }: { tekst: string; acties: RijActies }) {
   const zoek = useZoekOffertes(tekst);
   const gaNaar = useNavigatie((s) => s.gaNaar);
 
@@ -272,7 +281,7 @@ function Zoekresultaten({ tekst, opKies }: { tekst: string; opKies: (o: OfferteL
       <p role="status" className="font-semibold">
         {zoek.data.length === 0 ? t.geenTreffers : t.zoekResultaten(zoek.data.length)}
       </p>
-      {zoek.data.length > 0 && <Lijst items={zoek.data} opKies={opKies} kop />}
+      {zoek.data.length > 0 && <Lijst items={zoek.data} acties={acties} kop />}
       {zoek.data.length >= ZOEK_LIMIET && <p className="text-tekst-zacht">{t.zoekLimiet(ZOEK_LIMIET)}</p>}
       <footer className="mt-auto flex justify-end border-t border-rand pt-4">
         <PrullenbakKnop opKlik={() => gaNaar({ scherm: 'prullenbak' })} />
@@ -283,11 +292,11 @@ function Zoekresultaten({ tekst, opKies }: { tekst: string; opKies: (o: OfferteL
 
 function Lijst({
   items,
-  opKies,
+  acties,
   kop = false,
 }: {
   items: OfferteLijstItem[];
-  opKies: (o: OfferteLijstItem) => void;
+  acties: RijActies;
   kop?: boolean;
 }) {
   return (
@@ -305,7 +314,7 @@ function Lijst({
       <ul aria-label={t.titel} className="flex flex-col divide-y divide-rand">
         {items.map((item) => (
           <li key={item.id}>
-            <OfferteRij offerte={item} opKies={opKies} />
+            <OfferteRij offerte={item} opKies={acties.opKies} opMenu={acties.opMenu} />
           </li>
         ))}
       </ul>

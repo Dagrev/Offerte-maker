@@ -7,9 +7,19 @@ import { StatusLabel } from './StatusLabel';
 export const offerteRijKolommen =
   'grid grid-cols-[11rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.6fr)_10rem_8.5rem] items-center gap-4';
 
+/** Waar het contextmenu van een rij opengaat (OFM-052): positie in viewport-pixels en de rij zelf. */
+export interface RijMenu {
+  offerte: OfferteLijstItem;
+  positie: { x: number; y: number };
+  /** Voor de focus na Escape of een keuze. */
+  rij: HTMLElement;
+}
+
 export interface OfferteRijProps {
   offerte: OfferteLijstItem;
   opKies: (offerte: OfferteLijstItem) => void;
+  /** OFM-052: rechtermuisknop, Shift+F10 of de menutoets. */
+  opMenu?: (menu: RijMenu) => void;
 }
 
 /**
@@ -17,12 +27,30 @@ export interface OfferteRijProps {
  * omschrijving, totaal incl. btw in hele euro's (V-14) of "nog niet gemaakt", en het statuslabel.
  * De hele rij is één knop. Ook bruikbaar voor de prullenbak (OFM-016).
  */
-export function OfferteRij({ offerte, opKies }: OfferteRijProps) {
+export function OfferteRij({ offerte, opKies, opMenu }: OfferteRijProps) {
   const t = nl.overzicht;
+  /** Bij het toetsenbord (of een contextmenu-event zonder muispositie) opent het menu onder de rij. */
+  const bijRij = (rij: HTMLElement) => {
+    const r = rij.getBoundingClientRect();
+    return { x: r.left + 16, y: r.bottom };
+  };
   return (
     <button
       type="button"
       onClick={() => opKies(offerte)}
+      aria-keyshortcuts={opMenu ? 'Shift+F10' : undefined}
+      onContextMenu={(e) => {
+        if (!opMenu) return;
+        e.preventDefault();
+        const rij = e.currentTarget;
+        const muis = e.clientX !== 0 || e.clientY !== 0;
+        opMenu({ offerte, rij, positie: muis ? { x: e.clientX, y: e.clientY } : bijRij(rij) });
+      }}
+      onKeyDown={(e) => {
+        if (!opMenu || !(e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) return;
+        e.preventDefault();
+        opMenu({ offerte, rij: e.currentTarget, positie: bijRij(e.currentTarget) });
+      }}
       className={`${offerteRijKolommen} min-h-16 w-full rounded-knop px-4 py-3 text-left hover:bg-vlak`}
     >
       <span className={offerte.nummer ? 'font-semibold tabular-nums' : 'text-tekst-zacht'}>

@@ -3,13 +3,14 @@ import type { Status } from '@shared/types';
 import { useZetStatus } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
 import { Foutmelding } from '../../componenten/Foutmelding';
+import { STATUSSEN, statusKiesbaar } from '../../componenten/statusKeuze';
 import { nl } from '../../teksten/nl';
 
 // Vijf grote statusknoppen (FO UC-08, FE-060, §13.2). Concept is alleen een aanduiding; de andere vier
 // zijn te kiezen zodra de offerte definitief is. Een keuze wordt direct bewaard.
 
 const t = nl.detail;
-const STATUSSEN: Status[] = ['concept', 'klaar', 'verstuurd', 'akkoord', 'afgewezen'];
+// STATUSSEN en statusKiesbaar staan sinds OFM-052 in componenten/statusKeuze.ts (ook voor het contextmenu).
 
 const gekozenKleur: Record<Status, string> = {
   concept: 'bg-status-concept border-status-concept',
@@ -49,7 +50,7 @@ export function StatusKnoppen({
               key={s}
               type="button"
               aria-pressed={gekozen}
-              disabled={!definitief || s === 'concept' || zet.isPending}
+              disabled={!statusKiesbaar(s, definitief) || zet.isPending}
               onClick={() => s !== 'concept' && !gekozen && zet.mutate(s)}
               className={`inline-flex min-h-14 items-center justify-center gap-2 rounded-knop border-2 px-3 font-semibold disabled:cursor-not-allowed ${
                 gekozen
