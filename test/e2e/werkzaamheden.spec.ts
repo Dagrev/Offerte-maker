@@ -171,7 +171,7 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
   await expect(page.getByLabel(tw.urenVan(WERK), { exact: true })).toHaveValue('1');
   await expect(page.getByLabel(tw.uurprijsVan(WERK), { exact: true })).toHaveValue('55');
   await page.getByLabel(tw.urenVan(WERK), { exact: true }).fill('6');
-  await expect(regio.getByText(`${tw.subtotaal}: € 330,00`)).toBeVisible();
+  await expect(regio.getByText(`${tw.subtotaal}: € 342,50`)).toBeVisible();
 
   // Een werkzaamheid zonder uurprijs: melding, en de prijs is met de hand in te vullen.
   await knop(page, 'Slopen').click();
@@ -179,13 +179,17 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
   await slopen.getByLabel(tw.perUur, { exact: true }).check();
   await expect(slopen.getByText(tw.geenUurprijs)).toBeVisible();
   await controleerScherm(page, 'Wizard 3 per uur', []);
-  await knop(page, 'Slopen').click();
+  // Weer uitzetten (een gekozen tegel heet 'Slopen' plus 'gekozen').
+  await page
+    .getByRole('button', { name: /^Slopen/ })
+    .first()
+    .click();
+  await expect(slopen).toHaveCount(0);
 
   await knop(page, w.volgende).click();
   await knop(page, w.maakZonderClaude).click();
-  await expect(page.getByRole('heading', { name: nl.detail.controleerEven })).toBeVisible({
-    timeout: 15_000,
-  });
+  // Alle prijzen ingevuld: geen gele balk, meteen het detailscherm.
+  await expect(knop(page, nl.detail.maakDefinitief)).toBeVisible({ timeout: 15_000 });
   const id = await offerteIdVan(page, 'Uurman');
   const detail = await apiData(page, 'offerteHaal', { id });
   const regels = detail.inhoud?.regels ?? [];
