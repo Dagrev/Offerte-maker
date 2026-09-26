@@ -37,7 +37,13 @@ beforeEach(async () => {
 afterEach(() => t.opruimen());
 
 /** Maakt migratie 007 (OFM-049) ongedaan: de kolom `standaardkeuze` en zijn index weg. */
+/** Vóór OFM-047 (migratie 008): zonder `invoer_gewijzigd`; de versietabel mag blijven, 008 bouwt hem opnieuw. */
+function zonderInvoerGewijzigd(db: Database.Database): void {
+  db.exec('ALTER TABLE offertes DROP COLUMN invoer_gewijzigd');
+}
+
 function zonderStandaardkeuze(db: Database.Database): void {
+  zonderInvoerGewijzigd(db);
   db.exec(`
     DROP INDEX idx_keuzeopties_standaardkeuze;
     ALTER TABLE keuzeopties DROP COLUMN standaardkeuze;

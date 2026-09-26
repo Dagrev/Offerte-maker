@@ -194,6 +194,14 @@ describe('pasAanMetClaude (§10.7, FE-053)', { timeout: 30_000 }, () => {
     expect(privacylog()).toEqual([]);
   });
 
+  it('OFM-047: Maak opnieuw (maakOfferte met bestaande inhoud) → versie met bron wizard', async () => {
+    claude = gebruikNepClaude('ok');
+    const id = offerteMetInhoud();
+    await maakOfferte(id);
+    expect(versies(id).map((v) => v.bron)).toEqual(['agent', 'wizard']);
+    expect(rij(id).gewijzigd_na_definitief).toBe(0);
+  });
+
   it('geen inhoud of alleen spaties: VALIDATIE; één taak tegelijk per offerte', async () => {
     claude = gebruikNepClaude('traag');
     const leeg = nieuweOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
@@ -205,6 +213,15 @@ describe('pasAanMetClaude (§10.7, FE-053)', { timeout: 30_000 }, () => {
     // Terugzetten tijdens een lopende taak wordt ook geweigerd.
     const terug = maakIpcHandler('offerte:zetVersieTerug', offerteAgentHandlers['offerte:zetVersieTerug']);
     expect(await terug({} as IpcMainInvokeEvent, { id, versieId: versies(id)[0]?.id })).toMatchObject({
+      ok: false,
+      fout: { code: 'VALIDATIE', melding: 'Er wordt al aan deze offerte gewerkt.' },
+    });
+    // OFM-047: Maak opnieuw zonder Claude ook niet.
+    const zonder = maakIpcHandler(
+      'offerte:maakZonderClaude',
+      offerteAgentHandlers['offerte:maakZonderClaude'],
+    );
+    expect(await zonder({} as IpcMainInvokeEvent, { id })).toMatchObject({
       ok: false,
       fout: { code: 'VALIDATIE', melding: 'Er wordt al aan deze offerte gewerkt.' },
     });

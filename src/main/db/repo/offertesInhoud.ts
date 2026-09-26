@@ -14,7 +14,17 @@ import { database } from '../verbinding';
 // bewaren), OFM-017 (aanpassen, terugzetten) en OFM-025 (zonder Claude) breiden dit bestand uit.
 // `inhoud_json` bevat altijd plaatshouders, nooit klantgegevens (§11.4).
 
-export type VersieBron = 'agent' | 'agent_aanpassing' | 'handmatig' | 'terugzetten' | 'zonder_claude';
+export type VersieBron =
+  | 'agent'
+  | 'agent_aanpassing'
+  | 'handmatig'
+  | 'terugzetten'
+  | 'zonder_claude'
+  /** OFM-047: **Maak opnieuw** vanuit de wizard (aanpassen), met of zonder Claude; migratie 008. */
+  | 'wizard';
+
+/** Bronnen waarbij de inhoud uit de wizardinvoer is gemaakt: die wissen `invoer_gewijzigd` (OFM-047). */
+const UIT_INVOER: readonly VersieBron[] = ['agent', 'zonder_claude', 'wizard'];
 
 export interface OfferteVoorAgent {
   id: string;
@@ -70,7 +80,8 @@ export interface NieuweVersie {
 
 /**
  * Eén synchrone transactie (§10.7 stap 7): nieuwe `offerte_versies`-regel, `inhoud_json`,
- * `totaal_incl_cent`, `omschrijving_kort` en `bijgewerkt_op`. De status verandert niet.
+ * `totaal_incl_cent`, `omschrijving_kort` en `bijgewerkt_op`. De status verandert niet. Is de inhoud
+ * uit de wizardinvoer gemaakt (`agent`, `zonder_claude`, `wizard`), dan `invoer_gewijzigd = 0` (OFM-047).
  */
 export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { versieNr: number } {
   const db = database();
@@ -92,7 +103,8 @@ export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { ve
     ).run(randomUUID(), v.id, versieNr, v.bron, inhoudJson, tijd);
     db.prepare(
       `UPDATE offertes SET inhoud_json = ?, totaal_incl_cent = ?, omschrijving_kort = ?, wizard_stap = ?,
-         gewijzigd_na_definitief = CASE WHEN ? THEN 1 ELSE gewijzigd_na_definitief END, bijgewerkt_op = ?
+         gewijzigd_na_definitief = CASE WHEN ? THEN 1 ELSE gewijzigd_na_definitief END,
+         invoer_gewijzigd = CASE WHEN ? THEN 0 ELSE invoer_gewijzigd END, bijgewerkt_op = ?
        WHERE id = ?`,
     ).run(
       inhoudJson,
@@ -100,10 +112,44 @@ export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { ve
       omschrijvingKort(invoer, haalKeuzes()),
       v.wizardStap ?? rij.wizard_stap,
       v.gewijzigdNaDefinitief ? 1 : 0,
+      UIT_INVOER.includes(v.bron) ? 1 : 0,
       tijd,
       v.id,
     );
     return { versieNr };
+  })();
+}
+
+/**
+ * `offerte:maak` en `offerte:maakZonderClaude` (§10.7 stap 7, OFM-047): de nieuwe inhoud komt uit de
+ * wizardinvoer. Had de offerte nog geen inhoud, dan is de bron `agent` of `zonder_claude`; anders is
+ * het **Maak opnieuw** en wordt de bron `wizard`. Is de offerte al definitief (nummer of PDF), dan
+ * `gewijzigd_na_definitief = 1`: opnieuw definitief maken geeft een versieletter.
+ */
+export function bewaarVersieUitInvoer(
+  id: string,
+  inhoud: OfferteInhoud,
+  soort: 'agent' | 'zonder_claude',
+  nu: Date = new Date(),
+): { versieNr: number } {
+  const db = database();
+  return db.transaction(() => {
+    const rij = db.prepare('SELECT nummer, inhoud_json FROM offertes WHERE id = ?').get(id) as
+      | { nummer: string | null; inhoud_json: string | null }
+      | undefined;
+    if (!rij) throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.ongeldigeInvoer);
+    const heeftPdf =
+      db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(id) !== undefined;
+    return bewaarNieuweVersie(
+      {
+        id,
+        inhoud,
+        bron: rij.inhoud_json === null ? soort : 'wizard',
+        wizardStap: 4,
+        gewijzigdNaDefinitief: rij.nummer !== null || heeftPdf,
+      },
+      nu,
+    );
   })();
 }
 

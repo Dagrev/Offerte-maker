@@ -143,14 +143,14 @@ describe('maakOfferte (§10.7)', { timeout: 30_000 }, () => {
     expect(isBezig(id)).toBe(false);
   });
 
-  it('opnieuw maken geeft een tweede versie met bron agent', async () => {
+  it('opnieuw maken geeft een tweede versie; sinds OFM-047 met bron wizard (Maak opnieuw)', async () => {
     claude = gebruikNepClaude('ok');
     const id = offerteMet();
     await maakOfferte(id);
     await maakOfferte(id);
     expect(versies(id)).toEqual([
       { versie_nr: 1, bron: 'agent' },
-      { versie_nr: 2, bron: 'agent' },
+      { versie_nr: 2, bron: 'wizard' },
     ]);
   });
 

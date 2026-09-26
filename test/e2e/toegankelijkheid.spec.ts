@@ -112,7 +112,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
   await dialoog(page, d.verwijderen, d.nee, 'Detail modaal Verwijderen');
 
   // Bewerken.
-  await knop(page, d.aanpassen).click();
+  await knop(page, d.regelsBewerken).click();
   await expect(page.getByRole('heading', { name: nl.bewerken.titel, level: 1 })).toBeVisible();
   await controleerScherm(page, 'Bewerken', uitkomsten);
   await knop(page, nl.bewerken.annuleren).click();

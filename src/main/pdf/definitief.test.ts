@@ -299,12 +299,14 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
     expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001');
   });
 
-  it('na definitief weigert bewaarInvoer (§12.3)', async () => {
+  it('OFM-047: na definitief mag bewaarInvoer (aanpassen via de wizard); een wijziging vraagt een nieuwe PDF', async () => {
     const a = offerte();
     await maakDefinitief(a, nepRenderer);
-    expect(() => bewaarInvoer({ id: a, wizardStap: 3 }, 30)).toThrow(
-      'Deze offerte is al definitief; pas de offerte aan of maak een kopie.',
-    );
+    bewaarInvoer({ id: a, wizardStap: 3 }, 30);
+    expect(rij(a).gewijzigd_na_definitief).toBe(0);
+    bewaarInvoer({ id: a, offertedatum: '2026-09-30' }, 30);
+    expect(rij(a).gewijzigd_na_definitief).toBe(1);
+    expect(rij(a).status).toBe('klaar');
   });
 });
 

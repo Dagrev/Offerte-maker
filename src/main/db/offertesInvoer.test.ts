@@ -13,7 +13,7 @@ vi.mock('../testhaken', () => ({
   testhaak: (naam: string) => haken.waarden.get(naam) ?? false,
 }));
 
-const { bewaarInvoer, haalOfferte, maakOfferte, MELDING_AL_DEFINITIEF } =
+const { bewaarInvoer, haalOfferte, maakOfferte } =
   await import('./repo/offertesInvoer');
 const { wijzigInstelling } = await import('./repo/instellingen');
 const { offerteInvoerHandlers } = await import('../ipc/offerteInvoer');
@@ -283,29 +283,60 @@ describe('bewaarInvoer (offerte:bewaarInvoer)', () => {
     );
   });
 
-  it('weigert als de offerte al definitief is (nummer of PDF)', () => {
-    const metNummer = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
-    t.db
-      .prepare(
-        "UPDATE offertes SET nummer = '2026-001', jaar = 2026, volgnummer = 1, status = 'klaar' WHERE id = ?",
-      )
-      .run(metNummer);
-    expect(() => bewaarInvoer({ id: metNummer, wizardStap: 2 }, 30, NU)).toThrow(MELDING_AL_DEFINITIEF);
+  describe('OFM-047: aanpassen via de wizard', () => {
+    const metInhoud = (id: string) =>
+      t.db
+        .prepare(
+          `UPDATE offertes SET inhoud_json = '{"titel":"x","inleiding":"","werkomschrijving":[],"regels":[],"uitvoering":"","opmerkingen":"","afsluiting":"","controlepunten":[]}'
+           WHERE id = ?`,
+        )
+        .run(id);
+    const vlaggen = (id: string) => [rij(id)['invoer_gewijzigd'], rij(id)['gewijzigd_na_definitief']];
 
-    const metPdf = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
-    t.db
-      .prepare(
-        "INSERT INTO pdf_bestanden (id, offerte_id, versieletter, pad, aangemaakt_op) VALUES ('p', ?, '', 'x.pdf', 'x')",
-      )
-      .run(metPdf);
-    try {
-      bewaarInvoer({ id: metPdf, wizardStap: 2 }, 30, NU);
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(AppFout);
-      expect((e as AppFout).code).toBe('VALIDATIE');
-    }
-    expect(rij(metPdf)['wizard_stap']).toBe(1);
+    it('zonder inhoud: geen vlaggen, ook niet bij een echte wijziging', () => {
+      const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+      bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), overig: 'iets' } }, 30, NU);
+      expect(vlaggen(id)).toEqual([0, 0]);
+      expect(haalOfferte(id).invoerGewijzigd).toBe(false);
+    });
+
+    it('concept met inhoud: invoer anders → invoer_gewijzigd; alleen stap, klant of dezelfde invoer niet', () => {
+      const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+      metInhoud(id);
+      const opgeslagen = haalOfferte(id).invoer;
+      bewaarInvoer({ id, wizardStap: 3, invoer: { ...opgeslagen } }, 30, NU);
+      bewaarInvoer({ id, klant: { ...legeKlant(), achternaam: 'Anders' } }, 30, NU);
+      expect(vlaggen(id)).toEqual([0, 0]);
+      bewaarInvoer({ id, invoer: { ...opgeslagen, overig: 'nieuw' } }, 30, NU);
+      expect(vlaggen(id)).toEqual([1, 0]);
+      expect(haalOfferte(id).invoerGewijzigd).toBe(true);
+    });
+
+    it('definitief (nummer of PDF): bewaren mag; een echte wijziging zet ook gewijzigd_na_definitief', () => {
+      const metNummer = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+      metInhoud(metNummer);
+      t.db
+        .prepare(
+          "UPDATE offertes SET nummer = '2026-001', jaar = 2026, volgnummer = 1, status = 'verstuurd' WHERE id = ?",
+        )
+        .run(metNummer);
+      bewaarInvoer({ id: metNummer, wizardStap: 2 }, 30, NU);
+      expect(rij(metNummer)['wizard_stap']).toBe(2);
+      expect(vlaggen(metNummer)).toEqual([0, 0]);
+      bewaarInvoer({ id: metNummer, offertedatum: '2026-09-30' }, 30, NU);
+      expect(vlaggen(metNummer)).toEqual([0, 1]);
+      expect(rij(metNummer)['status']).toBe('verstuurd');
+
+      const metPdf = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+      metInhoud(metPdf);
+      t.db
+        .prepare(
+          "INSERT INTO pdf_bestanden (id, offerte_id, versieletter, pad, aangemaakt_op) VALUES ('p', ?, '', 'x.pdf', 'x')",
+        )
+        .run(metPdf);
+      bewaarInvoer({ id: metPdf, invoer: { ...haalOfferte(metPdf).invoer, overig: 'groter' } }, 30, NU);
+      expect(vlaggen(metPdf)).toEqual([1, 1]);
+    });
   });
 });
 

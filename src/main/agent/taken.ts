@@ -5,7 +5,7 @@ import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
 import { haalKeuzes } from '../db/repo/keuzeopties';
 import { haalWerkzaamheden } from '../db/repo/werkzaamheden';
-import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
+import { bewaarNieuweVersie, bewaarVersieUitInvoer, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspost, haalPrijspostOpSleutel, prijslijstVoorAgent } from '../db/repo/prijsposten';
 import { schrijfLogregel, type Logregel } from '../db/repo/privacylog';
 import { log } from '../log';
@@ -363,7 +363,8 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
       prijspost: haalPrijspost,
       vastePrijzen: vastePrijzen(klus),
     });
-    bewaarNieuweVersie({ id, inhoud, bron: 'agent', wizardStap: 4 });
+    // OFM-047: had de offerte al inhoud, dan is dit Maak opnieuw (bron `wizard`).
+    bewaarVersieUitInvoer(id, inhoud, 'agent');
     return { controlepunten: inhoud.controlepunten.length };
   });
 }

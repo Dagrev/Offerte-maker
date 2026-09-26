@@ -23,7 +23,13 @@ export const detail = {
   geschattePrijs: (omschrijving: string, prijs: string, eenheid: Eenheid) =>
     `Geschatte prijs: ${omschrijving} (${prijs} per ${eenheid}).`,
 
+  /** OFM-047: opent de wizard met de opgeslagen invoer (hoofdknop). */
   aanpassen: 'Aanpassen',
+  /** OFM-047: het oude Bewerken-scherm (OFM-014) voor een kleine tekst- of prijscorrectie. */
+  regelsBewerken: 'Regels bewerken',
+  /** OFM-047: gele regel na Terug naar de offerte zonder opnieuw maken. */
+  invoerGewijzigd: 'Invoer gewijzigd, offerte nog niet opnieuw gemaakt',
+  maakOpnieuw: 'Maak opnieuw',
   laatClaudeAanpassen: 'Laat Claude aanpassen',
   maakDefinitief: 'Maak definitief',
   pdfWordtGemaakt: 'De PDF wordt gemaakt…',
@@ -74,6 +80,7 @@ export const detail = {
     handmatig: 'Zelf aangepast',
     terugzetten: 'Teruggezet',
     zonder_claude: 'Gemaakt zonder Claude',
+    wizard: 'Opnieuw gemaakt na aanpassen',
   } as Record<string, string>,
 
   /** Offerte zonder inhoud (nog niet gemaakt). */

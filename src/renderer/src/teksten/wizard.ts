@@ -2,6 +2,11 @@
 // Alleen het eigenaarticket vult deze module. Keuzelabels komen uit `@shared/labels` (§9.1).
 export const wizard = {
   titel: 'Nieuwe offerte',
+  /** OFM-047: aanpasmodus (de offerte heeft al inhoud). */
+  titelAanpassen: 'Offerte aanpassen',
+  terugNaarOfferte: 'Terug naar de offerte',
+  maakOpnieuw: 'Maak opnieuw',
+  maakOpnieuwZonderClaude: 'Maak opnieuw zonder Claude',
   stappen: ['Klant', 'Het dak', 'Werkzaamheden', 'Overig en maken'] as const,
   terugNaarOverzicht: 'Terug naar overzicht',
   vorige: 'Vorige',

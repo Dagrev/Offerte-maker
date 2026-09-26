@@ -1,7 +1,7 @@
 import { maakInhoudZonderClaude } from '@shared/zonderClaude';
 import { haalInstelling } from '../db/repo/instellingen';
 import { haalKeuzes } from '../db/repo/keuzeopties';
-import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
+import { bewaarVersieUitInvoer, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspostOpSleutel } from '../db/repo/prijsposten';
 import { haalWerkzaamheden } from '../db/repo/werkzaamheden';
 import { log } from '../log';
@@ -23,7 +23,8 @@ export function maakZonderClaude(id: string): { controlepunten: number } {
   });
   // Opslaginvariant (§11.4): `overig` en andere velden kunnen klantgegevens bevatten.
   const opgeslagen = terugNaarPlaatshouders(inhoud, offerte.klant);
-  bewaarNieuweVersie({ id, inhoud: opgeslagen, bron: 'zonder_claude', wizardStap: 4 });
+  // OFM-047: had de offerte al inhoud, dan is dit Maak opnieuw zonder Claude (bron `wizard`).
+  bewaarVersieUitInvoer(id, opgeslagen, 'zonder_claude');
   log.info(
     `zonder Claude: ${opgeslagen.regels.length} regels, ${opgeslagen.controlepunten.length} controlepunten`,
   );

@@ -200,6 +200,39 @@ describe('migreer', () => {
     expect(klant('kapot')).toBe('geen json');
   });
 
+  it('008: versies blijven byte-gelijk, bron wizard mag, invoer_gewijzigd 0, cascade werkt (OFM-047)', async () => {
+    t = await maakTestDatabase({ migreren: false });
+    const alle = laadMigraties(
+      import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
+    );
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr < 8), backup: () => Promise.resolve() });
+    t.db
+      .prepare(
+        `INSERT INTO offertes (id, status, offertedatum, geldig_tot, klant_json, invoer_json, inhoud_json, aangemaakt_op, bijgewerkt_op)
+         VALUES ('o', 'klaar', '2026-09-01', '2026-10-01', '{}', '{}', '{"titel":"x"}', 'x', 'x')`,
+      )
+      .run();
+    const versie = t.db.prepare(
+      'INSERT INTO offerte_versies (id, offerte_id, versie_nr, bron, inhoud_json, aangemaakt_op) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+    versie.run('v1', 'o', 1, 'agent', '{"titel":"x"}', 't1');
+    versie.run('v2', 'o', 2, 'handmatig', '{"titel":"y"}', 't2');
+    expect(() => versie.run('v3', 'o', 3, 'wizard', '{}', 't3')).toThrow(/CHECK/);
+    const voor = t.db.prepare('SELECT * FROM offerte_versies ORDER BY versie_nr').all();
+
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 8), backup: () => Promise.resolve() });
+    expect(t.db.prepare('SELECT * FROM offerte_versies ORDER BY versie_nr').all()).toEqual(voor);
+    versie.run('v3', 'o', 3, 'wizard', '{}', 't3');
+    expect(() => versie.run('v4', 'o', 4, 'onbekend', '{}', 't4')).toThrow(/CHECK/);
+    expect(() => versie.run('v5', 'o', 3, 'wizard', '{}', 't5')).toThrow(/UNIQUE/);
+    expect(t.db.prepare("SELECT invoer_gewijzigd FROM offertes WHERE id = 'o'").get()).toEqual({
+      invoer_gewijzigd: 0,
+    });
+    expect(t.db.pragma('foreign_key_check')).toEqual([]);
+    t.db.prepare("DELETE FROM offertes WHERE id = 'o'").run();
+    expect(t.db.prepare('SELECT COUNT(*) AS n FROM offerte_versies').get()).toEqual({ n: 0 });
+  });
+
   it('007: standaardkeuze = de oude vaste waarden (hoogte 1, garantie 10), eigen opties niet (OFM-049)', async () => {
     t = await maakTestDatabase({ migreren: false });
     const alle = laadMigraties(

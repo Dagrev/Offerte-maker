@@ -231,6 +231,8 @@ export const offerteDetailSchema = z.object({
   ),
   pdfs: z.array(z.object({ versieletter: z.string(), pad: z.string(), aangemaaktOp: z.string() })),
   gewijzigdNaDefinitief: z.boolean(),
+  /** OFM-047: de invoer is veranderd sinds de inhoud er het laatst uit is gemaakt (gele regel op Detail). */
+  invoerGewijzigd: z.boolean(),
 });
 
 // ---------- §4.3 Instellingen (met standaardwaarden; ontbrekend = standaard) ----------

@@ -42,7 +42,10 @@ function alsStap(n: number): WizardStap {
   return n <= 1 ? 1 : n >= 4 ? 4 : (n as WizardStap);
 }
 
-/** Wizard nieuwe offerte (FO UC-04, S2; TDO §13.4). Opent op de stap uit de store of de opgeslagen stap. */
+/**
+ * Wizard nieuwe offerte (FO UC-04, S2; TDO §13.4). Opent op de stap uit de store of de opgeslagen stap.
+ * Sinds OFM-047 ook "Offerte aanpassen" (FO UC-06): zelfde stappen voor een offerte die al inhoud heeft.
+ */
 export function Wizard() {
   const offerteId = useNavigatie((s) => s.offerteId);
   const gaNaar = useNavigatie((s) => s.gaNaar);
@@ -98,10 +101,10 @@ export function Wizard() {
   );
 }
 
-function TerugKnop({ opKlik }: { opKlik: () => void }) {
+function TerugKnop({ opKlik, label = t.terugNaarOverzicht }: { opKlik: () => void; label?: string }) {
   return (
     <div>
-      <Knop label={t.terugNaarOverzicht} icoon={ArrowLeft} onClick={opKlik} />
+      <Knop label={label} icoon={ArrowLeft} onClick={opKlik} />
     </div>
   );
 }
@@ -211,9 +214,20 @@ function WizardFormulier({
     window.scrollTo({ top: 0 });
   };
 
+  // OFM-047: aanpasmodus zodra de offerte al inhoud heeft (Aanpassen op het detailscherm, of terug van
+  // een mislukte Maak opnieuw). Afgeleid uit de offerte zelf, niet uit de navigatie: zo klopt het ook
+  // na een herstart of na terugkomen via het Bezig-scherm.
+  const aanpassen = detail.inhoud !== null;
+
   const terug = () => {
     void bewaar.nu();
     gaNaar({ scherm: 'overzicht' });
+  };
+
+  /** OFM-047: Terug naar de offerte zonder opnieuw maken; de invoer is bewaard, de inhoud niet veranderd. */
+  const terugNaarOfferte = async () => {
+    await bewaar.nu();
+    gaNaar({ scherm: 'detail', offerteId: detail.id });
   };
 
   const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
@@ -231,10 +245,14 @@ function WizardFormulier({
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 p-10 pb-16">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <TerugKnop opKlik={terug} />
+        {aanpassen ? (
+          <TerugKnop opKlik={() => void terugNaarOfferte()} label={t.terugNaarOfferte} />
+        ) : (
+          <TerugKnop opKlik={terug} />
+        )}
         <BewaardIndicator signaal={bewaar.signaal} />
       </div>
-      <h1 className="text-3xl font-semibold">{t.titel}</h1>
+      <h1 className="text-3xl font-semibold">{aanpassen ? t.titelAanpassen : t.titel}</h1>
       <Stappenbalk
         stappen={t.stappen}
         huidig={stap}
@@ -290,6 +308,17 @@ function WizardFormulier({
         {stap > 1 ? <Knop label={t.vorige} icoon={ArrowLeft} onClick={() => naarStap(stap - 1)} /> : <span />}
         {stap < 4 ? (
           <Knop label={t.volgende} variant="hoofd" icoon={ArrowRight} onClick={() => naarStap(stap + 1)} />
+        ) : aanpassen ? (
+          // OFM-047: Maak opnieuw geeft een nieuwe versie (bron `wizard`); Terug laat de inhoud staan.
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <Knop label={t.terugNaarOfferte} icoon={ArrowLeft} onClick={() => void terugNaarOfferte()} />
+            <Knop
+              label={t.maakOpnieuwZonderClaude}
+              icoon={FileText}
+              onClick={() => void maak('zonder_claude')}
+            />
+            <Knop label={t.maakOpnieuw} variant="hoofd" icoon={Sparkles} onClick={() => void maak()} />
+          </div>
         ) : (
           <div className="flex flex-wrap items-center gap-4">
             {/* OFM-039: altijd, als tweede knop naast Maak de offerte (was V-09: alleen na een fout). */}

@@ -23,9 +23,6 @@ import { database } from '../verbinding';
 // Offerte aanmaken, ophalen en de wizardinvoer bewaren (TDO §6.2, §6.3, §8.2, V-12). Eigenaar: OFM-010.
 // Tijdstippen als ISO-tekst (`toISOString`); datums van de offerte als `YYYY-MM-DD` uit `vandaag()`.
 
-/** §12.3: na definitief mag de wizardinvoer niet meer veranderen. */
-export const MELDING_AL_DEFINITIEF = 'Deze offerte is al definitief; pas de offerte aan of maak een kopie.';
-
 interface OfferteRij {
   id: string;
   status: string;
@@ -37,13 +34,14 @@ interface OfferteRij {
   invoer_json: string;
   inhoud_json: string | null;
   gewijzigd_na_definitief: number;
+  invoer_gewijzigd: number;
 }
 
 function haalRij(id: string): OfferteRij {
   const rij = database()
     .prepare(
       `SELECT id, status, nummer, offertedatum, geldig_tot, wizard_stap, klant_json, invoer_json, inhoud_json,
-              gewijzigd_na_definitief
+              gewijzigd_na_definitief, invoer_gewijzigd
        FROM offertes WHERE id = ?`,
     )
     .get(id) as OfferteRij | undefined;
@@ -131,6 +129,8 @@ export function haalOfferte(id: string): OfferteDetail {
     versies,
     pdfs,
     gewijzigdNaDefinitief: rij.gewijzigd_na_definitief === 1,
+    // OFM-047: invoer veranderd sinds de inhoud er het laatst uit is gemaakt (alleen met inhoud).
+    invoerGewijzigd: opgeslagen !== null && rij.invoer_gewijzigd === 1,
   };
 }
 
@@ -155,13 +155,21 @@ export interface InvoerWijziging {
 /**
  * `offerte:bewaarInvoer`: werkt alleen de meegegeven delen bij en zet de afgeleide velden opnieuw
  * (V-12): `zoektekst`, `omschrijving_kort`, `bijgewerkt_op`, en `geldig_tot` bij een nieuwe datum.
+ *
+ * Sinds OFM-047 (aanpassen via de wizard) ook bij een definitieve offerte. Een echte wijziging:
+ * - van de invoer bij een offerte met inhoud → `invoer_gewijzigd = 1` (gele regel op het detailscherm
+ *   tot **Maak opnieuw**); klant en datum niet, want die staan als plaatshouder in de inhoud;
+ * - van klant, invoer of datum bij een definitieve offerte (nummer of PDF) →
+ *   `gewijzigd_na_definitief = 1`, want de PDF op schijf klopt dan niet meer.
+ * Alleen een andere wizardstap is geen wijziging.
  */
 export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Date = new Date()): void {
   const db = database();
   db.transaction(() => {
     const rij = haalRij(w.id);
-    const heeftPdf = db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(w.id);
-    if (rij.nummer !== null || heeftPdf) throw new AppFout('VALIDATIE', MELDING_AL_DEFINITIEF);
+    const heeftPdf =
+      db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(w.id) !== undefined;
+    const definitief = rij.nummer !== null || heeftPdf;
 
     const opgeslagenKlant = klantSchema.parse(JSON.parse(rij.klant_json));
     const klant = w.klant ? gecontroleerdeKlant(w.klant, opgeslagenKlant) : opgeslagenKlant;
@@ -175,9 +183,16 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
     const geldigTot =
       w.offertedatum !== undefined ? berekenGeldigTot(w.offertedatum, geldigheidDagen) : rij.geldig_tot;
 
+    // Vergelijken via het schema, zodat alleen een echte wijziging telt (niet de volgorde van sleutels).
+    const invoerAnders = JSON.stringify(klusInvoerSchema.parse(invoer)) !== JSON.stringify(opgeslagen);
+    const klantAnders = JSON.stringify(klant) !== JSON.stringify(opgeslagenKlant);
+    const iets = invoerAnders || klantAnders || offertedatum !== rij.offertedatum;
+
     db.prepare(
       `UPDATE offertes SET klant_json = ?, invoer_json = ?, wizard_stap = ?, offertedatum = ?, geldig_tot = ?,
-         omschrijving_kort = ?, zoektekst = ?, bijgewerkt_op = ?
+         omschrijving_kort = ?, zoektekst = ?,
+         invoer_gewijzigd = CASE WHEN ? THEN 1 ELSE invoer_gewijzigd END,
+         gewijzigd_na_definitief = CASE WHEN ? THEN 1 ELSE gewijzigd_na_definitief END, bijgewerkt_op = ?
        WHERE id = ?`,
     ).run(
       JSON.stringify(klant),
@@ -187,6 +202,8 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
       geldigTot,
       omschrijvingKort(invoer, haalKeuzes()),
       zoektekstVan(klant, rij.nummer),
+      invoerAnders && rij.inhoud_json !== null ? 1 : 0,
+      iets && definitief ? 1 : 0,
       nu.toISOString(),
       w.id,
     );

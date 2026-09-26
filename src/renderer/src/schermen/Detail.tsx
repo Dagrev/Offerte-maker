@@ -1,4 +1,14 @@
-import { ArrowLeft, FileCheck, FileText, FolderOpen, Pencil, Printer } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  FileCheck,
+  FileText,
+  FolderOpen,
+  ListChecks,
+  Pencil,
+  Printer,
+  Sparkles,
+} from 'lucide-react';
 import { formatEuro } from '@shared/formatteer';
 import { klantWeergave } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
@@ -96,6 +106,24 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
       <div className="flex flex-col gap-4">
         <TerugKnop opKlik={terug} />
         {storeFout && <Foutmelding fout={storeFout} />}
+        {/* OFM-047: invoer aangepast in de wizard maar niet opnieuw gemaakt. Maak opnieuw start de
+            agent; bij een fout gaat het Bezig-scherm terug naar wizardstap 4 (met Maak opnieuw zonder
+            Claude). De regel verdwijnt zodra de inhoud opnieuw uit de invoer is gemaakt. */}
+        {detail.invoerGewijzigd && (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-5 py-3 text-waarschuwing">
+            <p className="flex items-center gap-3 font-semibold">
+              <AlertTriangle aria-hidden="true" className="size-6 shrink-0" />
+              {t.invoerGewijzigd}
+            </p>
+            <Knop
+              label={t.maakOpnieuw}
+              icoon={Sparkles}
+              onClick={() =>
+                gaNaar({ scherm: 'bezig', bezig: { id: detail.id, soort: 'maken', terugNaar: 'wizard' } })
+              }
+            />
+          </div>
+        )}
         <GeleBalk
           titel={t.controleerEven}
           punten={punten}
@@ -171,9 +199,18 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
                 onClick={() => definitief.mutate()}
               />
             )}
+            {/* OFM-047: Aanpassen opent de wizard met de opgeslagen invoer; Regels bewerken is het oude
+                Bewerken-scherm (OFM-014) voor een kleine correctie zonder opnieuw te maken. */}
             <Knop
               label={t.aanpassen}
               icoon={Pencil}
+              variant={nogDefinitiefMaken ? 'secundair' : 'hoofd'}
+              breed
+              onClick={() => gaNaar({ scherm: 'wizard', offerteId: detail.id, wizardStap: 1 })}
+            />
+            <Knop
+              label={t.regelsBewerken}
+              icoon={ListChecks}
               breed
               onClick={() => gaNaar({ scherm: 'bewerken', offerteId: detail.id })}
             />

@@ -48,6 +48,9 @@ export const offerteAgentHandlers: DomeinHandlers<Kanalen> = {
     return zetVersieTerug(id, versieId);
   },
   'offerte:maakZonderClaude': ({ id }) => {
+    // OFM-047: Maak opnieuw zonder Claude mag niet terwijl de agent aan deze offerte werkt; het
+    // antwoord van de agent zou de versie direct overschrijven (zoals bij terugzetten).
+    if (isBezig(id)) throw new AppFout('VALIDATIE', MELDING_AL_BEZIG);
     controleerVolledig(id);
     return maakZonderClaude(id);
   },

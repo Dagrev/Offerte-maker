@@ -70,7 +70,7 @@ test('gele balk: in- en uitklappen, keuze onthouden, voorbeeld zichtbaar op 1024
   const toon = geleBalk.getByRole('button', { name: d.toonPunten });
   await expect(toon).toHaveAttribute('aria-expanded', 'false');
   await expect(geleBalk.getByRole('listitem')).toHaveCount(0);
-  await page.getByRole('button', { name: d.aanpassen, exact: true }).click();
+  await page.getByRole('button', { name: d.regelsBewerken, exact: true }).click();
   // Een controlepunt weghalen in Bewerken: het aantal in de kop loopt mee, de keuze blijft.
   await page.getByRole('button', { name: nl.bewerken.controlepuntVerwijderen(1) }).click();
   await page.getByRole('button', { name: nl.bewerken.klaar, exact: true }).click();

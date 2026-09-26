@@ -146,4 +146,37 @@ describe('offerte:maakZonderClaude (FE-110)', () => {
       expect(await handler({} as never, invoer)).toMatchObject({ ok: false, fout: { code: 'VALIDATIE' } });
     }
   });
+
+  it('OFM-047: Maak opnieuw na een invoerwijziging → bron wizard, vlag weg; definitief → gewijzigd_na_definitief', async () => {
+    const id = offerte('');
+    await handler({} as never, { id });
+    const bronnen = () =>
+      (
+        db.db
+          .prepare('SELECT bron FROM offerte_versies WHERE offerte_id = ? ORDER BY versie_nr')
+          .all(id) as { bron: string }[]
+      ).map((r) => r.bron);
+    const vlaggen = () =>
+      db.db
+        .prepare('SELECT invoer_gewijzigd AS i, gewijzigd_na_definitief AS g FROM offertes WHERE id = ?')
+        .get(id);
+    // Definitief maken nabootsen: nummer en PDF.
+    db.db
+      .prepare(
+        "UPDATE offertes SET nummer = '2026-09-25-001', jaar = 2026, volgnummer = 1, status = 'klaar' WHERE id = ?",
+      )
+      .run(id);
+    db.db
+      .prepare(
+        "INSERT INTO pdf_bestanden (id, offerte_id, versieletter, pad, aangemaakt_op) VALUES ('p1', ?, '', 'x.pdf', 'x')",
+      )
+      .run(id);
+    const invoer = maakInvoer({ soortWerk: 'dak_vervangen', soortDak: 'plat', steigerNodig: false });
+    bewaarInvoer({ id, invoer }, 30);
+    expect(vlaggen()).toEqual({ i: 1, g: 1 });
+    expect(await handler({} as never, { id })).toMatchObject({ ok: true });
+    expect(bronnen()).toEqual(['zonder_claude', 'wizard']);
+    expect(vlaggen()).toEqual({ i: 0, g: 1 });
+    expect(rij(id).status).toBe('klaar');
+  });
 });
