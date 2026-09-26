@@ -100,7 +100,6 @@ function samenvatting(
   voeg(s.telefoon, klant.telefoon.trim());
   voeg(s.email, klant.email.trim());
 
-  voeg(s.soortWerk, invoer.soortWerk && label('soortWerk', invoer.soortWerk));
   voeg(s.soortDak, invoer.soortDak && hoofdletter(label('soortDak', invoer.soortDak)));
   const m2 = totaalM2(invoer.dakvlakken);
   if (m2 > 0) {
@@ -115,6 +114,10 @@ function samenvatting(
   voeg(s.huidigeBedekking, invoer.huidigeBedekking && label('huidigeBedekking', invoer.huidigeBedekking));
   voeg(s.ondergrond, invoer.ondergrond && label('ondergrond', invoer.ondergrond));
   voeg(s.hoogte, invoer.hoogte && label('hoogte', invoer.hoogte));
+
+  // OFM-050: soort werk en de nieuwe dakbedekking staan in stap 3, dus na het huidige dak.
+  voeg(s.soortWerk, invoer.soortWerk && label('soortWerk', invoer.soortWerk));
+  voeg(s.nieuweBedekking, invoer.nieuweBedekking && label('nieuweBedekking', invoer.nieuweBedekking));
 
   // OFM-044: per werkzaamheid het aantal, de materialen en opties en het subtotaal.
   const werk = werkGroepen(invoer.werkzaamheden, catalogus)

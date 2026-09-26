@@ -1,12 +1,18 @@
 import type { KeuzeLijst } from '@shared/types';
 
 // Interfacetekst van Instellingen › Keuzelijsten (OFM-034, NFE-006, V-11).
+
+/** OFM-050: bij de lijsten van stap 2 (het huidige dak). */
+const ZIN_HINT =
+  'Met Zin in de offerte beschrijf je de huidige situatie. Maak zonder Claude zet de zinnen van de gekozen keuzes als eerste stap in de werkomschrijving ("Huidige situatie"); Claude krijgt ze ook. Laat het veld leeg als er niets over te zeggen is.';
+
 export const keuzelijsten = {
   uitleg:
     'Dit zijn de keuzes in de wizard. Een nieuwe naam geldt meteen overal, ook in bestaande offertes. Een keuze die in een offerte staat kun je niet verwijderen, wel verbergen. Met Standaard kies je waarmee een nieuwe offerte begint.',
   kiesLijst: 'Welke lijst',
   lijst: {
     soortWerk: 'Soort werk',
+    nieuweBedekking: 'Nieuwe dakbedekking',
     soortDak: 'Soort dak',
     huidigeBedekking: 'Huidige dakbedekking',
     ondergrond: 'Ondergrond',
@@ -15,11 +21,25 @@ export const keuzelijsten = {
   } satisfies Record<KeuzeLijst, string>,
   /** Extra uitleg bij sommige lijsten. */
   lijstHint: {
+    // OFM-050
+    soortWerk:
+      'Met het vinkje Vraagt nieuwe dakbedekking kies je in stap 3 van de wizard ook de nieuwe dakbedekking.',
+    nieuweBedekking:
+      'Wordt gevraagd in stap 3 bij een soort werk met het vinkje Vraagt nieuwe dakbedekking. Het materiaal met dezelfde naam wordt dan bij de werkzaamheden voorgeselecteerd (Bitumen, EPDM en PVC uit de standaardlijst; bij een eigen keuze een materiaal met dezelfde naam).',
+    soortDak: ZIN_HINT,
+    huidigeBedekking: ZIN_HINT,
+    ondergrond: ZIN_HINT,
+    hoogte: ZIN_HINT,
     garantie:
       'De teksten voor 10 en 20 jaar staan bij Teksten. Bij een nieuwe keuze komt op de offerte: "Op de uitgevoerde werkzaamheden geven wij garantie: <naam>."',
   } satisfies Partial<Record<KeuzeLijst, string>>,
   naam: 'Naam',
   naamVan: (label: string) => `Naam van ${label}`,
+  /** OFM-050 */
+  zinVan: (label: string) => `Zin in de offerte bij ${label}`,
+  zinPlaatshouder: 'Zin in de offerte (leeg = geen zin)',
+  vraagtBedekking: 'Vraagt nieuwe dakbedekking',
+  bijOptie: (label: string) => ` bij ${label}`,
   naamFout: 'Vul een naam in.',
   omhoog: (label: string) => `${label} omhoog`,
   omlaag: (label: string) => `${label} omlaag`,

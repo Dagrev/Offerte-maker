@@ -62,6 +62,7 @@ export const klantSchema = z.object({
  */
 export const keuzeSleutelSchema = z.string().regex(KEUZE_SLEUTEL_PATROON);
 export const soortWerkSchema = keuzeSleutelSchema;
+export const nieuweBedekkingSchema = keuzeSleutelSchema;
 export const soortDakSchema = keuzeSleutelSchema;
 export const huidigeBedekkingSchema = keuzeSleutelSchema;
 export const ondergrondSchema = keuzeSleutelSchema;
@@ -132,6 +133,11 @@ export const gekozenWerkzaamheidSchema = z
  */
 export const klusInvoerSchema = z.object({
   soortWerk: soortWerkSchema.nullable(),
+  /**
+   * OFM-050: sleutel uit de lijst `nieuweBedekking` (stap 3, alleen bij een soort werk die erom vraagt).
+   * Migratie 009 vulde hem voor bestaande offertes; ontbrekend (bijv. oudere back-up) = `null`.
+   */
+  nieuweBedekking: nieuweBedekkingSchema.nullable().default(null),
   soortDak: soortDakSchema.nullable(),
   dakvlakken: z.array(dakvlakSchema).max(20),
   huidigeBedekking: huidigeBedekkingSchema.nullable(),
@@ -466,6 +472,10 @@ export const keuzeoptieSchema = z.object({
    * verwijderen. Vervangt `vast` (OFM-034, vaste waarden in de code).
    */
   standaardkeuze: z.boolean(),
+  /** OFM-050: "Zin in de offerte" (beginsituatie); `''` = geen. Alleen gebruikt in `ZIN_LIJSTEN`. */
+  zin: z.string(),
+  /** OFM-050: alleen bij soort werk: vraagt om een nieuwe dakbedekking. */
+  vraagtBedekking: z.boolean(),
   /** Komt voor in een niet-verwijderde offerte: niet te verwijderen, wel te verbergen. */
   inGebruik: z.boolean(),
 });
@@ -663,6 +673,10 @@ export const invoerSchemas = {
           verborgen: z.boolean(),
           /** OFM-049: hoogstens één optie per lijst; geen enkele = geen standaard. */
           standaardkeuze: z.boolean(),
+          /** OFM-050; weglaten = niet wijzigen (nieuw: geen zin). */
+          zin: z.string().max(300).optional(),
+          /** OFM-050; weglaten = niet wijzigen (nieuw: nee). */
+          vraagtBedekking: z.boolean().optional(),
         }),
       )
       .max(100)

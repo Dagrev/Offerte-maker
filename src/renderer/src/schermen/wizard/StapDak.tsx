@@ -20,7 +20,7 @@ import {
 import { aantalNaarHonderdsten, totaalM2 } from '@shared/calc/bedragen';
 import { formatM2 } from '@shared/formatteer';
 import { MAX_DAKVLAKKEN, nieuwDakvlak } from '@shared/nieuweOfferte';
-import type { Dakvlak, Keuzelijsten, KlusInvoer, SoortWerk } from '@shared/types';
+import type { Dakvlak, Keuzelijsten, KlusInvoer } from '@shared/types';
 import { GetalVeld } from '../../componenten/GetalVeld';
 import { Kaart } from '../../componenten/Kaart';
 import { Knop } from '../../componenten/Knop';
@@ -42,10 +42,12 @@ export const SOORT_WERK_ICONEN: Record<string, LucideIcon> = {
   onderhoud: Sparkles,
 };
 
-/** Huidige dakbedekking alleen bij vervangen en reparatie (FO UC-04); geldt voor die twee sleutels. */
-export function vraagtHuidigeBedekking(soortWerk: SoortWerk | null): boolean {
-  return soortWerk === 'dak_vervangen' || soortWerk === 'reparatie';
-}
+/** Iconen van de nieuwe dakbedekking (stap 3, OFM-050). */
+export const BEDEKKING_ICONEN: Record<string, LucideIcon> = {
+  bitumen: Layers,
+  epdm: SquareStack,
+  pvc: Square,
+};
 
 export interface StapDakProps {
   invoer: KlusInvoer;
@@ -55,8 +57,9 @@ export interface StapDakProps {
 }
 
 /**
- * Stap 2 (FE-022, FE-023, OFM-044): soort dak, dakvlakken, huidige bedekking, ondergrond en hoogte. De
- * huidige bedekking staat er zolang er nog geen soort werk is gekozen, of bij vervangen en reparatie.
+ * Stap 2 Het huidige dak (FE-022, FE-023, OFM-044, OFM-050): soort dak, dakvlakken, huidige bedekking,
+ * ondergrond en hoogte. Alles beschrijft de beginsituatie; de huidige bedekking staat er sinds OFM-050
+ * altijd (soort werk en de nieuwe bedekking staan in stap 3).
  */
 export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
   return (
@@ -73,19 +76,17 @@ export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
       <Dakvlakken vlakken={invoer.dakvlakken} opWijzig={(dakvlakken) => opWijzig({ dakvlakken })} />
 
       <Kaart>
-        {(invoer.soortWerk === null || vraagtHuidigeBedekking(invoer.soortWerk)) && (
-          <TegelKeuze
-            label={t.huidigeBedekking}
-            opties={keuzeTegels(k.huidigeBedekking, invoer.huidigeBedekking, {
-              bitumen: Layers,
-              epdm: SquareStack,
-              grind_op_bitumen: Hammer,
-              onbekend: HelpCircle,
-            })}
-            waarde={invoer.huidigeBedekking}
-            opKies={(huidigeBedekking) => opWijzig({ huidigeBedekking })}
-          />
-        )}
+        <TegelKeuze
+          label={t.huidigeBedekking}
+          opties={keuzeTegels(k.huidigeBedekking, invoer.huidigeBedekking, {
+            bitumen: Layers,
+            epdm: SquareStack,
+            grind_op_bitumen: Hammer,
+            onbekend: HelpCircle,
+          })}
+          waarde={invoer.huidigeBedekking}
+          opKies={(huidigeBedekking) => opWijzig({ huidigeBedekking })}
+        />
         <TegelKeuze
           label={t.ondergrond}
           opties={keuzeTegels(k.ondergrond, invoer.ondergrond, {

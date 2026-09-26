@@ -3,7 +3,7 @@ import { differenceInCalendarDays } from 'date-fns';
 import { AlertTriangle, ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide-react';
 import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
-import { alsKeuzes } from '@shared/keuzelijsten';
+import { alsKeuzes, vraagtNieuweBedekking } from '@shared/keuzelijsten';
 import type {
   GekozenWerkzaamheid,
   Keuzelijsten,
@@ -203,7 +203,9 @@ function WizardFormulier({
 
   // OFM-035: live de punten die nog ontbreken of ongeldig zijn; ze blokkeren alleen het maken.
   const werkLabel = (w: GekozenWerkzaamheid) => werkInfo(set, w).label;
-  const punten = wizardPunten(klant, invoer, verplicht, werkLabel);
+  // OFM-050: de nieuwe dakbedekking telt alleen bij een soort werk die erom vraagt.
+  const vraagtBedekking = (soortWerk: string) => vraagtNieuweBedekking(keuzelijsten, soortWerk);
+  const punten = wizardPunten(klant, invoer, verplicht, werkLabel, vraagtBedekking);
 
   /** Naar een andere stap: altijd toegestaan (OFM-035). Direct bewaren (FE-025). */
   const naarStap = (doel: number) => {
@@ -231,7 +233,7 @@ function WizardFormulier({
   };
 
   const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
-    if (wizardPunten(klantRef.current, invoerRef.current, verplicht, werkLabel).length > 0) {
+    if (wizardPunten(klantRef.current, invoerRef.current, verplicht, werkLabel, vraagtBedekking).length > 0) {
       setToonFouten(true);
       setToonSamenvatting(true);
       return;
