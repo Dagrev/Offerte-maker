@@ -56,27 +56,27 @@ afterEach(() => rmSync(nep.tmp, { recursive: true, force: true }));
 
 describe('pdfBestandsnaam (FE-056)', () => {
   it('nummer en naam, ongeldige tekens en controletekens worden -', () => {
-    expect(m.pdfBestandsnaam('2026-003', maakKlant({ naam: 'Jansen/de Vries' }))).toBe(
+    expect(m.pdfBestandsnaam('2026-003', maakKlant({ achternaam: 'Jansen/de Vries' }))).toBe(
       '2026-003 Jansen-de Vries.pdf',
     );
-    expect(m.pdfBestandsnaam('2026-003', maakKlant({ naam: 'a<>:"\\|?*\tb' }))).toBe(
+    expect(m.pdfBestandsnaam('2026-003', maakKlant({ achternaam: 'a<>:"\\|?*\tb' }))).toBe(
       '2026-003 a---------b.pdf',
     );
   });
   it('bedrijfsnaam alleen bij aanhef bedrijf en als ingevuld', () => {
-    expect(m.pdfBestandsnaam('1', maakKlant({ aanhef: 'bedrijf', naam: 'Piet', bedrijfsnaam: 'Bouw' }))).toBe(
-      '1 Bouw.pdf',
-    );
-    expect(m.pdfBestandsnaam('1', maakKlant({ aanhef: 'bedrijf', naam: 'Piet', bedrijfsnaam: ' ' }))).toBe(
-      '1 Piet.pdf',
-    );
-    expect(m.pdfBestandsnaam('1', maakKlant({ aanhef: 'dhr', naam: 'Piet', bedrijfsnaam: 'Bouw' }))).toBe(
-      '1 Piet.pdf',
-    );
+    expect(
+      m.pdfBestandsnaam('1', maakKlant({ aanhef: 'bedrijf', achternaam: 'Piet', bedrijfsnaam: 'Bouw' })),
+    ).toBe('1 Bouw.pdf');
+    expect(
+      m.pdfBestandsnaam('1', maakKlant({ aanhef: 'bedrijf', achternaam: 'Piet', bedrijfsnaam: ' ' })),
+    ).toBe('1 Piet.pdf');
+    expect(
+      m.pdfBestandsnaam('1', maakKlant({ aanhef: 'dhr', achternaam: 'Piet', bedrijfsnaam: 'Bouw' })),
+    ).toBe('1 Piet.pdf');
   });
   it('lege naam en maximaal 150 tekens', () => {
-    expect(m.pdfBestandsnaam('2026-001', maakKlant({ naam: '' }))).toBe('2026-001.pdf');
-    const lang = m.pdfBestandsnaam('2026-001', maakKlant({ naam: 'x'.repeat(400) }));
+    expect(m.pdfBestandsnaam('2026-001', maakKlant({ achternaam: '' }))).toBe('2026-001.pdf');
+    const lang = m.pdfBestandsnaam('2026-001', maakKlant({ achternaam: 'x'.repeat(400) }));
     expect(lang).toHaveLength(150);
     expect(lang.endsWith('.pdf')).toBe(true);
   });

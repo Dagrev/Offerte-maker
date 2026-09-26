@@ -43,7 +43,7 @@ describe('verbinding', () => {
 });
 
 describe('migratiebestanden', () => {
-  it.each(['001_basis.sql', '002_keuzelijsten.sql', '004_werkzaamheden.sql'])(
+  it.each(['001_basis.sql', '002_keuzelijsten.sql', '003_naam.sql', '004_werkzaamheden.sql'])(
     '%s bevat geen INSERTs (V-13)',
     (naam) => {
       const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
@@ -133,6 +133,7 @@ describe('migreer', () => {
       import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
     );
     await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 1), backup: () => Promise.resolve() });
+    const tot2 = alle.filter((mig) => mig.nr <= 2);
     const invoer = (garantie: unknown) => JSON.stringify({ garantieJaren: garantie, isolatie: 'geen' });
     const zet = t.db.prepare(
       `INSERT INTO offertes (id, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
@@ -141,7 +142,11 @@ describe('migreer', () => {
     zet.run('tien', invoer(10));
     zet.run('twintig', invoer(20));
     const backup = vi.fn(() => Promise.resolve());
-    expect(await migreer(t.db, { backup })).toEqual({ van: 1, naar: SCHEMA_VERSIE, backupGemaakt: true });
+    expect(await migreer(t.db, { migraties: tot2, backup })).toEqual({
+      van: 1,
+      naar: 2,
+      backupGemaakt: true,
+    });
     expect(backup).toHaveBeenCalledWith('voor-migratie');
     const garantie = (id: string) =>
       (
@@ -153,6 +158,36 @@ describe('migreer', () => {
     expect(garantie('tien')).toBe('10');
     expect(garantie('twintig')).toBe('20');
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
+  });
+
+  it('003: naam wordt achternaam, voornaam leeg, voor elke offerte (OFM-038)', async () => {
+    t = await maakTestDatabase({ migreren: false });
+    const alle = laadMigraties(
+      import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
+    );
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr <= 2), backup: () => Promise.resolve() });
+    const zet = t.db.prepare(
+      `INSERT INTO offertes (id, status, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
+       VALUES (?, ?, '2026-09-01', '2026-10-01', ?, '{}', 'x', 'x')`,
+    );
+    zet.run('concept', 'concept', JSON.stringify({ aanhef: 'dhr', naam: 'Piet Jansen', bedrijfsnaam: '' }));
+    zet.run('klaar', 'klaar', JSON.stringify({ aanhef: 'fam', naam: 'de Vries', bedrijfsnaam: '' }));
+    zet.run('al-nieuw', 'concept', JSON.stringify({ aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Bos' }));
+    zet.run('kapot', 'concept', 'geen json');
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 3), backup: () => Promise.resolve() });
+    const klant = (id: string) =>
+      (t!.db.prepare('SELECT klant_json FROM offertes WHERE id = ?').get(id) as { klant_json: string })
+        .klant_json;
+    expect(JSON.parse(klant('concept'))).toEqual({
+      aanhef: 'dhr',
+      voornaam: '',
+      achternaam: 'Piet Jansen',
+      bedrijfsnaam: '',
+    });
+    expect(JSON.parse(klant('klaar'))).toMatchObject({ voornaam: '', achternaam: 'de Vries' });
+    expect(JSON.parse(klant('klaar'))).not.toHaveProperty('naam');
+    expect(JSON.parse(klant('al-nieuw'))).toEqual({ aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Bos' });
+    expect(klant('kapot')).toBe('geen json');
   });
 
   it('niets te doen: geen back-up, versie blijft', async () => {

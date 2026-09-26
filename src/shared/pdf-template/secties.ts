@@ -1,6 +1,6 @@
 import { regelbedragCent } from '../calc/bedragen';
 import { formatAantal, formatDatum, formatDatumLang, formatEuro } from '../formatteer';
-import { klantWeergave } from '../labels';
+import { klantWeergave, naamMetVoorletters } from '../labels';
 import type { Bedrijf, Klant } from '../types';
 import { telefoonWeergave } from '../validatie';
 import type { PdfModel } from './render';
@@ -94,9 +94,12 @@ export function kop(m: PdfModel): string {
   );
 }
 
-/** Klantblok (V-22): bedrijf → bedrijfsnaam + "t.a.v. <naam>"; anders `<Dhr./Mevr./Fam.> <naam>`. */
+/**
+ * Klantblok (V-22, OFM-038): bedrijf → bedrijfsnaam + "t.a.v. J. Jansen"; anders
+ * `<Dhr./Mevr.> J. Jansen` of `Fam. Jansen`.
+ */
 export function klantRegels(klant: Klant): string[] {
-  const naam = klant.naam.trim();
+  const naam = naamMetVoorletters(klant);
   const eerste = klantWeergave(klant);
   const tav =
     klant.aanhef === 'bedrijf' && klant.bedrijfsnaam.trim() !== '' && naam !== '' ? [`t.a.v. ${naam}`] : [];

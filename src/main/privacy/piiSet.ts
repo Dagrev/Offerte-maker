@@ -1,4 +1,5 @@
 import type { Klant } from '@shared/types';
+import { volledigeNaam } from '@shared/labels';
 import { VERWIJDERD } from './patronen';
 
 // PII-set per klant (TDO §11.1, V-02). Alles wat het filter (§11.2) en de eindcontrole (§11.3)
@@ -103,10 +104,13 @@ export function bouwPiiSet(klant: Klant): PiiWaarde[] {
     if (w.length >= minLengte) set.push({ waarde: w, plaatshouder, hoofdlettergevoelig, soort: 'tekst' });
   };
 
-  // naam: volledig (≥ 2), elk woord ≥ 3 dat geen tussenvoegsel is
-  voegToe(klant.naam, '[KLANT_NAAM]', 2);
-  for (const w of woorden(klant.naam)) {
-    if (!TUSSENVOEGSELS.includes(w.toLowerCase())) voegToe(w, '[KLANT_NAAM]', 3);
+  // naam (OFM-038): voornaam, achternaam en de combinatie volledig (≥ 2), elk woord ≥ 3 dat geen
+  // tussenvoegsel is. Dubbele waarden (bijv. bij een lege voornaam) haalt `uniek` weg.
+  for (const naam of [volledigeNaam(klant), klant.voornaam, klant.achternaam]) {
+    voegToe(naam, '[KLANT_NAAM]', 2);
+    for (const w of woorden(naam)) {
+      if (!TUSSENVOEGSELS.includes(w.toLowerCase())) voegToe(w, '[KLANT_NAAM]', 3);
+    }
   }
 
   // bedrijfsnaam: volledig (≥ 2), elk woord ≥ 4 behalve de algemene bedrijfswoorden

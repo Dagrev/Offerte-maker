@@ -1,5 +1,5 @@
 import type { Klant, OfferteLijstItem, OverzichtResultaat, Status } from '@shared/types';
-import { klantWeergave } from '@shared/labels';
+import { klantWeergave, volledigeNaam } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
 import { periodeVan, type Weergave } from '@shared/periode';
 import { database } from '../verbinding';
@@ -49,12 +49,16 @@ function klantVoorLijst(klantJson: string): { weergave: string; plaats: string }
     // Onleesbare klantgegevens: lege naam tonen in plaats van de hele lijst te laten falen.
   }
   const aanhef = ruw['aanhef'] as Klant['aanhef'];
-  const naam = tekst(ruw['naam']);
+  // OFM-038: voor- en achternaam; een rij van vóór migratie 003 met alleen `naam` telt als achternaam.
+  const voornaam = tekst(ruw['voornaam']);
+  const achternaam = tekst(ruw['achternaam'] ?? ruw['naam']);
   const bedrijfsnaam = tekst(ruw['bedrijfsnaam']);
   const adres =
     ruw['adres'] && typeof ruw['adres'] === 'object' ? (ruw['adres'] as Record<string, unknown>) : {};
   return {
-    weergave: AANHEFFEN.has(aanhef) ? klantWeergave({ aanhef, naam, bedrijfsnaam }) : naam.trim(),
+    weergave: AANHEFFEN.has(aanhef)
+      ? klantWeergave({ aanhef, voornaam, achternaam, bedrijfsnaam })
+      : volledigeNaam({ voornaam, achternaam }),
     // De plaats van de klant (verplicht in wizardstap 1), ook als het werk op een ander adres is.
     plaats: tekst(adres['plaats']).trim(),
   };

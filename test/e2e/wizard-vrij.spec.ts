@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { WIZARD_PUNT_TEKSTEN } from '../../src/shared/teksten/wizardPunten';
+import { VERPLICHT_VELDEN, type Verplicht } from '../../src/shared/verplicht';
 import { nl } from '../../src/renderer/src/teksten/nl';
 import {
   apiData,
@@ -32,6 +33,10 @@ test.afterEach(async () => {
 });
 
 const w = nl.wizard;
+const alleenAchternaam: Verplicht = {
+  ...(Object.fromEntries(VERPLICHT_VELDEN.map((v) => [v, false])) as Verplicht),
+  achternaam: true,
+};
 const knop = (page: Page, naam: string) => page.getByRole('button', { name: naam, exact: true });
 const kop = (page: Page, stap: number) =>
   page.getByRole('heading', { name: `${stap}. ${w.stappen[stap - 1]}` });
@@ -40,6 +45,10 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
   gestart = await startApp(mappen);
   const { page } = gestart;
   await overslaanWelkom(page);
+  // OFM-038: in stap 1 alleen de achternaam verplicht (de standaard is alles van stap 1; zie
+  // verplicht.spec.ts), zodat dit scenario over het vrij navigeren gaat.
+  await apiData(page, 'instellingenBewaar', { sleutel: 'verplicht', waarde: alleenAchternaam });
+  await page.reload(); // de renderer heeft de instellingen al in zijn cache
   await knop(page, nl.overzicht.nieuweOfferte).click();
   await expect(kop(page, 1)).toBeVisible();
 
@@ -61,7 +70,7 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
   const samenvatting = page.getByRole('alert').filter({ hasText: w.punten.kop });
   await expect(samenvatting).toBeVisible();
   await expect(samenvatting.getByRole('listitem')).toHaveText([
-    new RegExp(WIZARD_PUNT_TEKSTEN.naam),
+    new RegExp(WIZARD_PUNT_TEKSTEN.achternaam),
     new RegExp(WIZARD_PUNT_TEKSTEN.soortWerk),
     new RegExp(WIZARD_PUNT_TEKSTEN.dakvlak),
   ]);
@@ -69,11 +78,11 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
   const uitkomsten: Schermuitkomst[] = [];
   await controleerScherm(page, 'Wizard 4 met samenvatting', uitkomsten);
 
-  // Naar stap 1: naam invullen; de melding onder het veld staat er (na de poging).
+  // Naar stap 1: achternaam invullen; de melding onder het veld staat er (na de poging).
   await samenvatting.getByRole('button', { name: w.punten.naarStap(1) }).click();
   await expect(kop(page, 1)).toBeVisible();
-  await expect(page.getByText(w.klant.naamLeeg)).toBeVisible();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Vrij');
+  await expect(page.getByText(w.klant.veldLeeg)).toBeVisible();
+  await page.getByLabel(w.klant.achternaam, { exact: true }).fill('Vrij');
   // Main weigert het ook: offerte:maak en offerte:maakZonderClaude geven VALIDATIE met de punten.
   await expect.poll(() => offerteIdVan(page, 'Vrij').catch(() => '')).not.toBe('');
   const offerteId = await offerteIdVan(page, 'Vrij');

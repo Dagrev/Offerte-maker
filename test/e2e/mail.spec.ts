@@ -10,6 +10,7 @@ import {
   sluitApp,
   startApp,
   vulDakIn,
+  vulKlantIn,
   type GestarteApp,
   type TestMappen,
 } from '../helpers/e2e';
@@ -66,9 +67,7 @@ test('verstuur per e-mail: terugval, concept met bijlage en status, geen mailpro
 
   // Offerte met e-mailadres maken (nep-CLI) en definitief maken.
   await knop(page, nl.overzicht.nieuweOfferte).click();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Jansen');
-  await page.getByLabel(w.klant.email, { exact: true }).fill('jan@voorbeeld.nl');
-  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Eindhoven');
+  await vulKlantIn(page, { achternaam: 'Jansen', plaats: 'Eindhoven', email: 'jan@voorbeeld.nl' });
   await knop(page, w.volgende).click();
   await vulDakIn(page);
   await knop(page, w.volgende).click();
@@ -97,7 +96,7 @@ test('verstuur per e-mail: terugval, concept met bijlage en status, geen mailpro
   expect(url.startsWith('mailto:jan%40voorbeeld.nl?subject=')).toBe(true);
   expect(decodeURIComponent(url)).toContain('subject=Offerte 2026-09-25-001 van Dakwerken Test');
   expect(decodeURIComponent(url)).toContain('Beste Jansen, hierbij offerte 2026-09-25-001');
-  expect(shell[1]?.showItemInFolder?.endsWith('2026-09-25-001 Jansen.pdf')).toBe(true);
+  expect(shell[1]?.showItemInFolder?.endsWith('2026-09-25-001 Jan Jansen.pdf')).toBe(true);
 
   // 2. MAPI ok → concept met bijlage; vraag → Ja → status Verstuurd.
   await mail.click();
@@ -114,7 +113,7 @@ test('verstuur per e-mail: terugval, concept met bijlage en status, geen mailpro
   expect(concept?.tekst).toBe(
     'Geachte heer Jansen,\r\n\r\nBeste Jansen, hierbij offerte 2026-09-25-001 van Dakwerken Test, geldig tot 25 oktober 2026.',
   );
-  expect(concept?.pad.endsWith('2026-09-25-001 Jansen.pdf')).toBe(true);
+  expect(concept?.pad.endsWith('2026-09-25-001 Jan Jansen.pdf')).toBe(true);
   expect(existsSync(concept?.pad ?? '')).toBe(true);
   expect(regels(mappen.mailShellLog)).toHaveLength(2);
 

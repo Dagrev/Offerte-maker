@@ -3,6 +3,7 @@ import { FOUT_CODES } from './fouten';
 import { KEUZE_LIJSTEN, KEUZE_SLEUTEL_PATROON } from './keuzelijsten';
 import type { Kanaal } from './ipcKanalen';
 import { controleerPostcode, ontleedHuisnummer } from './validatie';
+import { STANDAARD_VERPLICHT, VERPLICHT_VELDEN, type VerplichtVeld } from './verplicht';
 
 // Zod-schema's: de bron voor alle domeintypes (TDO §5, §6.3, §4.3, V-15) en de invoer van elk
 // IPC-kanaal (§6.2, V-03). Types staan in types.ts en worden hier met z.infer van afgeleid.
@@ -26,10 +27,15 @@ export const adresSchema = z.object({
   plaats: z.string(),
 });
 
-/** Tekstvelden mogen leeg zijn: een half ingevuld concept wordt ook bewaard (FE-025). */
+/**
+ * Tekstvelden mogen leeg zijn: een half ingevuld concept wordt ook bewaard (FE-025). Sinds OFM-038
+ * voor- en achternaam apart (migratie 003 zette de oude `naam` in `achternaam`); bij aanhef `bedrijf`
+ * zijn ze de contactpersoon.
+ */
 export const klantSchema = z.object({
   aanhef: aanhefSchema,
-  naam: z.string(),
+  voornaam: z.string(),
+  achternaam: z.string(),
   bedrijfsnaam: z.string(),
   adres: adresSchema,
   telefoon: z.string(),
@@ -268,6 +274,17 @@ export const appInstellingSchema = z.object({
   laatsteClaudeFout: z.object({ code: foutCodeSchema, tijdstip: z.string() }).nullable().default(null),
 });
 
+/**
+ * Verplichte velden van de wizard (OFM-038): per veld `true`/`false`. Een ontbrekend veld (oude opslag
+ * of een later toegevoegd veld) krijgt de standaard uit `shared/verplicht.ts`.
+ */
+export const verplichtSchema = z.object(
+  Object.fromEntries(VERPLICHT_VELDEN.map((v) => [v, z.boolean().default(STANDAARD_VERPLICHT[v])])) as Record<
+    VerplichtVeld,
+    z.ZodDefault<z.ZodBoolean>
+  >,
+);
+
 /** Schema per instellingssleutel (§4.3). OFM-003 leest en valideert de instellingen hiermee. */
 export const instellingSchemas = {
   bedrijf: bedrijfSchema,
@@ -275,6 +292,7 @@ export const instellingSchemas = {
   teksten: tekstenSchema,
   claude: claudeInstellingSchema,
   app: appInstellingSchema,
+  verplicht: verplichtSchema,
 } as const;
 
 export type InstellingSleutel = keyof typeof instellingSchemas;
@@ -298,6 +316,7 @@ export const instellingenSchema = z.object({
     apiSleutelIngevuld: z.boolean(),
   }),
   app: z.object({ welkomVoltooid: z.boolean() }),
+  verplicht: verplichtSchema,
 });
 
 // ---------- V-15 en overige typen ----------
@@ -546,6 +565,7 @@ export const invoerSchemas = {
       sleutel: z.literal('claude'),
       waarde: z.object({ pad: claudePadSchema, model: z.string().min(1), effort: effortSchema }),
     }),
+    z.object({ sleutel: z.literal('verplicht'), waarde: verplichtSchema.required() }),
   ]),
   'instellingen:kiesLogo': geenInvoer,
   'instellingen:verwijderLogo': geenInvoer,

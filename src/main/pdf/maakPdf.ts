@@ -4,6 +4,7 @@ import { access, copyFile, mkdir, rename, rm, writeFile } from 'node:fs/promises
 import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
 import { AppFout } from '@shared/fouten';
+import { volledigeNaam } from '@shared/labels';
 import { escapeHtml, voettekstRegel } from '@shared/pdf-template/secties';
 import type { Bedrijf, Klant } from '@shared/types';
 import { paden } from '../paden';
@@ -43,14 +44,14 @@ const MAX_NAAM = 150;
 
 /**
  * §12.3 stap 5 / FE-056: `<nummer+versieletter> <klantnaam>.pdf`. Klantnaam = bedrijfsnaam bij aanhef
- * `bedrijf` (als ingevuld), anders de naam; `<>:"/\|?*` en controletekens → `-`; max. 150 tekens.
+ * `bedrijf` (als ingevuld), anders voor- en achternaam; `<>:"/\|?*` en controletekens → `-`; max. 150 tekens.
  */
 export function pdfBestandsnaam(
   nummer: string,
-  klant: Pick<Klant, 'aanhef' | 'naam' | 'bedrijfsnaam'>,
+  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'bedrijfsnaam'>,
 ): string {
   const bedrijf = klant.aanhef === 'bedrijf' ? klant.bedrijfsnaam.trim() : '';
-  const naam = (bedrijf || klant.naam.trim()).replace(/[<>:"/\\|?*\p{Cc}]/gu, '-');
+  const naam = (bedrijf || volledigeNaam(klant)).replace(/[<>:"/\\|?*\p{Cc}]/gu, '-');
   const basis = `${nummer} ${naam}`
     .trim()
     .slice(0, MAX_NAAM - '.pdf'.length)

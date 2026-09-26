@@ -9,6 +9,7 @@ import { bewerken } from './bewerken';
 import { instellingen } from './instellingen';
 import { keuzelijsten } from './keuzelijsten';
 import { werkzaamheden } from './werkzaamheden';
+import { verplicht } from './verplicht';
 import { voorbeelden } from './voorbeelden';
 import { claudeKoppeling } from './claudeKoppeling';
 import { privacylog } from './privacylog';
@@ -33,6 +34,7 @@ export const nl = {
   instellingen,
   keuzelijsten,
   werkzaamheden,
+  verplicht,
   voorbeelden,
   claudeKoppeling,
   privacylog,

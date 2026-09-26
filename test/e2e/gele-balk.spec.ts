@@ -46,7 +46,7 @@ test('gele balk: in- en uitklappen, keuze onthouden, voorbeeld zichtbaar op 1024
   });
   await expect.poll(() => vensterHoogte(page)).toBeLessThanOrEqual(700);
   await overslaanWelkom(page);
-  const id = await nieuweOfferteTotStap4(page, { naam: 'Balk', plaats: 'Eindhoven' });
+  const id = await nieuweOfferteTotStap4(page, { achternaam: 'Balk', plaats: 'Eindhoven' });
   await page.getByRole('button', { name: nl.wizard.maakDeOfferte }).click();
 
   // Drie punten: standaard uitgeklapt.

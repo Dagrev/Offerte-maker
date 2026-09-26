@@ -9,6 +9,7 @@ import {
   REPO,
   sluitApp,
   vulDakIn,
+  vulKlantIn,
   startApp,
   type GestarteApp,
   type TestMappen,
@@ -81,8 +82,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
   await knop(page, nl.overzicht.nieuweOfferte).click();
   await expect(page.getByRole('heading', { name: `1. ${wz.stappen[0]}` })).toBeVisible();
   await controleerScherm(page, 'Wizard 1 klant', uitkomsten);
-  await page.getByLabel(wz.klant.naam, { exact: true }).fill('Jansen');
-  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Eindhoven');
+  await vulKlantIn(page, { achternaam: 'Jansen', plaats: 'Eindhoven' });
   for (let stap = 2; stap <= 4; stap++) {
     await knop(page, wz.volgende).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${wz.stappen[stap - 1]}` })).toBeVisible();
@@ -140,6 +140,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     'prijzen',
     'keuzelijsten',
     'werkzaamheden',
+    'verplicht',
     'voorbeelden',
   ];
   for (const tab of hoofdtabs) {

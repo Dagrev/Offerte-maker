@@ -23,13 +23,17 @@ export const wizard = {
     privacy: 'Deze gegevens blijven op deze computer. Claude krijgt ze niet te zien.',
     aanhef: 'Aanhef',
     aanhefOpties: { dhr: 'Dhr.', mevr: 'Mevr.', fam: 'Fam.', bedrijf: 'Bedrijf' },
-    naam: 'Naam',
+    voornaam: 'Voornaam',
+    achternaam: 'Achternaam',
+    /** OFM-038: bij aanhef Bedrijf zijn voor- en achternaam de contactpersoon. */
+    contactpersoon: 'Contactpersoon',
     bedrijfsnaam: 'Bedrijfsnaam',
     telefoon: 'Telefoon',
     email: 'E-mail',
     anderWerkadres: 'Het werk is op een ander adres',
     werkadres: 'Werkadres',
-    naamLeeg: 'Vul de naam van de klant in',
+    /** OFM-038: onder een leeg verplicht veld, na een poging tot Maak de offerte. */
+    veldLeeg: 'Vul dit veld in; het is verplicht',
   },
 
   dak: {

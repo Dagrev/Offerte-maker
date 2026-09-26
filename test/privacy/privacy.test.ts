@@ -123,7 +123,9 @@ function ingevuldeWaarden(klant: Klant): { waarde: string; hoofdlettergevoelig: 
     return compact === '' ? [] : [compact, `${compact.slice(0, 4)} ${compact.slice(4)}`];
   });
   const ci = [
-    klant.naam,
+    klant.voornaam,
+    klant.achternaam,
+    `${klant.voornaam} ${klant.achternaam}`.trim(),
     klant.bedrijfsnaam,
     klant.adres.straatHuisnummer,
     klant.werkadres.straatHuisnummer,
@@ -209,7 +211,9 @@ describe('privacytestset (NFE-008)', () => {
 });
 
 describe('roundtrip (V-02, V-27)', () => {
-  const gevallen = testset.filter((g) => g.klant.naam !== '' || g.klant.adres.plaats !== '');
+  const gevallen = testset.filter(
+    (g) => g.klant.voornaam !== '' || g.klant.achternaam !== '' || g.klant.adres.plaats !== '',
+  );
 
   it('over minstens 20 gevallen', () => {
     expect(gevallen.length).toBeGreaterThanOrEqual(20);

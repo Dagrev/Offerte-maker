@@ -45,7 +45,7 @@ test('van welkom tot een akkoord-offerte met PDF', async () => {
   await page.getByRole('button', { name: w.klaar, exact: true }).click();
 
   // Hoofdscherm → wizard → maken.
-  await nieuweOfferteTotStap4(page, { naam: 'Jansen', plaats: 'Eindhoven' });
+  await nieuweOfferteTotStap4(page, { achternaam: 'Jansen', plaats: 'Eindhoven' });
   await page.getByRole('button', { name: nl.wizard.maakDeOfferte }).click();
   await expect(page.getByRole('heading', { name: nl.bezig.kop.maken })).toBeVisible();
 
@@ -64,7 +64,7 @@ test('van welkom tot een akkoord-offerte met PDF', async () => {
   await expect(page.getByRole('button', { name: d.openPdf })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible();
   const pdfs = readdirSync(join(mappen.docs, '2026')).filter((n) => n.endsWith('.pdf'));
-  expect(pdfs).toEqual(['2026-09-25-001 Jansen.pdf']);
+  expect(pdfs).toEqual(['2026-09-25-001 Jan Jansen.pdf']); // voor- en achternaam (OFM-038)
 
   // Status Akkoord.
   const akkoord = page.getByRole('button', { name: nl.componenten.status.akkoord });

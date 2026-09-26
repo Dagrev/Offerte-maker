@@ -102,7 +102,7 @@ describe('renderOfferteHtml', () => {
     const gevaarlijk = '<b>"Tom & Jerry"</b>';
     const html = renderOfferteHtml(
       model({
-        klant: klant({ naam: gevaarlijk }),
+        klant: klant({ achternaam: gevaarlijk }),
         inhoud: {
           ...VOORBEELD_INHOUD,
           titel: gevaarlijk,
@@ -187,23 +187,32 @@ describe('renderOfferteHtml', () => {
   });
 
   it('klantblok bij aanhef bedrijf en fam (V-22)', () => {
-    expect(klantRegels(klant({ aanhef: 'bedrijf', naam: 'P. Jansen', bedrijfsnaam: 'Jansen B.V.' }))).toEqual(
-      ['Jansen B.V.', 't.a.v. P. Jansen', 'Lindelaan 12', '5611 AB Eindhoven'],
-    );
+    expect(
+      klantRegels(
+        klant({ aanhef: 'bedrijf', voornaam: 'Piet', achternaam: 'Jansen', bedrijfsnaam: 'Jansen B.V.' }),
+      ),
+    ).toEqual(['Jansen B.V.', 't.a.v. P. Jansen', 'Lindelaan 12', '5611 AB Eindhoven']);
     expect(klantRegels(klant({ aanhef: 'fam' }))).toEqual([
       'Fam. De Vries',
       'Lindelaan 12',
       '5611 AB Eindhoven',
     ]);
     // Randgevallen: bedrijf zonder bedrijfsnaam, bedrijf zonder contactnaam.
-    expect(klantRegels(klant({ aanhef: 'bedrijf', naam: 'P. Jansen', bedrijfsnaam: ' ' }))[0]).toBe(
-      'P. Jansen',
-    );
-    expect(klantRegels(klant({ aanhef: 'bedrijf', naam: '', bedrijfsnaam: 'Jansen B.V.' }))).not.toContain(
-      't.a.v. ',
-    );
+    expect(
+      klantRegels(klant({ aanhef: 'bedrijf', voornaam: 'Piet', achternaam: 'Jansen', bedrijfsnaam: ' ' }))[0],
+    ).toBe('P. Jansen');
+    expect(
+      klantRegels(klant({ aanhef: 'bedrijf', voornaam: '', achternaam: '', bedrijfsnaam: 'Jansen B.V.' })),
+    ).not.toContain('t.a.v. ');
     const html = renderOfferteHtml(
-      model({ klant: klant({ aanhef: 'bedrijf', naam: 'P. Jansen', bedrijfsnaam: 'Jansen B.V.' }) }),
+      model({
+        klant: klant({
+          aanhef: 'bedrijf',
+          voornaam: 'Piet',
+          achternaam: 'Jansen',
+          bedrijfsnaam: 'Jansen B.V.',
+        }),
+      }),
       'pdf',
     );
     expect(html).toContain(

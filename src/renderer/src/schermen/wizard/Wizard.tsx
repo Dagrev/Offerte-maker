@@ -7,9 +7,17 @@ import { alsKeuzes } from '@shared/keuzelijsten';
 import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { bewaarbareKlant } from '@shared/validatie';
 import { puntTekst } from '@shared/teksten/wizardPunten';
-import { puntenPerStap, wizardPunten, type WizardPunt } from '@shared/wizardControle';
+import type { Verplicht } from '@shared/verplicht';
+import {
+  ontbrekendInStap1,
+  puntenPerStap,
+  puntSleutel,
+  wizardPunten,
+  type WizardPunt,
+} from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
+import { useInstellingen } from '../../api/instellingen';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
@@ -38,7 +46,9 @@ export function Wizard() {
   // Altijd vers ophalen: de formulierstate wordt één keer uit de database gevuld.
   const query = useOfferte(offerteId, { vers: true });
   const keuzelijsten = useKeuzelijsten();
-  const fout = query.isError ? query.error : keuzelijsten.isError ? keuzelijsten.error : null;
+  // OFM-038: welke velden verplicht zijn (Instellingen › Verplichte velden).
+  const instellingen = useInstellingen();
+  const fout = [query, keuzelijsten, instellingen].find((q) => q.isError)?.error ?? null;
 
   if (fout !== null) {
     return (
@@ -49,12 +59,13 @@ export function Wizard() {
           opnieuw={() => {
             void query.refetch();
             void keuzelijsten.refetch();
+            void instellingen.refetch();
           }}
         />
       </main>
     );
   }
-  if (!offerteId || !query.data || !query.isFetchedAfterMount || !keuzelijsten.data) {
+  if (!offerteId || !query.data || !query.isFetchedAfterMount || !keuzelijsten.data || !instellingen.data) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p role="status" className="text-tekst-zacht">
@@ -63,7 +74,14 @@ export function Wizard() {
       </main>
     );
   }
-  return <WizardFormulier key={offerteId} detail={query.data} keuzelijsten={keuzelijsten.data} />;
+  return (
+    <WizardFormulier
+      key={offerteId}
+      detail={query.data}
+      keuzelijsten={keuzelijsten.data}
+      verplicht={instellingen.data.verplicht}
+    />
+  );
 }
 
 function TerugKnop({ opKlik }: { opKlik: () => void }) {
@@ -91,10 +109,7 @@ function Samenvatting({ punten, opNaarStap }: { punten: WizardPunt[]; opNaarStap
       <p>{t.punten.uitleg}</p>
       <ul className="flex flex-col gap-3">
         {punten.map((punt) => (
-          <li
-            key={punt.soort === 'ongeldig' ? punt.veld : punt.soort}
-            className="flex flex-wrap items-center justify-between gap-3"
-          >
+          <li key={puntSleutel(punt)} className="flex flex-wrap items-center justify-between gap-3">
             <span className="font-semibold">{puntTekst(punt)}</span>
             <Knop
               label={t.punten.naarStap(punt.stap)}
@@ -108,7 +123,15 @@ function Samenvatting({ punten, opNaarStap }: { punten: WizardPunt[]; opNaarStap
   );
 }
 
-function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuzelijsten: Keuzelijsten }) {
+function WizardFormulier({
+  detail,
+  keuzelijsten,
+  verplicht,
+}: {
+  detail: OfferteDetail;
+  keuzelijsten: Keuzelijsten;
+  verplicht: Verplicht;
+}) {
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const vandaag = useNavigatie((s) => s.vandaag);
   const storeStap = useNavigatie((s) => s.wizardStap);
@@ -162,7 +185,7 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   };
 
   // OFM-035: live de punten die nog ontbreken of ongeldig zijn; ze blokkeren alleen het maken.
-  const punten = wizardPunten(klant, invoer);
+  const punten = wizardPunten(klant, invoer, verplicht);
 
   /** Naar een andere stap: altijd toegestaan (OFM-035). Direct bewaren (FE-025). */
   const naarStap = (doel: number) => {
@@ -179,7 +202,7 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   };
 
   const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
-    if (wizardPunten(klantRef.current, invoerRef.current).length > 0) {
+    if (wizardPunten(klantRef.current, invoerRef.current, verplicht).length > 0) {
       setToonFouten(true);
       setToonSamenvatting(true);
       return;
@@ -214,7 +237,14 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
         <h2 id="wizard-stap-titel" className="text-2xl font-semibold">
           {stap}. {t.stappen[stap - 1]}
         </h2>
-        {stap === 1 && <StapKlant klant={klant} opWijzig={wijzigKlant} toonFouten={toonFouten} />}
+        {stap === 1 && (
+          <StapKlant
+            klant={klant}
+            opWijzig={wijzigKlant}
+            toonFouten={toonFouten}
+            ontbrekend={ontbrekendInStap1(punten)}
+          />
+        )}
         {stap === 2 && <StapDak invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
         {stap === 3 && <StapExtras invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
         {stap === 4 && (

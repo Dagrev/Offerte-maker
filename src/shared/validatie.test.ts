@@ -171,7 +171,8 @@ describe('controleerTelefoon', () => {
 
 const klant: Klant = {
   ...legeKlant(),
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat  12', postcode: '5611ab', plaats: 'Eindhoven' },
   telefoon: '06-12345678',
   email: 'Jan@Voorbeeld.nl',
@@ -223,11 +224,11 @@ describe('controleerKlantVelden', () => {
 
   it('bewaarbareKlant: ongeldig veld krijgt de laatst bewaarde waarde, de rest gaat mee', () => {
     const basis: Klant = { ...klant, telefoon: '0612345678' };
-    const nieuw: Klant = { ...klant, naam: 'Pietersen', telefoon: '06123', email: 'x@' };
+    const nieuw: Klant = { ...klant, achternaam: 'Pietersen', telefoon: '06123', email: 'x@' };
     expect(bewaarbareKlant(nieuw, basis)).toEqual({ ...nieuw, telefoon: '0612345678', email: klant.email });
     // Oude ongeldige waarde die niet is aangeraakt blijft staan.
     const oud: Klant = { ...klant, telefoon: 'onbekend' };
-    expect(bewaarbareKlant({ ...oud, naam: 'Anders' }, oud).telefoon).toBe('onbekend');
+    expect(bewaarbareKlant({ ...oud, achternaam: 'Anders' }, oud).telefoon).toBe('onbekend');
     // Zonder werkadres wordt het werkadres niet gecontroleerd.
     const werk = { ...klant, werkadres: { straatHuisnummer: 'x', postcode: 'y', plaats: '' } };
     expect(bewaarbareKlant(werk, klant)).toEqual(werk);

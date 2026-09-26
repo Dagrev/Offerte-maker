@@ -385,7 +385,10 @@ describe('template (FE-083)', () => {
       zetTesthakenVoorTest(new Map());
       const offerte = () => {
         const id = nieuweOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
-        bewaarInvoer({ id, klant: maakKlant({ naam: 'Jansen' }), invoer: maakInvoer(), wizardStap: 4 }, 30);
+        bewaarInvoer(
+          { id, klant: maakKlant({ achternaam: 'Jansen' }), invoer: maakInvoer(), wizardStap: 4 },
+          30,
+        );
         return id;
       };
       const opdrachten = () =>

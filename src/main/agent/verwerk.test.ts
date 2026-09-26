@@ -17,7 +17,8 @@ const fixture = (): AgentUitvoer =>
   );
 
 const klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
 });

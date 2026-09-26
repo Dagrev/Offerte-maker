@@ -32,7 +32,8 @@ afterEach(() => {
 });
 
 const jansen: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: 'Piet',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
   email: 'jansen@mail.nl',
@@ -75,7 +76,9 @@ describe('offerte:maakZonderClaude (FE-110)', () => {
         code: 'VALIDATIE',
         melding:
           'De offerte kan nog niet worden gemaakt. Dit ontbreekt nog of klopt niet:\n' +
-          '- Naam van de klant ontbreekt\n- Soort werk is niet gekozen\n- Geen dakvlak ingevuld',
+          '- Voornaam ontbreekt\n- Achternaam ontbreekt\n- Postcode ontbreekt\n- Huisnummer ontbreekt\n' +
+          '- Straat ontbreekt\n- Plaats ontbreekt\n- Telefoon ontbreekt\n- E-mail ontbreekt\n' +
+          '- Soort werk is niet gekozen\n- Geen dakvlak ingevuld',
       },
     });
     expect(rij(id).inhoud_json).toBeNull();

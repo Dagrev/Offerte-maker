@@ -47,7 +47,8 @@ afterEach(() => {
 });
 
 const jansen: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
   email: 'jansen@mail.nl',

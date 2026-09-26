@@ -12,7 +12,8 @@ import {
 
 const klant: Klant = maakKlant({
   aanhef: 'dhr',
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   bedrijfsnaam: '',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
 });

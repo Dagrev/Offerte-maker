@@ -35,7 +35,7 @@ test('invoer overleeft een harde kill en het concept opent op stap 2', async () 
   await overslaanWelkom(page);
 
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Bakker');
+  await page.getByLabel(w.klant.achternaam, { exact: true }).fill('Bakker');
   await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Veldhoven');
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
@@ -64,7 +64,7 @@ test('invoer overleeft een harde kill en het concept opent op stap 2', async () 
   await expect(page.getByLabel(w.dak.breedte, { exact: true })).toHaveValue('5');
 
   const detail = await apiData(page, 'offerteHaal', { id: await offerteIdVan(page, 'Bakker') });
-  expect(detail.klant.naam).toBe('Bakker');
+  expect(detail.klant.achternaam).toBe('Bakker');
   expect(detail.klant.adres.plaats).toBe('Veldhoven');
   expect(detail.wizardStap).toBe(2);
   expect(detail.invoer.soortDak).toBe('plat');

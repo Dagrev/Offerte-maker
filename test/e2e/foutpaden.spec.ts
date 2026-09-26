@@ -23,7 +23,7 @@ import {
 // app bedienbaar (NFE-016). Meldingen komen uit `shared/teksten/fouten.ts`, knoppen uit de renderer (V-11).
 
 const actie = nl.componenten.foutActie;
-const KLANT = { naam: 'Jansen', plaats: 'Eindhoven' };
+const KLANT = { achternaam: 'Jansen', plaats: 'Eindhoven' };
 
 let mappen: TestMappen;
 let gestart: GestarteApp | undefined;
@@ -59,10 +59,10 @@ async function controleerNaFout(page: Page, id: string): Promise<void> {
   const detail = await apiData(page, 'offerteHaal', { id });
   expect(detail.status).toBe('concept');
   expect(detail.nummer).toBeNull();
-  expect(detail.klant.naam).toBe(KLANT.naam);
+  expect(detail.klant.achternaam).toBe(KLANT.achternaam);
   expect(detail.klant.adres.plaats).toBe(KLANT.plaats);
   await page.getByRole('button', { name: nl.wizard.terugNaarOverzicht }).first().click();
-  const rij = page.getByRole('listitem').filter({ hasText: KLANT.naam });
+  const rij = page.getByRole('listitem').filter({ hasText: KLANT.achternaam });
   await expect(rij).toContainText(nl.overzicht.concept);
   expect(gestart?.paginaFouten).toEqual([]);
 }
@@ -77,7 +77,7 @@ test('niet geïnstalleerd: ontbrekend nep-CLI-bestand', async () => {
   expect(nepClaudeAanroepen(mappen, false)).toEqual([]);
 
   // De actieknop opent de tab Claude-koppeling.
-  await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
+  await page.getByRole('listitem').filter({ hasText: KLANT.achternaam }).click();
   await page.getByRole('button', { name: nl.wizard.maakDeOfferte }).click();
   await foutmelding(page, FOUTMELDINGEN.CLAUDE_NIET_GEINSTALLEERD)
     .getByRole('button', { name: actie.naarClaudeKoppeling })
@@ -97,7 +97,7 @@ test('oud: melding in de wizard en in het statusblok (NFE-020)', async () => {
   await expect(page.getByRole('main').getByText(FOUTMELDINGEN.CLAUDE_TE_OUD)).toBeVisible();
   expect(nepClaudeAanroepen(mappen)).toEqual([]);
   await page.getByRole('button', { name: nl.instellingen.terug }).click();
-  await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
+  await page.getByRole('listitem').filter({ hasText: KLANT.achternaam }).click();
   await controleerNaFout(page, id);
 });
 
@@ -217,7 +217,7 @@ test('pdf-bezet: melding met Opnieuw, geen nummer verbruikt (V-01)', async () =>
   await sluitApp(gestart!.app);
   gestart = await startApp(mappen);
   page = gestart.page;
-  await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
+  await page.getByRole('listitem').filter({ hasText: KLANT.achternaam }).click();
   await expect(page.getByRole('heading', { name: d.controleerEven })).toBeVisible();
   await page.getByRole('button', { name: d.maakDefinitief }).click();
   await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible({
@@ -233,11 +233,11 @@ test('ipc-fout: onverwachte fout bij openen, invoer blijft bewaard', async () =>
 
   gestart = await startApp(mappen, { haken: [`vandaag=${TEST_VANDAAG}`, 'ipc-fout'] });
   page = gestart.page;
-  await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
+  await page.getByRole('listitem').filter({ hasText: KLANT.achternaam }).click();
   await expect(foutmelding(page, FOUTMELDINGEN.ONBEKEND)).toBeVisible();
   // De app blijft bedienbaar.
   await page.getByRole('button', { name: nl.wizard.terugNaarOverzicht }).click();
-  await expect(page.getByRole('listitem').filter({ hasText: KLANT.naam })).toContainText(
+  await expect(page.getByRole('listitem').filter({ hasText: KLANT.achternaam })).toContainText(
     nl.overzicht.concept,
   );
   expect(gestart.paginaFouten).toEqual([]);
@@ -245,7 +245,7 @@ test('ipc-fout: onverwachte fout bij openen, invoer blijft bewaard', async () =>
 
   gestart = await startApp(mappen);
   page = gestart.page;
-  await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
+  await page.getByRole('listitem').filter({ hasText: KLANT.achternaam }).click();
   await expect(page.getByRole('heading', { name: `4. ${nl.wizard.stappen[3]}` })).toBeVisible();
   await controleerNaFout(page, id);
 });

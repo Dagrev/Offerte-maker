@@ -1,4 +1,5 @@
 import type { Aanhef, Klant, OfferteInhoud } from '@shared/types';
+import { volledigeNaam } from '@shared/labels';
 import { anonimiseer } from './anonimiseer';
 import { bouwPiiSet } from './piiSet';
 
@@ -52,8 +53,8 @@ function waarden(klant: Klant): Record<string, string> {
   const werk = klant.heeftWerkadres ? klant.werkadres : klant.adres;
   return {
     '[KLANT_AANHEF]': AANHEF_KORT[klant.aanhef],
-    '[KLANT_NAAM]': klant.naam.trim(),
-    '[KLANT_BEDRIJF]': klant.bedrijfsnaam.trim() || klant.naam.trim(),
+    '[KLANT_NAAM]': volledigeNaam(klant),
+    '[KLANT_BEDRIJF]': klant.bedrijfsnaam.trim() || volledigeNaam(klant),
     '[KLANT_ADRES]': klant.adres.straatHuisnummer.trim(),
     '[KLANT_POSTCODE]': klant.adres.postcode.trim(),
     '[KLANT_PLAATS]': klant.adres.plaats.trim(),

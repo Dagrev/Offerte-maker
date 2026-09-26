@@ -1,7 +1,7 @@
 import { aantalNaarHonderdsten, m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
 import { formatAantal, formatDatum, formatM2 } from '@shared/formatteer';
 import { extraInMeters, extrasMetAantal, keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
-import { klantWeergave, labelBedekking, labelIsolatie } from '@shared/labels';
+import { klantWeergave, labelBedekking, labelIsolatie, volledigeNaam } from '@shared/labels';
 import type { Adres, Klant, KlusInvoer } from '@shared/types';
 import { DatumVeld } from '../../componenten/DatumVeld';
 import { Kaart } from '../../componenten/Kaart';
@@ -87,7 +87,7 @@ function samenvatting(klant: Klant, invoer: KlusInvoer, keuzes: Keuzes): [string
   const aantal = (label: string, n: number, eenheid: string) =>
     voeg(label, n > 0 ? `${formatAantal(aantalNaarHonderdsten(n))} ${eenheid}` : null);
 
-  const naam = klant.naam.trim() || klant.bedrijfsnaam.trim() ? klantWeergave(klant) : '';
+  const naam = volledigeNaam(klant) || klant.bedrijfsnaam.trim() ? klantWeergave(klant) : '';
   voeg(s.klant, naam);
   voeg(s.adres, adresRegel(klant.adres));
   voeg(s.werkadres, klant.heeftWerkadres && adresRegel(klant.werkadres));

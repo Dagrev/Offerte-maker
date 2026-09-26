@@ -10,6 +10,7 @@ import {
   overslaanWelkom,
   sluitApp,
   startApp,
+  vulKlantIn,
   type GestarteApp,
   type TestMappen,
 } from '../helpers/e2e';
@@ -83,8 +84,7 @@ test('toevoegen, hernoemen en verbergen: zichtbaar in wizard, lijst en PDF', asy
   // Wizard.
   await knop(page, nl.instellingen.terug).click();
   await knop(page, nl.overzicht.nieuweOfferte).click();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Bakker');
-  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Veldhoven');
+  await vulKlantIn(page, { achternaam: 'Bakker', plaats: 'Veldhoven' });
   await knop(page, w.volgende).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
   await expect(knop(page, 'Leien')).toBeVisible();
@@ -151,7 +151,7 @@ test('een verborgen keuze blijft zichtbaar (grijs) in een offerte die hem al had
   const detail = await apiData(page, 'offerteHaal', { id });
   await apiData(page, 'offerteBewaarInvoer', {
     id,
-    klant: { ...detail.klant, naam: 'De Wit', adres: { ...detail.klant.adres, plaats: 'Best' } },
+    klant: { ...detail.klant, achternaam: 'De Wit', adres: { ...detail.klant.adres, plaats: 'Best' } },
     invoer: { ...detail.invoer, soortWerk: 'onderhoud' },
     wizardStap: 2,
   });

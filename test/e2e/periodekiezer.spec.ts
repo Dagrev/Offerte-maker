@@ -36,7 +36,7 @@ async function offerteOp(page: Page, naam: string, offertedatum: string): Promis
   const { klant } = await apiData(page, 'offerteHaal', { id });
   await apiData(page, 'offerteBewaarInvoer', {
     id,
-    klant: { ...klant, naam, adres: { ...klant.adres, plaats: 'Eindhoven' } },
+    klant: { ...klant, achternaam: naam, adres: { ...klant.adres, plaats: 'Eindhoven' } },
     offertedatum,
   });
 }

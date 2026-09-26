@@ -68,7 +68,7 @@ describe('systeemprompt (§10.5)', () => {
 describe('opdracht bij maken (§10.5)', () => {
   const klus = bouwKlusVoorAgent({
     invoer: maakInvoer({ overig: 'Bel Jansen' }),
-    klant: maakKlant({ naam: 'Jansen' }),
+    klant: maakKlant({ achternaam: 'Jansen' }),
     offertedatum: '2026-09-25',
     keuzes: KEUZE_STARTSET,
   });
