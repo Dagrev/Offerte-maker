@@ -1,15 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { AppFout } from '@shared/fouten';
 import {
-  GEPRIJSDE_LIJSTEN,
   KEUZE_LIJSTEN,
   KEUZE_STARTSET,
-  VASTE_EXTRAS,
   gebruikteSleutels,
   isVasteKeuze,
   maakSleutel,
-  prijsSleutel,
-  prijspostOmschrijving,
   type KeuzeLijst,
   type Keuzes,
 } from '@shared/keuzelijsten';
@@ -55,7 +51,7 @@ function invoerVanOffertes(): KlusInvoer[] {
   const alle = database().prepare('SELECT invoer_json FROM offertes WHERE verwijderd_op IS NULL').all() as {
     invoer_json: string;
   }[];
-  // Zonder zod (snel bij duizenden offertes); ontbrekende oude velden vult `gebruikteSleutels` aan.
+  // Zonder zod (snel bij duizenden offertes).
   return alle.map((r) => JSON.parse(r.invoer_json) as KlusInvoer);
 }
 
@@ -114,23 +110,8 @@ function bezetteSleutels(): Set<string> {
   return new Set([...keuze, ...prijs].map((r) => r.sleutel));
 }
 
-/** Nieuwe prijspost zonder prijs met dezelfde sleutel (zoals de startset, §9.3), achteraan. */
-function maakPrijspost(lijst: KeuzeLijst, sleutel: string, label: string): void {
-  const eenheid = GEPRIJSDE_LIJSTEN[lijst];
-  if (eenheid === undefined) return;
-  const db = database();
-  const sleutelPost = prijsSleutel(lijst, sleutel);
-  if (db.prepare('SELECT 1 FROM prijsposten WHERE sleutel = ?').get(sleutelPost)) return;
-  const { hoogste } = db.prepare('SELECT COALESCE(MAX(volgorde), 0) AS hoogste FROM prijsposten').get() as {
-    hoogste: number;
-  };
-  db.prepare(
-    'INSERT INTO prijsposten (id, sleutel, omschrijving, eenheid, prijs_cent, btw_tarief, volgorde) VALUES (?, ?, ?, ?, NULL, 21, ?)',
-  ).run(randomUUID(), sleutelPost, prijspostOmschrijving(lijst, label), eenheid, hoogste + 10);
-}
-
 /**
- * Rekent `omschrijving_kort` van alle offertes opnieuw uit (na hernoemen in soort werk of bedekking),
+ * Rekent `omschrijving_kort` van alle offertes opnieuw uit (na hernoemen in soort werk),
  * zodat lijst en zoekresultaten de nieuwe naam tonen.
  */
 function herberekenOmschrijvingen(): void {
@@ -152,7 +133,7 @@ const ongeldig = (melding: string = VALIDATIE_MELDINGEN.ongeldigeInvoer) => new 
 
 /**
  * `keuzelijsten:bewaar`: de hele lijst in de nieuwe volgorde. Lege `id` = nieuwe optie (sleutel uit het
- * label; bij extra's, bedekking, isolatie en afwerking ook een prijspost zonder prijs). Een bestaande
+ * label; sinds OFM-045 heeft geen enkele lijst nog een eigen prijspost). Een bestaande
  * optie die ontbreekt wordt verwijderd, maar alleen als hij niet vast is en in geen enkele
  * niet-verwijderde offerte voorkomt. Geeft de bewaarde lijst terug (met de id's van nieuwe opties).
  */
@@ -202,9 +183,8 @@ export function bewaarKeuzelijst(lijst: KeuzeLijst, opties: readonly OptieWijzig
       const sleutel = maakSleutel(label, bezet);
       bezet.add(sleutel);
       invoegen.run(randomUUID(), lijst, sleutel, label, volgorde, optie.verborgen ? 1 : 0);
-      maakPrijspost(lijst, sleutel, label);
     });
-    if (labelsGewijzigd && (lijst === 'soortWerk' || lijst === 'bedekking')) herberekenOmschrijvingen();
+    if (labelsGewijzigd && lijst === 'soortWerk') herberekenOmschrijvingen();
   })();
   return lijstOpties(lijst);
 }
@@ -239,14 +219,13 @@ export function herstelKeuzelijst(lijst: KeuzeLijst): void {
       db.prepare('UPDATE keuzeopties SET volgorde = ? WHERE id = ?').run(volgorde, rij.id);
       volgorde += 10;
     }
-    if (lijst === 'soortWerk' || lijst === 'bedekking') herberekenOmschrijvingen();
+    if (lijst === 'soortWerk') herberekenOmschrijvingen();
   })();
 }
 
 /**
  * Controle bij `offerte:bewaarInvoer` (OFM-034): elke keuze moet een bestaande optie van zijn lijst
  * zijn, of de waarde die al in deze offerte stond (een inmiddels verwijderde optie gaat niet verloren).
- * Nieuwe extra's staan in `extraAantallen`, nooit onder de sleutel van een standaard-extra.
  */
 export function controleerKeuzes(invoer: KlusInvoer, vorige: KlusInvoer | null): void {
   const bekend = new Map<KeuzeLijst, Set<string>>(KEUZE_LIJSTEN.map((l) => [l, new Set<string>()]));
@@ -259,5 +238,4 @@ export function controleerKeuzes(invoer: KlusInvoer, vorige: KlusInvoer | null):
       throw ongeldig(VALIDATIE_MELDINGEN.onbekendeKeuze);
     }
   }
-  if (Object.keys(invoer.extraAantallen ?? {}).some((s) => Object.hasOwn(VASTE_EXTRAS, s))) throw ongeldig();
 }

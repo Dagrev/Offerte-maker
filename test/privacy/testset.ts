@@ -43,24 +43,11 @@ export function maakInvoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
     soortWerk: 'dak_vervangen',
     soortDak: 'plat',
     dakvlakken: [{ id: 'v1', naam: 'Dakvlak 1', modus: 'lxb', lengteM: 5, breedteM: 4.5, m2: null }],
-    bedekking: 'epdm_11',
-    bedekkingAnders: '',
     huidigeBedekking: null,
     ondergrond: null,
-    slopenEnAfvoeren: false,
-    isolatie: 'geen',
-    isolatieAndersMm: null,
-    daktrimM1: 0,
-    dakgootM1: 0,
-    hwaAantal: 0,
-    noodoverloopAantal: 0,
-    doorvoerAantal: 0,
-    lichtkoepelAantal: 0,
-    afwerking: 'geen',
     hoogte: '1',
     steigerNodig: false,
     garantieJaren: '10',
-    extraAantallen: {},
     // OFM-044: minstens één werkzaamheid (standaard verplicht).
     werkzaamheden: [
       {
@@ -491,11 +478,32 @@ export const testset: Privacygeval[] = [
     verwacht: { nietInOpdracht: ['Dorpsstraat'], welInOpdracht: ['[KLANT_ADRES] voor'] },
   },
 
-  // --- bedekking anders ---
+  // --- eenmalig materiaal (OFM-045: was "bedekking anders", dat wordt bij de omzetting zo'n materiaal) ---
   {
-    omschrijving: 'naam in bedekkingAnders',
+    omschrijving: 'naam in een eenmalig materiaal',
     klant: jansen(),
-    invoer: maakInvoer({ bedekking: 'anders', bedekkingAnders: 'Zink zoals bij Jansen' }),
+    invoer: maakInvoer({
+      werkzaamheden: [
+        {
+          id: 'w1',
+          sleutel: 'nieuwe_bedekking',
+          eenmalig: null,
+          aantal: 22.5,
+          prijsCent: 0,
+          notitie: '',
+          materialen: [
+            {
+              id: 'm1',
+              sleutel: null,
+              eenmalig: { label: 'Zink zoals bij Jansen', eenheid: 'm²' },
+              aantal: 22.5,
+              prijsCent: null,
+            },
+          ],
+          opties: [],
+        },
+      ],
+    }),
     verwacht: { nietInOpdracht: ['Jansen'], welInOpdracht: ['Zink zoals bij [KLANT_NAAM]'] },
   },
 
@@ -588,7 +596,7 @@ export const testset: Privacygeval[] = [
   {
     omschrijving: 'lege invoer en lege dakvlaknaam',
     klant: jansen(),
-    invoer: maakInvoer({ soortWerk: null, bedekking: null, dakvlakken: [vlak('')] }),
+    invoer: maakInvoer({ soortWerk: null, dakvlakken: [vlak('')] }),
     verwacht: { nietInOpdracht: ['Jansen', 'Veldhoven'] },
   },
   {

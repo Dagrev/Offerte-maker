@@ -49,13 +49,15 @@ describe('keuzelijsten:haal', () => {
   it('per lijst de startset in volgorde, met vast en inGebruik', () => {
     const lijsten = lijstKeuzeopties();
     expect(lijsten.soortWerk.map((o) => o.label)).toEqual(KEUZE_STARTSET.soortWerk.map((o) => o.label));
-    expect(lijsten.isolatie.find((o) => o.sleutel === 'geen')).toMatchObject({ vast: true, standaard: true });
+    expect(lijsten.hoogte.find((o) => o.sleutel === '1')).toMatchObject({ vast: true, standaard: true });
     expect(lijsten.garantie.find((o) => o.sleutel === '20')).toMatchObject({ vast: false, inGebruik: false });
-    offerteMet({ soortWerk: 'reparatie', hwaAantal: 2, extraAantallen: {} });
+    // OFM-045: de lijsten van de oude stap Extra's bestaan niet meer.
+    expect(Object.keys(lijsten)).not.toContain('bedekking');
+    offerteMet({ soortWerk: 'reparatie', ondergrond: 'hout' });
     const na = lijstKeuzeopties();
     expect(na.soortWerk.find((o) => o.sleutel === 'reparatie')?.inGebruik).toBe(true);
-    expect(na.extras.find((o) => o.sleutel === 'hwa')?.inGebruik).toBe(true);
-    expect(na.extras.find((o) => o.sleutel === 'doorvoer')?.inGebruik).toBe(false);
+    expect(na.ondergrond.find((o) => o.sleutel === 'hout')?.inGebruik).toBe(true);
+    expect(na.ondergrond.find((o) => o.sleutel === 'beton')?.inGebruik).toBe(false);
     expect(haalKeuzes().soortDak).toEqual(KEUZE_STARTSET.soortDak);
   });
 
@@ -67,49 +69,33 @@ describe('keuzelijsten:haal', () => {
 });
 
 describe('keuzelijsten:bewaar', () => {
-  it('toevoegen: sleutel uit het label, prijspost zonder prijs; hernoemen, verbergen en volgorde', () => {
-    const uit = bewaarKeuzelijst('bedekking', [
+  it('toevoegen: sleutel uit het label, zonder prijspost; hernoemen, verbergen en volgorde', () => {
+    const posten = lijstPrijsposten().length;
+    const uit = bewaarKeuzelijst('huidigeBedekking', [
       { id: '', label: 'Leien  (natuur)', verborgen: false },
-      ...alsInvoer('bedekking').map((o) => (o.label === 'Resitrix' ? { ...o, label: 'Resitrix SK' } : o)),
+      ...alsInvoer('huidigeBedekking').map((o) => (o.label === 'EPDM' ? { ...o, label: 'EPDM (oud)' } : o)),
     ]);
     expect(uit[0]).toMatchObject({ sleutel: 'leien_natuur', label: 'Leien  (natuur)', standaard: false });
-    expect(uit.map((o) => o.label)).toContain('Resitrix SK');
-    const post = lijstPrijsposten().find((p) => p.sleutel === 'leien_natuur');
-    expect(post).toMatchObject({
-      omschrijving: 'Leien  (natuur)',
-      eenheid: 'm²',
-      prijsCent: null,
-      btwTarief: 21,
-    });
+    expect(uit.map((o) => o.label)).toContain('EPDM (oud)');
+    // Sinds OFM-045 heeft geen enkele keuzelijst nog eigen prijsposten.
+    expect(lijstPrijsposten()).toHaveLength(posten);
 
     const verborgen = bewaarKeuzelijst(
-      'bedekking',
+      'huidigeBedekking',
       uit.map((o) => ({ id: o.id, label: o.label, verborgen: o.sleutel === 'bitumen' })),
     );
     expect(verborgen.find((o) => o.sleutel === 'bitumen')?.verborgen).toBe(true);
-    expect(verborgen.map((o) => o.sleutel).slice(0, 2)).toEqual(['leien_natuur', 'epdm_11']);
+    expect(verborgen.map((o) => o.sleutel).slice(0, 2)).toEqual(['leien_natuur', 'bitumen']);
   });
 
-  it('sleutels zijn uniek over alle lijsten en prijsposten; extra = post per stuk; isolatie met "Isolatie"', () => {
-    const extras = bewaarKeuzelijst('extras', [
-      ...alsInvoer('extras'),
+  it('sleutels zijn uniek over alle lijsten en prijsposten', () => {
+    const ondergrond = bewaarKeuzelijst('ondergrond', [
+      ...alsInvoer('ondergrond'),
       { id: '', label: 'Steiger', verborgen: false },
+      { id: '', label: 'Plat', verborgen: false },
     ]);
-    expect(extras.at(-1)?.sleutel).toBe('steiger_2');
-    expect(lijstPrijsposten().find((p) => p.sleutel === 'steiger_2')).toMatchObject({ eenheid: 'stuk' });
-    const iso = bewaarKeuzelijst('isolatie', [
-      ...alsInvoer('isolatie'),
-      { id: '', label: '160 mm', verborgen: false },
-    ]);
-    expect(iso.at(-1)?.sleutel).toBe('160_mm');
-    expect(lijstPrijsposten().find((p) => p.sleutel === '160_mm')?.omschrijving).toBe('Isolatie 160 mm');
-    const werk = bewaarKeuzelijst('soortWerk', [
-      ...alsInvoer('soortWerk'),
-      { id: '', label: 'Anders', verborgen: false },
-    ]);
-    expect(werk.at(-1)?.sleutel).toBe('anders_2');
-    // Soort werk heeft geen prijzen: geen nieuwe post.
-    expect(lijstPrijsposten().some((p) => p.sleutel === 'anders_2')).toBe(false);
+    expect(ondergrond.map((o) => o.sleutel).slice(-2)).toEqual(['steiger_2', 'plat_2']);
+    expect(lijstPrijsposten().some((p) => p.sleutel === 'steiger_2')).toBe(false);
   });
 
   it('verwijderen mag alleen als de optie niet in een (niet-verwijderde) offerte staat', () => {
@@ -161,15 +147,15 @@ describe('keuzelijsten:bewaar', () => {
   });
 
   it('hernoemen werkt de korte omschrijving van bestaande offertes bij', () => {
-    const id = offerteMet({ soortWerk: 'reparatie', bedekking: 'epdm_11' });
+    const id = offerteMet({ soortWerk: 'reparatie' });
     const kort = () =>
       (t.db.prepare('SELECT omschrijving_kort AS k FROM offertes WHERE id = ?').get(id) as { k: string }).k;
-    expect(kort()).toBe('Reparatie · EPDM 1,1 mm');
+    expect(kort()).toBe('Reparatie');
     bewaarKeuzelijst(
       'soortWerk',
       alsInvoer('soortWerk').map((o) => (o.label === 'Reparatie' ? { ...o, label: 'Lekkage verhelpen' } : o)),
     );
-    expect(kort()).toBe('Lekkage verhelpen · EPDM 1,1 mm');
+    expect(kort()).toBe('Lekkage verhelpen');
   });
 
   it('via IPC: schema en foutvertaling', async () => {
@@ -194,20 +180,21 @@ describe('keuzelijsten:bewaar', () => {
 
 describe('keuzelijsten:herstel', () => {
   it('standaardopties terug met oorspronkelijk label, zichtbaar en in volgorde; eigen opties blijven erachter', async () => {
-    const lijst = alsInvoer('afwerking');
-    bewaarKeuzelijst('afwerking', [
-      { id: '', label: 'Tegels', verborgen: false },
+    const lijst = alsInvoer('ondergrond');
+    bewaarKeuzelijst('ondergrond', [
+      { id: '', label: 'Riet', verborgen: false },
       ...lijst
-        .filter((o) => o.label !== 'Sedum')
-        .map((o) => (o.label === 'Grind' ? { ...o, label: 'Grind (wit)', verborgen: true } : o)),
+        .filter((o) => o.label !== 'Staal')
+        .map((o) => (o.label === 'Beton' ? { ...o, label: 'Beton (gewapend)', verborgen: true } : o)),
     ]);
     const herstel = maakIpcHandler('keuzelijsten:herstel', keuzelijstenHandlers['keuzelijsten:herstel']);
-    expect(await herstel({} as never, { lijst: 'afwerking' })).toEqual({ ok: true, data: null });
-    expect(opties('afwerking').map((o) => [o.label, o.verborgen, o.standaard])).toEqual([
-      ['Geen', false, true],
-      ['Grind', false, true],
-      ['Sedum', false, true],
-      ['Tegels', false, false],
+    expect(await herstel({} as never, { lijst: 'ondergrond' })).toEqual({ ok: true, data: null });
+    expect(opties('ondergrond').map((o) => [o.label, o.verborgen, o.standaard])).toEqual([
+      ['Hout', false, true],
+      ['Beton', false, true],
+      ['Staal', false, true],
+      ['Weet ik niet', false, true],
+      ['Riet', false, false],
     ]);
     herstelKeuzelijst('soortWerk');
     expect(opties('soortWerk').map((o) => o.label)).toEqual(KEUZE_STARTSET.soortWerk.map((o) => o.label));
@@ -218,30 +205,14 @@ describe('controle bij offerte:bewaarInvoer', () => {
   it('onbekende sleutel → VALIDATIE; een nieuwe optie en de eigen oude waarde mogen', () => {
     const id = offerteMet({ soortWerk: 'reparatie' });
     expect(
-      fout(() => bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), bedekking: 'leien' } }, 30)).melding,
+      fout(() => bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), ondergrond: 'riet' } }, 30)).melding,
     ).toBe(VALIDATIE_MELDINGEN.onbekendeKeuze);
-    bewaarKeuzelijst('bedekking', [...alsInvoer('bedekking'), { id: '', label: 'Leien', verborgen: false }]);
-    bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), soortWerk: 'reparatie', bedekking: 'leien' } }, 30);
+    bewaarKeuzelijst('ondergrond', [...alsInvoer('ondergrond'), { id: '', label: 'Riet', verborgen: false }]);
+    bewaarInvoer({ id, invoer: { ...legeKlusInvoer(), soortWerk: 'reparatie', ondergrond: 'riet' } }, 30);
 
     // Verwijderde optie die al in de offerte stond: bewaren blijft werken.
     const vorige: KlusInvoer = { ...legeKlusInvoer(), soortWerk: 'weg' };
     expect(() => controleerKeuzes({ ...legeKlusInvoer(), soortWerk: 'weg' }, vorige)).not.toThrow();
     expect(() => controleerKeuzes({ ...legeKlusInvoer(), soortWerk: 'weg' }, null)).toThrow(AppFout);
-  });
-
-  it("extra's: nieuwe sleutel moet in de lijst staan; nooit een standaard-extra in extraAantallen", () => {
-    expect(() => controleerKeuzes({ ...legeKlusInvoer(), extraAantallen: { dakkapel: 1 } }, null)).toThrow(
-      AppFout,
-    );
-    expect(() =>
-      controleerKeuzes({ ...legeKlusInvoer(), extraAantallen: { dakkapel: 0 } }, null),
-    ).not.toThrow();
-    expect(() => controleerKeuzes({ ...legeKlusInvoer(), extraAantallen: { hwa: 2 } }, null)).toThrow(
-      AppFout,
-    );
-    bewaarKeuzelijst('extras', [...alsInvoer('extras'), { id: '', label: 'Dakkapel', verborgen: false }]);
-    expect(() =>
-      controleerKeuzes({ ...legeKlusInvoer(), extraAantallen: { dakkapel: 1 } }, null),
-    ).not.toThrow();
   });
 });

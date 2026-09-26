@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SEED_NAMEN, vulMetSeed } from '../../scripts/seedGegevens';
+import { klusInvoerSchema } from '../../src/shared/schemas';
 
 // Seed-script (OFM-027, TDO §15.4): 5.000 offertes, random-seed 42, 10 % concept, 1–8 regels,
 // namen uit een vaste lijst van 200, 2022–2026, en twee runs geven dezelfde gegevens.
@@ -54,30 +55,39 @@ describe('vulMetSeed', () => {
     for (const j of jaren) expect(j.n).toBeGreaterThan(900);
 
     const rijen = db
-      .prepare('SELECT status, nummer, klant_json, inhoud_json, totaal_incl_cent FROM offertes')
+      .prepare('SELECT status, nummer, klant_json, invoer_json, inhoud_json, totaal_incl_cent FROM offertes')
       .all() as {
       status: string;
       nummer: string | null;
       klant_json: string;
+      invoer_json: string;
       inhoud_json: string;
       totaal_incl_cent: number;
     }[];
     const namen = new Set(SEED_NAMEN.map((n) => `${n.voornaam} ${n.achternaam}`));
     expect(namen.size).toBe(200);
+    const soorten = new Set<string>();
     for (const r of rijen) {
       const regels = (JSON.parse(r.inhoud_json) as { regels: unknown[] }).regels.length;
       expect(regels).toBeGreaterThanOrEqual(1);
       expect(regels).toBeLessThanOrEqual(8);
+      // OFM-045: 1–4 werkzaamheden, geen velden van de oude stap Extra's.
+      const invoer = klusInvoerSchema.parse(JSON.parse(r.invoer_json));
+      expect(invoer.werkzaamheden.length).toBeGreaterThanOrEqual(1);
+      expect(invoer.werkzaamheden.length).toBeLessThanOrEqual(4);
+      expect(JSON.parse(r.invoer_json)).not.toHaveProperty('bedekking');
+      soorten.add(invoer.soortWerk ?? '');
       const k = JSON.parse(r.klant_json) as { voornaam: string; achternaam: string };
       expect(namen.has(`${k.voornaam} ${k.achternaam}`)).toBe(true);
       expect(r.nummer === null).toBe(r.status === 'concept');
       expect(r.totaal_incl_cent).toBeGreaterThan(0);
     }
+    expect(soorten.size).toBe(6);
     // Nummers per jaar doorlopend vanaf 001, met de datum ervoor (OFM-033).
     const eerste = db.prepare('SELECT nummer FROM offertes WHERE jaar = 2024 AND volgnummer = 1').get() as {
       nummer: string;
     };
-    expect(eerste.nummer).toBe('2024-01-01-001');
+    expect(eerste.nummer).toMatch(/^2024-01-\d{2}-001$/);
   });
 
   it('geeft bij twee runs dezelfde gegevens, ook opnieuw in dezelfde database', () => {
@@ -90,6 +100,6 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    expect(a.pragma('user_version', { simple: true })).toBe(4);
+    expect(a.pragma('user_version', { simple: true })).toBe(5);
   });
 });

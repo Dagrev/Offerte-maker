@@ -193,14 +193,15 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
       const invoer = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
         invoer_json: string;
       };
-      expect(JSON.parse(invoer.invoer_json)).toEqual({ garantieJaren: '20', isolatie: 'geen' });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
+      // Migratie 005 (OFM-045) heeft de oude velden omgezet: isolatie "geen" geeft geen werkzaamheid.
+      expect(JSON.parse(invoer.invoer_json)).toEqual({ garantieJaren: '20', werkzaamheden: [] });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 21 });
     } finally {
       db.close();
     }
   });
 
-  it('OFM-043: back-up met schemaversie 2 wordt teruggezet; bij de herstart draait migratie 004 opnieuw', async () => {
+  it('OFM-043/045: back-up met schemaversie 2 wordt teruggezet; bij de herstart draaien 004 en 005 opnieuw', async () => {
     const bestand = await maakBackup('handmatig', {
       db: t.db,
       backupMap: map,
@@ -208,6 +209,36 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     });
     const kopie = new Database(join(map, bestand));
     maakVersie2(kopie);
+    // Een oude offerte (vóór OFM-044) met isolatie en een regel met een eigen prijs.
+    kopie
+      .prepare(
+        "INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde) VALUES ('iso-80', 'isolatie', '80', '80 mm (Rc 3,5)', 20)",
+      )
+      .run();
+    const regel = {
+      id: 'r1',
+      omschrijving: 'Isolatie PIR 80 mm (Rc 3,5)',
+      aantalHonderdsten: 2000,
+      eenheid: 'm²',
+      prijsCent: 3100,
+      btwTarief: 21,
+      prijsbron: 'handmatig',
+      prijspostId: 'start-isolatie_80',
+    };
+    kopie
+      .prepare(
+        `INSERT INTO offertes (id, offertedatum, geldig_tot, klant_json, invoer_json, inhoud_json, aangemaakt_op, bijgewerkt_op)
+         VALUES ('oud', '2026-09-01', '2026-10-01', '{}', ?, ?, 'x', 'x')`,
+      )
+      .run(
+        JSON.stringify({
+          garantieJaren: '10',
+          dakvlakken: [{ id: 'v', naam: 'Dak', modus: 'm2', lengteM: null, breedteM: null, m2: 20 }],
+          isolatie: '80',
+          isolatieAndersMm: null,
+        }),
+        JSON.stringify({ regels: [regel] }),
+      );
     kopie.pragma('user_version = 2');
     kopie.close();
 
@@ -222,6 +253,25 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
       expect(db.prepare('SELECT COUNT(*) AS n FROM materialen').get()).toEqual({ n: 9 });
       expect(db.prepare("SELECT COUNT(*) AS n FROM prijsposten WHERE sleutel LIKE 'werk:%'").get()).toEqual({
         n: 8,
+      });
+      const { invoer_json } = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
+        invoer_json: string;
+      };
+      const invoer = JSON.parse(invoer_json) as Record<string, unknown>;
+      expect(invoer).not.toHaveProperty('isolatie');
+      expect(invoer['werkzaamheden']).toMatchObject([
+        {
+          sleutel: 'isoleren',
+          aantal: 20,
+          prijsCent: 0,
+          materialen: [
+            { eenmalig: { label: 'Dampremmende laag' }, aantal: 20, prijsCent: null },
+            { eenmalig: { label: 'Isolatie PIR 80 mm (Rc 3,5)' }, aantal: 20, prijsCent: 3100 },
+          ],
+        },
+      ]);
+      expect(db.prepare("SELECT COUNT(*) AS n FROM keuzeopties WHERE lijst = 'isolatie'").get()).toEqual({
+        n: 0,
       });
     } finally {
       db.close();

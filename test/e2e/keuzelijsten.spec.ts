@@ -55,9 +55,8 @@ test('toevoegen, hernoemen en verbergen: zichtbaar in wizard, lijst en PDF', asy
   await knop(page, nl.overzicht.instellingen).click();
   await knop(page, nl.instellingen.tab.keuzelijsten).click();
   await expect(page.getByRole('heading', { name: k.lijst.soortWerk, level: 2 })).toBeVisible();
-  // OFM-044: de lijsten van de oude stap Extra's staan er niet meer.
-  await expect(knop(page, k.lijst.bedekking)).toHaveCount(0);
-  await expect(knop(page, k.lijst.extras)).toHaveCount(0);
+  // OFM-044/045: de lijsten van de oude stap Extra's bestaan niet meer.
+  await expect(knop(page, "Extra's")).toHaveCount(0);
 
   // Hernoemen (soort werk): bewaart vanzelf.
   const nieuwDak = page.getByLabel(k.naamVan('Nieuw dak'), { exact: true });

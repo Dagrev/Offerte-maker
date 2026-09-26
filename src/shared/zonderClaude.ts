@@ -1,16 +1,14 @@
-import { aantalNaarHonderdsten, totaalM2 } from './calc/bedragen';
-import { extraInMeters, extrasMetAantal, keuzeLabel, prijsSleutel, type Keuzes } from './keuzelijsten';
-import { labelIsolatie } from './labels';
-import { oudeVelden } from './oudeInvoer';
+import { aantalNaarHonderdsten } from './calc/bedragen';
+import { keuzeLabel, type Keuzes } from './keuzelijsten';
 import { PRIJS_STARTSET } from './prijsStartset';
-import type { Eenheid, KlusInvoer, OfferteInhoud, Offerteregel, Prijspost } from './types';
+import type { KlusInvoer, OfferteInhoud, Offerteregel, Prijspost } from './types';
 import { werkGroepen, type WerkCatalogus, type WerkRegel } from './werkzaamheden';
 
 // "Maak zonder Claude" (TDO §9.5, V-09, V-27, FE-110): van wizardinvoer, prijslijst en standaardteksten
 // naar een offerte, zonder agent. Puur (geen Node of DOM): main zoekt de posten op en schrijft weg.
 // Sinds OFM-044 eerst per gekozen werkzaamheid een regel met de materialen en opties als subregels
-// (`onderdeelVan`), met de prijzen uit de offerte; daarna de regels van de oude stap Extra's (alleen
-// oude offertes, tot OFM-045) en steiger, verzekerde garantie en voorrijkosten.
+// (`onderdeelVan`), met de prijzen uit de offerte; daarna steiger, verzekerde garantie en voorrijkosten.
+// De regels van de oude stap Extra's zijn met OFM-045 vervallen (oude offertes zijn omgezet).
 
 export const UITVOERING_STANDAARD = 'In overleg.';
 
@@ -21,7 +19,7 @@ export function vulPrijsIn(omschrijving: string): string {
 
 export interface ZonderClaudeBron {
   invoer: KlusInvoer;
-  /** Keuzelijsten uit de database (OFM-034): labels, en de volgorde van de extra's. */
+  /** Keuzelijsten uit de database (OFM-034): labels voor de titel. */
   keuzes: Keuzes;
   /** Werkzaamheden en materialen uit de instellingen (OFM-043/044), voor namen en eenheden. */
   catalogus?: WerkCatalogus;
@@ -43,58 +41,15 @@ export function titelZonderClaude(
   return delen.join(' ');
 }
 
-/**
- * Eén te maken regel: een post (op sleutel) of een eigen regel, met een aantal in eenheden. `label` is
- * de omschrijving als er geen post (meer) is en de sleutel niet uit de startset komt (OFM-034).
- */
-type Plan =
-  | { sleutel: string; aantal: number; label?: string; eenheid?: Eenheid }
-  | { eigen: string; eenheid: Eenheid; aantal: number };
+/** Eén te maken regel na de werkzaamheden: een post (op sleutel) met een aantal. */
+interface Plan {
+  sleutel: string;
+  aantal: number;
+}
 
-/**
- * De regels in de volgorde en met de aantallen van de tabel in §9.5. Opties die de gebruiker zelf aan
- * een keuzelijst toevoegde (OFM-034) gebruiken de prijspost met dezelfde sleutel; extra's volgen de
- * volgorde van hun keuzelijst. De keuzes van de oude stap Extra's bestaan alleen nog in oude offertes.
- */
-export function planRegels(invoer: KlusInvoer, keuzes: Keuzes): Plan[] {
-  const m2 = totaalM2(invoer.dakvlakken);
-  const oud = oudeVelden(invoer);
+/** Steiger, verzekerde garantie en voorrijkosten (§9.5, de laatste drie rijen van de tabel). */
+export function planRegels(invoer: Pick<KlusInvoer, 'steigerNodig' | 'garantieJaren'>): Plan[] {
   const plan: Plan[] = [];
-  if (oud.slopenEnAfvoeren) plan.push({ sleutel: 'sloop', aantal: m2 });
-  if (oud.isolatie !== 'geen') plan.push({ sleutel: 'dampremmer', aantal: m2 });
-  if (oud.isolatie === 'anders') {
-    const dikte = labelIsolatie(keuzes, 'anders', oud.isolatieAndersMm);
-    plan.push({ eigen: dikte ? `Isolatie ${dikte}` : 'Isolatie', eenheid: 'm²', aantal: m2 });
-  } else if (oud.isolatie !== 'geen') {
-    plan.push({
-      sleutel: prijsSleutel('isolatie', oud.isolatie),
-      aantal: m2,
-      label: `Isolatie ${labelIsolatie(keuzes, oud.isolatie, null)}`,
-      eenheid: 'm²',
-    });
-  }
-  if (oud.bedekking === 'anders') {
-    plan.push({ eigen: oud.bedekkingAnders.trim() || 'Dakbedekking', eenheid: 'm²', aantal: m2 });
-  } else if (oud.bedekking !== null) {
-    plan.push({
-      sleutel: oud.bedekking,
-      aantal: m2,
-      label: keuzeLabel(keuzes, 'bedekking', oud.bedekking),
-      eenheid: 'm²',
-    });
-  }
-  for (const extra of extrasMetAantal(oud, keuzes)) {
-    const eenheid = extraInMeters(extra.sleutel) ? 'm¹' : 'stuk';
-    plan.push({ sleutel: extra.sleutel, aantal: extra.aantal, label: extra.label, eenheid });
-  }
-  if (oud.afwerking !== 'geen') {
-    plan.push({
-      sleutel: oud.afwerking,
-      aantal: m2,
-      label: keuzeLabel(keuzes, 'afwerking', oud.afwerking),
-      eenheid: 'm²',
-    });
-  }
   if (invoer.steigerNodig) plan.push({ sleutel: 'steiger', aantal: 1 });
   if (invoer.garantieJaren === '20') plan.push({ sleutel: 'verzekerde_garantie', aantal: 1 });
   plan.push({ sleutel: 'voorrijkosten', aantal: 1 });
@@ -139,9 +94,9 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
     return [hoofd, ...g.subregels.map((s) => werkRegel(s, hoofd.id))];
   });
 
-  const overige = planRegels(bron.invoer, bron.keuzes).map((p): Offerteregel => {
+  const overige = planRegels(bron.invoer).map((p): Offerteregel => {
     const aantalHonderdsten = aantalNaarHonderdsten(p.aantal);
-    const post = 'sleutel' in p ? bron.postOpSleutel(p.sleutel) : null;
+    const post = bron.postOpSleutel(p.sleutel);
     if (post && post.prijsCent !== null) {
       return {
         id: maakId(),
@@ -154,10 +109,9 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
         prijspostId: post.id,
       };
     }
-    const start = 'sleutel' in p ? PRIJS_STARTSET.find((s) => s.sleutel === p.sleutel) : undefined;
-    const omschrijving =
-      post?.omschrijving ?? start?.omschrijving ?? ('eigen' in p ? p.eigen : (p.label ?? p.sleutel));
-    const eenheid = post?.eenheid ?? start?.eenheid ?? p.eenheid ?? 'post';
+    const start = PRIJS_STARTSET.find((s) => s.sleutel === p.sleutel);
+    const omschrijving = post?.omschrijving ?? start?.omschrijving ?? p.sleutel;
+    const eenheid = post?.eenheid ?? start?.eenheid ?? 'post';
     controlepunten.push(vulPrijsIn(omschrijving));
     return {
       id: maakId(),

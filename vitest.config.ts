@@ -28,6 +28,8 @@ export default defineConfig({
         lines: 80,
         'src/shared/calc/**': { branches: 100 },
         'src/shared/validatie.ts': { branches: 100 },
+        // OFM-045: de omzetting van oude offertes (migratie 005).
+        'src/shared/omzetting.ts': { branches: 100 },
       },
     },
   },

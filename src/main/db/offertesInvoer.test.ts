@@ -47,7 +47,6 @@ function invoerMetVlakken(): KlusInvoer {
   return {
     ...invoer,
     soortWerk: 'dak_vervangen',
-    bedekking: 'epdm_11',
     dakvlakken: [
       { id: 'a', naam: 'Voor', modus: 'lxb', lengteM: 5, breedteM: 4.5, m2: null },
       { id: 'b', naam: 'Achter', modus: 'm2', lengteM: null, breedteM: null, m2: 12.3 },
@@ -112,7 +111,7 @@ describe('maakOfferte met bronId (kopie, FE-061)', () => {
       totaal_incl_cent: null,
       offertedatum: '2026-09-25',
       geldig_tot: '2026-10-09',
-      omschrijving_kort: 'Dak vervangen · EPDM 1,1 mm · 34,8 m²',
+      omschrijving_kort: 'Dak vervangen · 34,8 m²',
       zoektekst: 'p. jansen jansen bouw b.v. eindhoven ',
     });
     expect(JSON.parse(r['klant_json'] as string)).toEqual(klant);
@@ -220,7 +219,7 @@ describe('bewaarInvoer (offerte:bewaarInvoer)', () => {
 
     bewaarInvoer({ id, invoer: invoerMetVlakken(), wizardStap: 2 }, 30, later);
     r = rij(id);
-    expect(r['omschrijving_kort']).toBe('Dak vervangen · EPDM 1,1 mm · 34,8 m²');
+    expect(r['omschrijving_kort']).toBe('Dak vervangen · 34,8 m²');
     expect(r['wizard_stap']).toBe(2);
     expect(JSON.parse(r['klant_json'] as string)).toEqual(klant);
   });

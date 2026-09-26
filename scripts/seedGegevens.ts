@@ -11,8 +11,8 @@ import { berekenGeldigTot } from '../src/shared/periode';
 import { PRIJS_STARTSET } from '../src/shared/prijsStartset';
 import type {
   Aanhef,
-  Bedekking,
   Dakvlak,
+  GekozenWerkzaamheid,
   Klant,
   KlusInvoer,
   OfferteInhoud,
@@ -21,11 +21,22 @@ import type {
   SoortWerk,
   Status,
 } from '../src/shared/types';
+import {
+  MATERIALEN_STARTSET,
+  WERKZAAMHEDEN_STARTSET,
+  materiaalPrijsSleutel,
+  optiePrijsSleutel,
+  standaardAantal,
+  werkPrijsSleutel,
+  type StartWerkzaamheid,
+} from '../src/shared/werkzaamheden';
 
 // Seed-gegevens voor de prestatietests (TDO §15.4, NFE-003/004). Vaste random-seed 42: twee runs geven
 // precies dezelfde rijen. Wordt gebruikt door `scripts/seed.ts` (pnpm seed) en `test/seed/seed.test.ts`.
 // Draait onder Electron-als-Node (V-04) en importeert daarom niets uit `src/main` (dat heeft `electron`
-// en `import.meta.glob` nodig); alleen pure functies uit `src/shared`.
+// en `import.meta.glob` nodig); alleen pure functies uit `src/shared`. Sinds OFM-045 bestaat elke
+// offerte uit 1–4 werkzaamheden van zijn soort werk (startset §9.6), met materialen en opties, en zijn
+// de regels daaruit gemaakt zoals Maak zonder Claude dat doet (subregels met `onderdeelVan`).
 
 export const SEED_AANTAL = 5000;
 const EERSTE_JAAR = 2022;
@@ -134,7 +145,6 @@ const SOORTEN_WERK: SoortWerk[] = [
   'onderhoud',
 ];
 const SOORTEN_DAK: SoortDak[] = ['plat', 'plat', 'plat', 'hellend'];
-const BEDEKKINGEN: Bedekking[] = ['epdm_11', 'epdm_15', 'resitrix', 'bitumen'];
 const AANHEFFEN: Aanhef[] = ['dhr', 'mevr', 'fam', 'bedrijf'];
 const NIET_CONCEPT: Status[] = ['klaar', 'verstuurd', 'akkoord', 'afgewezen'];
 
@@ -244,27 +254,17 @@ function maakOfferte(random: () => number, n: number, status: Status): SeedOffer
     breedteM: null,
     m2: geheel(random, 800, 12000) / 100,
   }));
+  const soortWerk = kies(random, SOORTEN_WERK);
+  const m2 = vlakken.reduce((som, v) => som + (v.m2 ?? 0), 0);
+  const werkzaamheden = kiesWerkzaamheden(random, id, soortWerk, m2);
   const invoer: KlusInvoer = {
     ...legeKlusInvoer(),
-    soortWerk: kies(random, SOORTEN_WERK),
+    soortWerk,
     soortDak: kies(random, SOORTEN_DAK),
     dakvlakken: vlakken,
-    bedekking: kies(random, BEDEKKINGEN),
+    werkzaamheden,
   };
-
-  const regels: Offerteregel[] = Array.from({ length: geheel(random, 1, 8) }, (_, i) => {
-    const post = kies(random, PRIJS_STARTSET);
-    return {
-      id: `${id}-r${i + 1}`,
-      omschrijving: post.omschrijving,
-      aantalHonderdsten: post.eenheid === 'm²' ? geheel(random, 800, 12000) : geheel(random, 1, 20) * 100,
-      eenheid: post.eenheid,
-      prijsCent: geheel(random, 500, 9500),
-      btwTarief: post.btwTarief,
-      prijsbron: 'prijslijst',
-      prijspostId: `start-${post.sleutel}`,
-    };
-  });
+  const regels = regelsVan(id, werkzaamheden);
   const inhoud: OfferteInhoud = {
     titel: 'Offerte dakwerkzaamheden',
     inleiding: 'Hierbij ontvangt u onze offerte voor de besproken werkzaamheden aan uw dak.',
@@ -278,6 +278,118 @@ function maakOfferte(random: () => number, n: number, status: Status): SeedOffer
 
   const offertedatum = datumOpDag(Math.floor(random() * AANTAL_DAGEN));
   return { id, status, offertedatum, klant, invoer, inhoud };
+}
+
+/** Prijspost-id van een startpost: `start-<sleutel>` (§9.3, `zetPrijspost`). */
+const postId = (sleutel: string) => `start-${sleutel}`;
+
+/**
+ * 1–4 werkzaamheden die bij de soort werk horen (in de volgorde van de startset), elk met een prijs;
+ * met materialen een gekozen materiaal, bij Slopen de helft van de keren een afvalcontainer.
+ */
+function kiesWerkzaamheden(
+  random: () => number,
+  id: string,
+  soortWerk: string,
+  m2: number,
+): GekozenWerkzaamheid[] {
+  const bij = WERKZAAMHEDEN_STARTSET.filter((w) => w.soortenWerk.includes(soortWerk));
+  const aantal = geheel(random, 1, Math.min(4, bij.length));
+  // Fisher-Yates met de vaste random, dan de eerste `aantal`.
+  const geschud = [...bij];
+  for (let i = geschud.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [geschud[i], geschud[j]] = [geschud[j] as StartWerkzaamheid, geschud[i] as StartWerkzaamheid];
+  }
+  const gekozen = geschud.slice(0, aantal);
+  return bij
+    .filter((w) => gekozen.includes(w))
+    .map((w, i) => {
+      const werkAantal = standaardAantal(w.eenheid, m2) || 1;
+      const materiaal = w.materialen.length > 0 ? kies(random, w.materialen) : null;
+      const eenheid = MATERIALEN_STARTSET.find((m) => m.sleutel === materiaal)?.eenheid;
+      return {
+        id: `${id}-w${i + 1}`,
+        sleutel: w.sleutel,
+        eenmalig: null,
+        aantal: werkAantal,
+        prijsCent: geheel(random, 500, 9500),
+        notitie: '',
+        materialen:
+          materiaal === null
+            ? []
+            : [
+                {
+                  id: `${id}-w${i + 1}-m1`,
+                  sleutel: materiaal,
+                  eenmalig: null,
+                  aantal: eenheid === w.eenheid ? werkAantal : 1,
+                  prijsCent: geheel(random, 500, 9500),
+                },
+              ],
+        opties: w.opties
+          .filter(() => random() < 0.5)
+          .map((o) => ({ sleutel: o.sleutel, prijsCent: geheel(random, 15000, 40000) })),
+      };
+    });
+}
+
+/** De regels zoals Maak zonder Claude ze maakt: per werkzaamheid een regel, materialen en opties eronder. */
+function regelsVan(id: string, werkzaamheden: readonly GekozenWerkzaamheid[]): Offerteregel[] {
+  let n = 0;
+  const regel = (
+    omschrijving: string,
+    aantal: number,
+    eenheid: Offerteregel['eenheid'],
+    prijsCent: number,
+    sleutel: string,
+    onderdeelVan: string | null,
+  ): Offerteregel => ({
+    id: `${id}-r${++n}`,
+    omschrijving,
+    aantalHonderdsten: Math.round(aantal * 100),
+    eenheid,
+    prijsCent,
+    btwTarief: 21,
+    prijsbron: 'prijslijst',
+    prijspostId: postId(sleutel),
+    ...(onderdeelVan !== null && { onderdeelVan }),
+  });
+  return werkzaamheden.flatMap((w) => {
+    const start = WERKZAAMHEDEN_STARTSET.find((s) => s.sleutel === w.sleutel);
+    if (!start || w.sleutel === null) return [];
+    const hoofd = regel(
+      start.label,
+      w.aantal,
+      start.eenheid,
+      w.prijsCent ?? 0,
+      werkPrijsSleutel(w.sleutel),
+      null,
+    );
+    const materialen = w.materialen.map((m) => {
+      const mat = MATERIALEN_STARTSET.find((x) => x.sleutel === m.sleutel);
+      return regel(
+        mat?.label ?? '',
+        m.aantal,
+        mat?.eenheid ?? 'post',
+        m.prijsCent ?? 0,
+        materiaalPrijsSleutel(m.sleutel ?? ''),
+        hoofd.id,
+      );
+    });
+    const opties = w.opties.map((o) => {
+      const optie = start.opties.find((x) => x.sleutel === o.sleutel);
+      return regel(
+        optie?.label ?? o.sleutel,
+        1,
+        optie?.eenheid ?? 'stuk',
+        o.prijsCent ?? 0,
+        optiePrijsSleutel(start.sleutel, o.sleutel),
+        hoofd.id,
+      );
+    });
+    return [hoofd, ...materialen, ...opties];
+  });
 }
 
 /**

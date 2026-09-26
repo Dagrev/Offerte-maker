@@ -182,7 +182,7 @@ describe('privacytestset (NFE-008)', () => {
       // De app zet zelf geen aanhef in de klusgegevens (vrije tekst van de gebruiker kan wel "Dhr." bevatten).
       expect(opdracht.json).not.toMatch(/"aanhef"|: "(?:dhr|mevr|fam|bedrijf)"/);
       const zonderVrijeTekst = bouwKlusVoorAgent({
-        invoer: { ...geval.invoer, gewensteUitvoering: '', overig: '', bedekkingAnders: '', dakvlakken: [] },
+        invoer: { ...geval.invoer, gewensteUitvoering: '', overig: '', werkzaamheden: [], dakvlakken: [] },
         klant: geval.klant,
         offertedatum: '2026-09-25',
         keuzes: KEUZE_STARTSET,

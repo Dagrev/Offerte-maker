@@ -3,6 +3,7 @@ import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
+import { zetOffertesOm } from './omzettingWerkzaamheden';
 import { zetWerkzaamhedenStartset } from './werkzaamhedenStartset';
 import type { Db } from './verbinding';
 
@@ -69,6 +70,17 @@ const NA_MIGRATIE: Record<string, (db: Db) => void> = {
   '004_werkzaamheden.sql': zetWerkzaamhedenStartset,
 };
 
+/**
+ * Stappen vóór de SQL van een migratie, in dezelfde transactie. OFM-045: de omzetting heeft de labels
+ * van de oude keuzelijsten nodig, die migratie 005 daarna verwijdert.
+ */
+const VOOR_MIGRATIE: Record<string, (db: Db) => void> = {
+  '005_omzetting_werkzaamheden.sql': (db) => {
+    const aantal = zetOffertesOm(db);
+    log.info(`omzetting naar werkzaamheden: ${aantal} offerte(s)`);
+  },
+};
+
 function isLeeg(db: Db): boolean {
   const rij = db
     .prepare("SELECT COUNT(*) AS aantal FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
@@ -104,6 +116,7 @@ export async function migreer(db: Db, opties: MigreerOpties = {}): Promise<Migre
 
   for (const migratie of open) {
     db.transaction(() => {
+      VOOR_MIGRATIE[migratie.naam]?.(db);
       db.exec(migratie.sql);
       NA_MIGRATIE[migratie.naam]?.(db);
       db.pragma(`user_version = ${migratie.nr}`);

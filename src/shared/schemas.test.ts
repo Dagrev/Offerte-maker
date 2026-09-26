@@ -17,24 +17,11 @@ const legeKlusInvoer: KlusInvoer = {
   soortWerk: null,
   soortDak: null,
   dakvlakken: [{ id: 'd1', naam: 'Dakvlak 1', modus: 'lxb', lengteM: null, breedteM: null, m2: null }],
-  bedekking: null,
-  bedekkingAnders: '',
   huidigeBedekking: null,
   ondergrond: null,
-  slopenEnAfvoeren: false,
-  isolatie: 'geen',
-  isolatieAndersMm: null,
-  daktrimM1: 0,
-  dakgootM1: 0,
-  hwaAantal: 0,
-  noodoverloopAantal: 0,
-  doorvoerAantal: 0,
-  lichtkoepelAantal: 0,
-  afwerking: 'geen',
   hoogte: '1',
   steigerNodig: false,
   garantieJaren: '10',
-  extraAantallen: {},
   werkzaamheden: [],
   gewensteUitvoering: '',
   overig: '',
@@ -61,9 +48,20 @@ describe('domeinschema’s', () => {
   it('weigert negatieve maten en aantallen (FE-024)', () => {
     expect(dakvlakSchema.safeParse({ ...legeKlusInvoer.dakvlakken[0], lengteM: -1 }).success).toBe(false);
     expect(dakvlakSchema.safeParse({ ...legeKlusInvoer.dakvlakken[0], m2: -0.5 }).success).toBe(false);
-    expect(klusInvoerSchema.safeParse({ ...legeKlusInvoer, hwaAantal: -1 }).success).toBe(false);
-    expect(klusInvoerSchema.safeParse({ ...legeKlusInvoer, hwaAantal: 1.5 }).success).toBe(false);
-    expect(klusInvoerSchema.safeParse({ ...legeKlusInvoer, daktrimM1: -2 }).success).toBe(false);
+    const werk = {
+      id: 'w1',
+      sleutel: 'slopen',
+      eenmalig: null,
+      aantal: 1,
+      prijsCent: null,
+      notitie: '',
+      materialen: [],
+      opties: [],
+    };
+    const met = (w: object) => ({ ...legeKlusInvoer, werkzaamheden: [{ ...werk, ...w }] });
+    expect(klusInvoerSchema.safeParse(met({})).success).toBe(true);
+    expect(klusInvoerSchema.safeParse(met({ aantal: -1 })).success).toBe(false);
+    expect(klusInvoerSchema.safeParse(met({ prijsCent: 1.5 })).success).toBe(false);
     expect(klusInvoerSchema.safeParse({ ...legeKlusInvoer, garantieJaren: 15 }).success).toBe(false);
   });
 

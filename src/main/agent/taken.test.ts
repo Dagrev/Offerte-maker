@@ -112,7 +112,7 @@ describe('maakOfferte (§10.7)', { timeout: 30_000 }, () => {
     expect(r.status).toBe('concept');
     expect(r.wizard_stap).toBe(4);
     expect(r.totaal_incl_cent).toBeGreaterThan(0);
-    expect(r.omschrijving_kort).toBe('Dak vervangen · EPDM 1,1 mm · 22,5 m²');
+    expect(r.omschrijving_kort).toBe('Dak vervangen · 22,5 m²');
     expect(r.inhoud_json).toContain('[KLANT_NAAM]');
     for (const w of ['Jansen', 'Dorpsstraat', 'Veldhoven', '12345678', 'jansen@mail.nl']) {
       expect(r.inhoud_json).not.toContain(w);

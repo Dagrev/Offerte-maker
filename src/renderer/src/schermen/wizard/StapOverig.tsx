@@ -1,8 +1,7 @@
 import { aantalNaarHonderdsten, bedragWerkzaamheidCent, m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
 import { formatAantal, formatDatum, formatEuro, formatM2 } from '@shared/formatteer';
-import { extraInMeters, extrasMetAantal, keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
-import { klantWeergave, labelBedekking, labelIsolatie, volledigeNaam } from '@shared/labels';
-import { oudeVelden } from '@shared/oudeInvoer';
+import { keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
+import { klantWeergave, volledigeNaam } from '@shared/labels';
 import type { Adres, Klant, KlusInvoer } from '@shared/types';
 import { werkGroepen, type WerkCatalogus } from '@shared/werkzaamheden';
 import { DatumVeld } from '../../componenten/DatumVeld';
@@ -13,7 +12,6 @@ import { hoofdletter } from './opties';
 
 const t = nl.wizard.overig;
 const s = nl.wizard.samenvatting;
-const e = nl.wizard.extras;
 
 export interface StapOverigProps {
   klant: Klant;
@@ -94,8 +92,6 @@ function samenvatting(
   const voeg = (label: string, waarde: string | null | false) => {
     if (waarde) regels.push([label, waarde]);
   };
-  const aantal = (label: string, n: number, eenheid: string) =>
-    voeg(label, n > 0 ? `${formatAantal(aantalNaarHonderdsten(n))} ${eenheid}` : null);
 
   const naam = volledigeNaam(klant) || klant.bedrijfsnaam.trim() ? klantWeergave(klant) : '';
   voeg(s.klant, naam);
@@ -116,9 +112,6 @@ function samenvatting(
       .join('\n');
     voeg(s.dakvlakken, `${vlakken}\n${nl.wizard.dak.totaal}: ${formatM2(aantalNaarHonderdsten(m2))} m²`);
   }
-  // Keuzes van de oude stap Extra's: alleen bij een oude offerte (tot OFM-045).
-  const oud = oudeVelden(invoer);
-  voeg(s.bedekking, oud.bedekking && labelBedekking(keuzes, oud.bedekking, oud.bedekkingAnders));
   voeg(s.huidigeBedekking, invoer.huidigeBedekking && label('huidigeBedekking', invoer.huidigeBedekking));
   voeg(s.ondergrond, invoer.ondergrond && label('ondergrond', invoer.ondergrond));
   voeg(s.hoogte, label('hoogte', invoer.hoogte));
@@ -134,12 +127,6 @@ function samenvatting(
     .join('\n');
   voeg(s.werkzaamheden, werk);
 
-  voeg(s.slopen, oud.slopenEnAfvoeren && t.ja);
-  voeg(s.isolatie, oud.isolatie !== 'geen' && labelIsolatie(keuzes, oud.isolatie, oud.isolatieAndersMm));
-  for (const extra of extrasMetAantal(oud, keuzes)) {
-    aantal(extra.label, extra.aantal, extraInMeters(extra.sleutel) ? e.strekkendeMeter : e.stuks);
-  }
-  voeg(s.afwerking, oud.afwerking !== 'geen' && label('afwerking', oud.afwerking));
   voeg(s.steiger, invoer.steigerNodig && t.ja);
   voeg(s.garantie, label('garantie', invoer.garantieJaren));
   voeg(s.gewensteUitvoering, invoer.gewensteUitvoering.trim());

@@ -8,22 +8,13 @@ export const keuzelijsten = {
   lijst: {
     soortWerk: 'Soort werk',
     soortDak: 'Soort dak',
-    bedekking: 'Nieuwe dakbedekking',
     huidigeBedekking: 'Huidige dakbedekking',
     ondergrond: 'Ondergrond',
-    isolatie: 'Isolatie',
-    extras: "Extra's",
-    afwerking: 'Afwerking',
     hoogte: 'Hoogte',
     garantie: 'Garantie',
   } satisfies Record<KeuzeLijst, string>,
   /** Extra uitleg bij sommige lijsten. */
   lijstHint: {
-    bedekking: 'Een nieuwe keuze krijgt een post zonder prijs in de prijslijst (per m²).',
-    isolatie: 'Een nieuwe keuze krijgt een post zonder prijs in de prijslijst (per m²).',
-    afwerking: 'Een nieuwe keuze krijgt een post zonder prijs in de prijslijst (per m²).',
-    extras:
-      'In de wizard vul je bij elke extra een aantal in. Een nieuwe extra krijgt een post zonder prijs in de prijslijst (per stuk).',
     garantie:
       'De teksten voor 10 en 20 jaar staan bij Teksten. Bij een nieuwe keuze komt op de offerte: "Op de uitgevoerde werkzaamheden geven wij garantie: <naam>."',
   } satisfies Partial<Record<KeuzeLijst, string>>,

@@ -24,18 +24,8 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
           { id: 'a', naam: 'Voorkant', modus: 'lxb', lengteM: 5, breedteM: 4.5, m2: null },
           { id: 'b', naam: 'Achterkant', modus: 'm2', lengteM: null, breedteM: null, m2: 12.3 },
         ],
-        bedekking: 'bitumen',
         huidigeBedekking: 'grind_op_bitumen',
         ondergrond: 'beton',
-        slopenEnAfvoeren: true,
-        isolatie: '80',
-        daktrimM1: 12,
-        dakgootM1: 8,
-        hwaAantal: 2,
-        noodoverloopAantal: 1,
-        doorvoerAantal: 3,
-        lichtkoepelAantal: 1,
-        afwerking: 'grind',
         hoogte: '3plus',
         steigerNodig: true,
         garantieJaren: '20',
@@ -53,21 +43,8 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
         { naam: 'Voorkant', m2: 22.5 },
         { naam: 'Achterkant', m2: 12.3 },
       ],
-      bedekking: 'Bitumen',
-      bedekkingAnders: '',
       huidigeBedekking: 'Grind op bitumen',
       ondergrond: 'Beton',
-      slopenEnAfvoeren: true,
-      isolatie: '80 mm (Rc 3,5)',
-      isolatieAndersMm: null,
-      daktrimM1: 12,
-      dakgootM1: 8,
-      hwaAantal: 2,
-      noodoverloopAantal: 1,
-      doorvoerAantal: 3,
-      lichtkoepelAantal: 1,
-      extras: [],
-      afwerking: 'Grind',
       hoogte: '3 of meer bouwlagen',
       steigerNodig: true,
       garantie: '20 jaar verzekerde garantie',
@@ -91,32 +68,14 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     });
   });
 
-  it('lege keuzes blijven null; anders-waarden worden de ingevulde tekst', () => {
+  it('lege keuzes blijven null', () => {
     const klus = bouwKlusVoorAgent({
-      invoer: maakInvoer({
-        soortWerk: null,
-        soortDak: null,
-        bedekking: 'anders',
-        bedekkingAnders: 'Zink van de Vries',
-        huidigeBedekking: null,
-        ondergrond: null,
-        isolatie: 'anders',
-        isolatieAndersMm: 140,
-      }),
+      invoer: maakInvoer({ soortWerk: null, soortDak: null, huidigeBedekking: null, ondergrond: null }),
       klant,
       offertedatum: '2026-09-25',
       keuzes: KEUZE_STARTSET,
     });
-    expect(klus).toMatchObject({
-      soortWerk: null,
-      soortDak: null,
-      bedekking: 'Zink van [KLANT_NAAM]',
-      bedekkingAnders: 'Zink van [KLANT_NAAM]',
-      huidigeBedekking: null,
-      ondergrond: null,
-      isolatie: '140 mm',
-      isolatieAndersMm: 140,
-    });
+    expect(klus).toMatchObject({ soortWerk: null, soortDak: null, huidigeBedekking: null, ondergrond: null });
   });
 
   it('filtert vrije tekst en dakvlaknamen; zonder filter blijft de tekst ongewijzigd', () => {
@@ -136,7 +95,6 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     expect(gebruikersTekst(klus)).toEqual([
       'Mevrouw [KLANT_NAAM]: [VERWIJDERD]',
       'Mail [VERWIJDERD], [KLANT_ADRES]',
-      '',
       'Schuur [KLANT_NAAM]',
       '',
     ]);
@@ -145,30 +103,22 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     expect(ongefilterd.dakvlakken[0]?.naam).toBe('Schuur Vries');
   });
 
-  it("OFM-034: labels uit de keuzelijsten; zelf toegevoegde extra's met naam en aantal", () => {
+  it('OFM-034: labels uit de keuzelijsten', () => {
     const keuzes = {
       ...KEUZE_STARTSET,
       soortWerk: [{ sleutel: 'reparatie', label: 'Lekkage verhelpen' }],
-      extras: [...KEUZE_STARTSET.extras, { sleutel: 'dakkapel', label: 'Dakkapel aansluiten' }],
       garantie: [...KEUZE_STARTSET.garantie, { sleutel: '15_jaar', label: '15 jaar' }],
     };
     const klus = bouwKlusVoorAgent({
-      invoer: maakInvoer({
-        soortWerk: 'reparatie',
-        hwaAantal: 1,
-        extraAantallen: { dakkapel: 2 },
-        garantieJaren: '15_jaar',
-      }),
+      invoer: maakInvoer({ soortWerk: 'reparatie', garantieJaren: '15_jaar' }),
       klant,
       offertedatum: '2026-09-25',
       keuzes,
     });
-    expect(klus).toMatchObject({
-      soortWerk: 'Lekkage verhelpen',
-      hwaAantal: 1,
-      extras: [{ naam: 'Dakkapel aansluiten', aantal: 2 }],
-      garantie: '15 jaar',
-    });
+    expect(klus).toMatchObject({ soortWerk: 'Lekkage verhelpen', garantie: '15 jaar' });
+    // OFM-045: de velden van de oude stap Extra's bestaan niet meer.
+    expect(klus).not.toHaveProperty('bedekking');
+    expect(klus).not.toHaveProperty('extras');
   });
 
   it('klantobject: alleen plaatshouders en vlaggen', () => {
@@ -211,8 +161,6 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
         }
       : null;
   const invoer = maakInvoer({
-    // Geen oude keuzes: dan staan de velden van de oude stap Extra's er niet in.
-    bedekking: null,
     werkzaamheden: [
       gekozen({
         notitie: 'Bel mevrouw de Vries vooraf op 06-12345678',
@@ -283,7 +231,6 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
     expect(gebruikersTekst(klus)).toEqual([
       klus.gewensteUitvoering,
       klus.overig,
-      '',
       ...klus.dakvlakken.map((v) => v.naam),
       'Bel mevrouw [KLANT_NAAM] vooraf op [VERWIJDERD]',
       'Zink van [KLANT_NAAM]',

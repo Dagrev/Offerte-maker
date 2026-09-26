@@ -157,7 +157,8 @@ describe('migreer', () => {
       ).garantieJaren;
     expect(garantie('tien')).toBe('10');
     expect(garantie('twintig')).toBe('20');
-    expect(t.db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
+    // 40 startopties; migratie 005 (OFM-045) haalt de 19 van bedekking, isolatie, extra's en afwerking weg.
+    expect(t.db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 21 });
   });
 
   it('003: naam wordt achternaam, voornaam leeg, voor elke offerte (OFM-038)', async () => {

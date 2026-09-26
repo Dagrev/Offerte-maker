@@ -61,11 +61,8 @@ export const klantSchema = z.object({
 export const keuzeSleutelSchema = z.string().regex(KEUZE_SLEUTEL_PATROON);
 export const soortWerkSchema = keuzeSleutelSchema;
 export const soortDakSchema = keuzeSleutelSchema;
-export const bedekkingSchema = keuzeSleutelSchema;
 export const huidigeBedekkingSchema = keuzeSleutelSchema;
 export const ondergrondSchema = keuzeSleutelSchema;
-export const isolatieSchema = keuzeSleutelSchema;
-export const afwerkingSchema = keuzeSleutelSchema;
 export const hoogteSchema = keuzeSleutelSchema;
 export const garantieSchema = keuzeSleutelSchema;
 
@@ -124,7 +121,7 @@ export const gekozenWerkzaamheidSchema = z
 /**
  * Maximaal 20 dakvlakken (V-16). Sinds OFM-044 bestaat een offerte uit `werkzaamheden`; de velden van
  * de oude stap Extra's (bedekking, isolatie, afwerking, slopen, de zes extra's en `extraAantallen`)
- * zijn optioneel: alleen oude offertes hebben ze nog, tot de omzetting in OFM-045.
+ * zijn in OFM-045 met migratie 005 omgezet en bestaan niet meer (`shared/omzetting.ts`).
  */
 export const klusInvoerSchema = z.object({
   soortWerk: soortWerkSchema.nullable(),
@@ -139,21 +136,6 @@ export const klusInvoerSchema = z.object({
   garantieJaren: garantieSchema,
   gewensteUitvoering: z.string(),
   overig: z.string(),
-  // Oude velden (vóór OFM-044), alleen nog lezen.
-  bedekking: bedekkingSchema.nullable().optional(),
-  bedekkingAnders: z.string().optional(),
-  slopenEnAfvoeren: z.boolean().optional(),
-  isolatie: isolatieSchema.optional(),
-  isolatieAndersMm: nietNegatief.nullable().optional(),
-  daktrimM1: nietNegatief.optional(),
-  dakgootM1: nietNegatief.optional(),
-  hwaAantal: aantal.optional(),
-  noodoverloopAantal: aantal.optional(),
-  doorvoerAantal: aantal.optional(),
-  lichtkoepelAantal: aantal.optional(),
-  afwerking: afwerkingSchema.optional(),
-  /** Aantallen van extra's die de gebruiker zelf toevoegde (sleutel → aantal); OFM-034. */
-  extraAantallen: z.record(keuzeSleutelSchema, nietNegatief).optional(),
 });
 
 export const btwTariefSchema = z.union([z.literal(0), z.literal(9), z.literal(21)]);
