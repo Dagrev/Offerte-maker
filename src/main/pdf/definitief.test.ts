@@ -217,7 +217,9 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
     await maakDefinitief(a, nepRenderer);
     // Zoals een offerte die vóór OFM-033 definitief werd.
     db.db
-      .prepare("UPDATE offertes SET nummer = '2026-001', zoektekst = 'jansen  veldhoven 2026-001' WHERE id = ?")
+      .prepare(
+        "UPDATE offertes SET nummer = '2026-001', zoektekst = 'jansen  veldhoven 2026-001' WHERE id = ?",
+      )
       .run(a);
     bewaarHandmatigeInhoud(a, haalOfferte(a).inhoud as OfferteInhoud);
     const tweede = await maakDefinitief(a, nepRenderer);
