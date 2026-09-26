@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SOORT_DAK_LABELS } from '../../src/shared/labels';
+import { KEUZE_STARTSET } from '../../src/shared/keuzelijsten';
 import { nl } from '../../src/renderer/src/teksten/nl';
 import {
   maakTestMappen,
@@ -35,7 +35,8 @@ test('getalveld: overschrijven bij focus, leegmaken en plakken', async () => {
   await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
-  const plat = SOORT_DAK_LABELS.plat.charAt(0).toUpperCase() + SOORT_DAK_LABELS.plat.slice(1);
+  const platLabel = KEUZE_STARTSET.soortDak[0]?.label ?? '';
+  const plat = platLabel.charAt(0).toUpperCase() + platLabel.slice(1);
   await page.getByRole('button', { name: plat, exact: true }).click();
 
   const lengte = page.getByLabel(w.dak.lengte, { exact: true });
