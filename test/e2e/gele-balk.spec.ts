@@ -38,13 +38,18 @@ function balk(page: Page) {
 test('gele balk: in- en uitklappen, keuze onthouden, voorbeeld zichtbaar op 1024 × 700', async () => {
   gestart = await startApp(mappen);
   const { page, app } = gestart;
-  // Vensterminimum (OFM-008): het venster start gemaximaliseerd, dus eerst terugzetten.
-  await app.evaluate(({ BrowserWindow }) => {
-    const venster = BrowserWindow.getAllWindows()[0];
-    venster?.unmaximize();
-    venster?.setContentSize(1024, 700);
-  });
-  await expect.poll(() => vensterHoogte(page)).toBeLessThanOrEqual(700);
+  // Vensterminimum (OFM-008): het venster start gemaximaliseerd, dus eerst terugzetten. De app
+  // maximaliseert zelf bij ready-to-show; dat kan ná de eerste poging komen, dus herhalen tot het past.
+  await expect
+    .poll(async () => {
+      await app.evaluate(({ BrowserWindow }) => {
+        const venster = BrowserWindow.getAllWindows()[0];
+        venster?.unmaximize();
+        venster?.setContentSize(1024, 700);
+      });
+      return vensterHoogte(page);
+    })
+    .toBeLessThanOrEqual(700);
   await overslaanWelkom(page);
   const id = await nieuweOfferteTotStap4(page, { achternaam: 'Balk', plaats: 'Eindhoven' });
   await page.getByRole('button', { name: nl.wizard.maakDeOfferte }).click();
