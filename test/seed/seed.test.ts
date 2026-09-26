@@ -72,11 +72,11 @@ describe('vulMetSeed', () => {
       expect(r.nummer === null).toBe(r.status === 'concept');
       expect(r.totaal_incl_cent).toBeGreaterThan(0);
     }
-    // Nummers per jaar doorlopend vanaf 001.
+    // Nummers per jaar doorlopend vanaf 001, met de datum ervoor (OFM-033).
     const eerste = db.prepare('SELECT nummer FROM offertes WHERE jaar = 2024 AND volgnummer = 1').get() as {
       nummer: string;
     };
-    expect(eerste.nummer).toBe('2024-001');
+    expect(eerste.nummer).toBe('2024-01-01-001');
   });
 
   it('geeft bij twee runs dezelfde gegevens, ook opnieuw in dezelfde database', () => {

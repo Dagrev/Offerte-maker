@@ -130,7 +130,7 @@ export function opmaakVoorbeeldModel(invoer: OpmaakVoorbeeldInvoer): PdfModel {
     opmaak: invoer.opmaak,
     fontCss: invoer.fontCss,
     klant: VOORBEELD_KLANT,
-    nummer: formatNummer(Number(invoer.vandaag.slice(0, 4)), 1),
+    nummer: formatNummer(invoer.vandaag, 1),
     offertedatum: invoer.vandaag,
     geldigTot: berekenGeldigTot(invoer.vandaag, invoer.teksten.geldigheidDagen),
     aanhefregel: aanhefRegel(VOORBEELD_KLANT),

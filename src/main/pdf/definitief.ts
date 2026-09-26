@@ -8,7 +8,7 @@ import { haalInstelling } from '../db/repo/instellingen';
 import { legDefinitiefVast, planDefinitief } from '../db/repo/offertesDefinitief';
 import { log } from '../log';
 import { paden } from '../paden';
-import { testhaak } from '../testhaken';
+import { testhaak, vandaag } from '../testhaken';
 import { pdfBestandsnaam, renderPdf, verplaatsBestand, vrijPad } from './maakPdf';
 import { pdfModelVoorOfferte } from './pdfModel';
 
@@ -32,7 +32,7 @@ export function maakDefinitief(
   renderer: PdfRenderer = renderPdf,
 ): Promise<{ nummer: string; pad: string }> {
   return na(async () => {
-    const plan = planDefinitief(id);
+    const plan = planDefinitief(id, vandaag());
     const weergave = plan.nummer + plan.versieletter;
     const bedrijf = haalInstelling('bedrijf');
     const html = renderOfferteHtml(pdfModelVoorOfferte(id, { nummer: weergave }), 'pdf');

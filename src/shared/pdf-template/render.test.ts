@@ -383,7 +383,7 @@ describe('opmaakVoorbeeldModel', () => {
     });
     expect(m.bedrijf).toBe(VOORBEELD_BEDRIJF);
     expect(m.logoDataUri).toBeNull();
-    expect(m.nummer).toBe('2026-001');
+    expect(m.nummer).toBe('2026-09-25-001');
     expect(m.geldigTot).toBe('2026-10-25');
     expect(m.aanhefregel).toBe('Geachte familie De Vries,');
     expect(m.totalen.totaalCent).toBeGreaterThan(0);

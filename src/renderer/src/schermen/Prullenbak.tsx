@@ -52,7 +52,7 @@ export function Prullenbak() {
           {lijst.data.map((o) => (
             <li
               key={o.id}
-              className="grid grid-cols-[8rem_minmax(0,1.3fr)_minmax(0,1fr)_8rem_8rem_8.5rem_auto] items-center gap-4 py-3"
+              className="grid grid-cols-[11rem_minmax(0,1.3fr)_minmax(0,1fr)_8rem_8rem_8.5rem_auto] items-center gap-4 py-3"
             >
               <span className={o.nummer ? 'font-semibold tabular-nums' : 'text-tekst-zacht'}>
                 {o.nummer ?? t.concept}
