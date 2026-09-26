@@ -56,11 +56,10 @@ test('tooltip bij hover en focus, Escape, klikken en live aantal', async () => {
   // Hover op stap 2: de punten van die stap, één regel per punt, gekoppeld via aria-describedby.
   await stap2.hover();
   await expect(tooltip).toHaveCount(1);
-  await expect(tooltip).toHaveText(`${WIZARD_PUNT_TEKSTEN.soortWerk}${WIZARD_PUNT_TEKSTEN.dakvlak}`);
+  // OFM-044: soort werk staat in stap 3; in stap 2 alleen het dakvlak.
+  await expect(tooltip).toHaveText(WIZARD_PUNT_TEKSTEN.dakvlak);
   await expect(stap2).toHaveAttribute('aria-describedby', (await tooltip.getAttribute('id')) ?? 'x');
-  await expect(stap2).toHaveAccessibleDescription(
-    new RegExp(`${WIZARD_PUNT_TEKSTEN.soortWerk}.*${WIZARD_PUNT_TEKSTEN.dakvlak}`),
-  );
+  await expect(stap2).toHaveAccessibleDescription(new RegExp(WIZARD_PUNT_TEKSTEN.dakvlak));
   await page.mouse.move(0, 0);
   await expect(tooltip).toHaveCount(0);
 
@@ -81,8 +80,7 @@ test('tooltip bij hover en focus, Escape, klikken en live aantal', async () => {
 
   // Het getal loopt live mee: achternaam invullen → stap 1 zonder markering (en zonder tooltip).
   await page.getByLabel(w.klant.achternaam, { exact: true }).fill('Jansen');
-  await expect(balk.getByText(c.stapPunten(1))).toHaveCount(0);
-  await expect(balk.getByText(c.stapPunten(2))).toBeVisible();
+  await expect(balk.getByText(c.stapPunten(1))).toHaveCount(2); // stap 2 en 3
 
   // Klikken op de stap gaat naar die stap.
   await stap2.click();
