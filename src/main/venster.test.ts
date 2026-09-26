@@ -69,16 +69,47 @@ const nep = vi.hoisted(() => {
   };
 });
 
-vi.mock('electron', () => ({ app: nep.app, BrowserWindow: nep.BrowserWindow, session: nep.session }));
+vi.mock('electron', () => ({
+  app: nep.app,
+  BrowserWindow: nep.BrowserWindow,
+  screen: { getAllDisplays: () => [{ workArea: { x: 0, y: 0 } }, { workArea: { x: -1440, y: 0 } }] },
+  session: nep.session,
+}));
 
 const venster = await import('./venster');
-const { CSP, beveiligWebContents, claimEnkeleInstantie, cspVoor, devServerUrl, huidigVenster, isEigenAdres } =
-  venster;
+const {
+  CSP,
+  beveiligWebContents,
+  claimEnkeleInstantie,
+  cspVoor,
+  devServerUrl,
+  huidigVenster,
+  isEigenAdres,
+  vensterPositie,
+} = venster;
 
 beforeEach(() => {
   nep.vensters.length = 0;
   nep.app.isPackaged = false;
   delete process.env['ELECTRON_RENDERER_URL'];
+  delete process.env['OFFERTE_MAKER_SCHERM'];
+});
+
+describe('vensterPositie (OFFERTE_MAKER_SCHERM)', () => {
+  const schermen = [{ workArea: { x: 0, y: 0 } }, { workArea: { x: -1440, y: 0 } }];
+  it('zet het venster op het gevraagde scherm', () => {
+    expect(vensterPositie('2', schermen)).toEqual({ x: -1400, y: 40 });
+    expect(vensterPositie(' 1 ', schermen)).toEqual({ x: 40, y: 40 });
+  });
+  it('negeert ontbrekende of ongeldige waarden', () => {
+    for (const w of [undefined, '', '0', '3', 'twee', '1.5'])
+      expect(vensterPositie(w, schermen)).toBeUndefined();
+  });
+  it('geeft de positie door aan het BrowserWindow', () => {
+    process.env['OFFERTE_MAKER_SCHERM'] = '2';
+    venster.maakHoofdvenster();
+    expect(nep.vensters[0]!.opties).toMatchObject({ x: -1400, y: 40 });
+  });
 });
 
 describe('CSP', () => {
