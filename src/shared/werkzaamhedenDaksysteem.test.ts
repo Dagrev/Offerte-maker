@@ -16,7 +16,11 @@ import {
 // OFM-051: standaardmaterialen per daksysteem (terugvalvolgorde, voorselectie, hint in stap 3).
 
 const iso = CATALOGUS.werkzaamheden[1]!; // Isoleren: PIR 60 mm, PIR 80 mm (standaard)
-const regel = (ondergrond: string | null, bedekking: string | null, materiaalId: string): DaksysteemRegel => ({
+const regel = (
+  ondergrond: string | null,
+  bedekking: string | null,
+  materiaalId: string,
+): DaksysteemRegel => ({
   werkzaamheidId: 'w-iso',
   ondergrond,
   bedekking,
@@ -113,7 +117,8 @@ describe('daksysteemHint en gebruikDaksysteem', () => {
     aantal,
     prijsCent: null,
   });
-  const isoGekozen = (materialen: GekozenMateriaal[]) => gekozen({ id: 'g-iso', sleutel: 'isoleren', materialen });
+  const isoGekozen = (materialen: GekozenMateriaal[]) =>
+    gekozen({ id: 'g-iso', sleutel: 'isoleren', materialen });
 
   it('na een andere ondergrond: hint naar het nieuwe standaardmateriaal', () => {
     // Gekozen bij hout (PIR 60), nu beton: de gewone standaard PIR 80.
@@ -152,7 +157,10 @@ describe('daksysteemHint en gebruikDaksysteem', () => {
 describe('randgevallen in shared/werkzaamheden.ts (100 % branches)', () => {
   it('werkInfo en materiaalInfo zonder sleutel en zonder eenmalig: lege naam per post', () => {
     expect(werkInfo(CATALOGUS, { sleutel: null, eenmalig: null })).toEqual({ label: '', eenheid: 'post' });
-    expect(materiaalInfo(CATALOGUS, { sleutel: null, eenmalig: null })).toEqual({ label: '', eenheid: 'post' });
+    expect(materiaalInfo(CATALOGUS, { sleutel: null, eenmalig: null })).toEqual({
+      label: '',
+      eenheid: 'post',
+    });
   });
 
   it('pasBedekkingToe: een tweede oud bedekkingsmateriaal verdwijnt', () => {

@@ -111,10 +111,9 @@ test('afwijking Hout × alle: Bevestigen → Houtschroeven; in de wizard voorges
   await expect(sectie.getByText(d.kiesCombinatie)).toBeVisible();
   const ondergrond = sectie.getByRole('group', { name: d.ondergrond });
   const bedekking = sectie.getByRole('group', { name: d.bedekking });
-  await expect(ondergrond.getByRole('button', { name: new RegExp(`^${d.alleOndergronden}`) })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(
+    ondergrond.getByRole('button', { name: new RegExp(`^${d.alleOndergronden}`) }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await ondergrond.getByRole('button', { name: /^Hout/ }).click();
   await expect(bedekking.getByRole('button', { name: new RegExp(`^${d.alleBedekkingen}`) })).toHaveAttribute(
     'aria-pressed',
@@ -127,7 +126,9 @@ test('afwijking Hout × alle: Bevestigen → Houtschroeven; in de wizard voorges
   await expect(keuze).toHaveValue('');
   await expect(sectie.getByLabel(d.keuzeLabel('Isoleren', combinatie), { exact: true })).toBeVisible();
   await expect(sectie.getByLabel(d.keuzeLabel('Slopen', combinatie), { exact: true })).toHaveCount(0);
-  const rij = sectie.getByRole('listitem').filter({ has: keuze });
+  const rij = sectie
+    .getByRole('listitem')
+    .filter({ has: page.getByLabel(d.keuzeLabel('Bevestigen', combinatie), { exact: true }) });
   await expect(rij).toContainText(`${d.bronGewoon}: Schroeven`);
   await controleerScherm(page, 'Standaardmaterialen per daksysteem, leeg', []);
 
@@ -138,15 +139,22 @@ test('afwijking Hout × alle: Bevestigen → Houtschroeven; in de wizard voorges
   await expect(ondergrond.getByRole('button', { name: /^Hout/ })).toHaveAccessibleName(/1 afwijking$/);
   const regels = (await apiData(page, 'werkzaamhedenHaal')).daksystemen;
   expect(regels).toEqual([
-    { werkzaamheidId: 'e2e-bevestigen', ondergrond: 'hout', bedekking: null, materiaalId: 'e2e-houtschroeven' },
+    {
+      werkzaamheidId: 'e2e-bevestigen',
+      ondergrond: 'hout',
+      bedekking: null,
+      materiaalId: 'e2e-houtschroeven',
+    },
   ]);
   // Hout × EPDM erft de regel van Hout × alle bedekkingen.
   await bedekking.getByRole('button', { name: /^EPDM/ }).click();
   const erft = sectie.getByLabel(d.keuzeLabel('Bevestigen', d.combinatie('Hout', 'EPDM')), { exact: true });
   await expect(erft).toHaveValue('');
-  await expect(sectie.getByRole('listitem').filter({ has: erft })).toContainText(
-    `${d.bronGeerfd(combinatie)}: Houtschroeven`,
-  );
+  await expect(
+    sectie.getByRole('listitem').filter({
+      has: page.getByLabel(d.keuzeLabel('Bevestigen', d.combinatie('Hout', 'EPDM')), { exact: true }),
+    }),
+  ).toContainText(`${d.bronGeerfd(combinatie)}: Houtschroeven`);
   await controleerScherm(page, 'Standaardmaterialen per daksysteem, met afwijking', []);
   await knop(page, nl.instellingen.terug).click();
 
@@ -160,7 +168,10 @@ test('afwijking Hout × alle: Bevestigen → Houtschroeven; in de wizard voorges
   await vulDakIn(page);
   await knop(page, w.volgende).click();
   await knop(page, 'Dak vervangen').click();
-  await page.getByRole('group', { name: w.werk.nieuweBedekking }).getByRole('button', { name: 'EPDM', exact: true }).click();
+  await page
+    .getByRole('group', { name: w.werk.nieuweBedekking })
+    .getByRole('button', { name: 'EPDM', exact: true })
+    .click();
   await page.getByRole('button', { name: /^Bevestigen/ }).click();
   const kaart = page.getByRole('region', { name: 'Bevestigen' });
   await expect(kaart.getByLabel('Houtschroeven', { exact: true })).toBeChecked();
@@ -187,10 +198,15 @@ test('afwijking Hout × alle: Bevestigen → Houtschroeven; in de wizard voorges
   await expect(kaart.getByLabel('Houtschroeven', { exact: true })).not.toBeChecked();
 
   const id = await offerteIdVan(page, 'Schroefman');
-  const invoer = (await apiData(page, 'offerteHaal', { id })).invoer;
-  expect(invoer.ondergrond).toBe('beton');
-  expect(invoer.werkzaamheden.find((x) => x.sleutel === 'bevestigen')?.materialen.map((m) => m.sleutel)).toEqual([
-    'schroeven',
-  ]);
+  // Na de autosave van de wizard.
+  await expect
+    .poll(async () => {
+      const invoer = (await apiData(page, 'offerteHaal', { id })).invoer;
+      return [
+        invoer.ondergrond,
+        invoer.werkzaamheden.find((x) => x.sleutel === 'bevestigen')?.materialen.map((m) => m.sleutel),
+      ];
+    })
+    .toEqual(['beton', ['schroeven']]);
   expect(gestart.paginaFouten).toEqual([]);
 });

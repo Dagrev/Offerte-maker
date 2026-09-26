@@ -63,7 +63,7 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
   // Eén tab: Prijzen bestaat niet meer; drie secties.
   await expect(page.getByRole('button', { name: 'Prijzen', exact: true })).toHaveCount(0);
   for (const kop of [t.materialen, t.werkzaamheden, t.overig]) {
-    await expect(page.getByRole('heading', { name: kop, level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: kop, level: 2, exact: true })).toBeVisible();
   }
   await controleerScherm(page, 'Instellingen Werkzaamheden en prijzen', []);
 

@@ -42,10 +42,7 @@ export function SectieDaksystemen({
   const labelVan = (opties: Keuzeoptie[], sleutel: string | null, alle: string) =>
     sleutel === null ? alle : (opties.find((o) => o.sleutel === sleutel)?.label ?? sleutel);
   const combinatie = (o: string | null, b: string | null) =>
-    t.combinatie(
-      labelVan(ondergronden, o, t.alleOndergronden),
-      labelVan(bedekkingen, b, t.alleBedekkingen),
-    );
+    t.combinatie(labelVan(ondergronden, o, t.alleOndergronden), labelVan(bedekkingen, b, t.alleBedekkingen));
   const materiaalNaam = (id: string | null) =>
     set.materialen.find((m) => m.id === id)?.label ?? t.geenMateriaal;
 
@@ -54,7 +51,8 @@ export function SectieDaksystemen({
 
   const zet = (werkzaamheidId: string, materiaalId: string) => {
     const zonder = regels.filter(
-      (r) => !(r.werkzaamheidId === werkzaamheidId && r.ondergrond === ondergrond && r.bedekking === bedekking),
+      (r) =>
+        !(r.werkzaamheidId === werkzaamheidId && r.ondergrond === ondergrond && r.bedekking === bedekking),
     );
     opWijzig(
       materiaalId === '' ? zonder : [...zonder, { werkzaamheidId, ondergrond, bedekking, materiaalId }],
@@ -142,7 +140,9 @@ export function SectieDaksystemen({
                       </option>
                     ))}
                   </select>
-                  <span className={nu.bron === 'combinatie' ? 'font-semibold' : 'text-tekst-zacht'}>{bron}</span>
+                  <span className={nu.bron === 'combinatie' ? 'font-semibold' : 'text-tekst-zacht'}>
+                    {bron}
+                  </span>
                 </li>
               );
             })}

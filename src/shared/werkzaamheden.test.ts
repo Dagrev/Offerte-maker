@@ -173,17 +173,19 @@ describe('info, standaardaantal en kiezen (OFM-044)', () => {
     let n = 0;
     const id = () => `id${++n}`;
     const iso = CATALOGUS.werkzaamheden[1]!;
-    expect(kiesWerkzaamheid(iso, CATALOGUS, 40, { ondergrond: null, nieuweBedekking: null }, [], id)).toEqual({
-      id: 'id1',
-      sleutel: 'isoleren',
-      eenmalig: null,
-      aantal: 40,
-      prijsCent: null,
-      perUur: false,
-      notitie: '',
-      materialen: [{ id: 'id2', sleutel: 'pir_80', eenmalig: null, aantal: 40, prijsCent: 1800 }],
-      opties: [],
-    });
+    expect(kiesWerkzaamheid(iso, CATALOGUS, 40, { ondergrond: null, nieuweBedekking: null }, [], id)).toEqual(
+      {
+        id: 'id1',
+        sleutel: 'isoleren',
+        eenmalig: null,
+        aantal: 40,
+        prijsCent: null,
+        perUur: false,
+        notitie: '',
+        materialen: [{ id: 'id2', sleutel: 'pir_80', eenmalig: null, aantal: 40, prijsCent: 1800 }],
+        opties: [],
+      },
+    );
     expect(kiesWerkzaamheid(CATALOGUS.werkzaamheden[0]!, CATALOGUS, 40).materialen).toEqual([]);
     expect(kiesMateriaal(CATALOGUS.materialen[2]!, 'm²', 40).aantal).toBe(1);
   });

@@ -122,9 +122,9 @@ function schrijfRegels(db: Db, regels: readonly DaksysteemRegel[]): void {
   );
   const opties = (lijst: string) =>
     new Set(
-      (
-        db.prepare('SELECT sleutel FROM keuzeopties WHERE lijst = ?').all(lijst) as { sleutel: string }[]
-      ).map((r) => r.sleutel),
+      (db.prepare('SELECT sleutel FROM keuzeopties WHERE lijst = ?').all(lijst) as { sleutel: string }[]).map(
+        (r) => r.sleutel,
+      ),
     );
   const ondergronden = opties('ondergrond');
   const bedekkingen = opties('nieuweBedekking');
