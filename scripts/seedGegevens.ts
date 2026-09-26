@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
 import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
 import { legeKlant, legeKlusInvoer, zoektekstVan } from '../src/shared/nieuweOfferte';
@@ -176,7 +177,10 @@ export function zorgVoorSchema(db: Database.Database): void {
         keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10);
       });
     }
-    db.pragma(`user_version = ${bestanden.length}`);
+    // Werkzaamheden, opties en materialen (OFM-043), na de keuzelijsten (koppeling met soort werk).
+    zetWerkzaamhedenStartset(db);
+    // Hoogste migratienummer, niet het aantal bestanden (zoals `migreer()`).
+    db.pragma(`user_version = ${Number(bestanden.at(-1)?.slice(0, 3) ?? 0)}`);
   })();
 }
 

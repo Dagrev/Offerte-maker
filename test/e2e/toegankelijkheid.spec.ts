@@ -139,6 +139,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     'teksten',
     'prijzen',
     'keuzelijsten',
+    'werkzaamheden',
     'voorbeelden',
   ];
   for (const tab of hoofdtabs) {

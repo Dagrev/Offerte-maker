@@ -3,6 +3,7 @@ import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
+import { zetWerkzaamhedenStartset } from './werkzaamhedenStartset';
 import type { Db } from './verbinding';
 
 // Migraties (TDO §4.1, V-12, V-13). Bestanden `migraties/NNN_naam.sql`, meegebundeld door vite.
@@ -64,6 +65,8 @@ export function voegKeuzeStartsetIn(db: Db): void {
 const NA_MIGRATIE: Record<string, (db: Db) => void> = {
   '001_basis.sql': voegStartsetIn,
   '002_keuzelijsten.sql': voegKeuzeStartsetIn,
+  // OFM-043: werkzaamheden, opties en materialen, met hun prijsposten zonder prijs.
+  '004_werkzaamheden.sql': zetWerkzaamhedenStartset,
 };
 
 function isLeeg(db: Db): boolean {

@@ -24,6 +24,7 @@ const domeinen = await Promise.all(
     './offerteBeheer',
     './instellingen',
     './keuzelijsten',
+    './werkzaamheden',
     './adres',
     './prijzen',
     './voorbeelden',

@@ -15,6 +15,7 @@ export const instellingen = {
     teksten: 'Teksten',
     prijzen: 'Prijzen',
     keuzelijsten: 'Keuzelijsten',
+    werkzaamheden: 'Werkzaamheden',
     voorbeelden: 'Voorbeelden',
     claudeKoppeling: 'Claude-koppeling',
     privacylog: 'Wat is naar Claude gestuurd',
@@ -98,5 +99,8 @@ export const instellingen = {
     verwijderNee: 'Annuleren',
     omschrijvingFout: 'Vul een omschrijving in.',
     rijLabel: (omschrijving: string, veld: string) => `${veld} van ${omschrijving}`,
+    // OFM-043: posten van werkzaamheden, opties en materialen.
+    groep: { werk: 'Werkzaamheden', optie: 'Opties bij werkzaamheden', mat: 'Materialen' },
+    groepUitleg: 'De naam en de eenheid wijzig je onder Werkzaamheden; hier alleen de prijs en de btw.',
   },
 };

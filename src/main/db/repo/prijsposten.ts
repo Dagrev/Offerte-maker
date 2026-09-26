@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { AppFout } from '@shared/fouten';
+import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { BtwTarief, Eenheid, Prijspost } from '@shared/types';
+import { prijsGroep } from '@shared/werkzaamheden';
 import { database } from '../verbinding';
 
 // Prijsposten (TDO §4.2, V-15) voor de kanalen `prijzen:*` (OFM-018) en de startposten (OFM-025).
@@ -30,6 +32,14 @@ function naarPrijspost(rij: PrijspostRij): Prijspost {
 export function lijstPrijsposten(): Prijspost[] {
   const rijen = database().prepare('SELECT * FROM prijsposten ORDER BY volgorde, id').all() as PrijspostRij[];
   return rijen.map(naarPrijspost);
+}
+
+/**
+ * De prijslijst voor de agentopdracht (§10.5): zonder de posten van werkzaamheden, opties en
+ * materialen, want de wizard kent die pas vanaf OFM-044 (dat ze hier toelaat).
+ */
+export function prijslijstVoorAgent(): Prijspost[] {
+  return lijstPrijsposten().filter((p) => prijsGroep(p.sleutel) === null);
 }
 
 export function haalPrijspost(id: string): Prijspost | null {
@@ -62,15 +72,31 @@ export function bewaarPrijspost(post: Prijspost): { id: string } {
     return { id };
   }
 
+  // Een post van een werkzaamheid, optie of materiaal (OFM-043) houdt de naam en eenheid van dat item:
+  // alleen prijs, btw en volgorde komen uit de prijslijst.
+  const vast = haalPrijspost(post.id);
+  const alsItem = vast !== null && prijsGroep(vast.sleutel) !== null;
   const resultaat = db
     .prepare(
       'UPDATE prijsposten SET omschrijving = ?, eenheid = ?, prijs_cent = ?, btw_tarief = ?, volgorde = ? WHERE id = ?',
     )
-    .run(post.omschrijving, post.eenheid, post.prijsCent, post.btwTarief, post.volgorde, post.id);
+    .run(
+      alsItem ? vast.omschrijving : post.omschrijving,
+      alsItem ? vast.eenheid : post.eenheid,
+      post.prijsCent,
+      post.btwTarief,
+      post.volgorde,
+      post.id,
+    );
   if (resultaat.changes === 0) throw new AppFout('VALIDATIE');
   return { id: post.id };
 }
 
+/** Een post van een werkzaamheid, optie of materiaal verdwijnt alleen met dat item (OFM-043). */
 export function verwijderPrijspost(id: string): void {
+  const post = haalPrijspost(id);
+  if (post !== null && prijsGroep(post.sleutel) !== null) {
+    throw new AppFout('VALIDATIE', VALIDATIE_MELDINGEN.werkPrijspostVast);
+  }
   database().prepare('DELETE FROM prijsposten WHERE id = ?').run(id);
 }

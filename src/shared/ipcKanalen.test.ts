@@ -6,9 +6,9 @@ import { FOUTMELDINGEN, VALIDATIE_MELDINGEN, bestandTeGroot } from './teksten/fo
 import type { Api, AppInfo, OfferteDetail, Voortgang } from './types';
 
 describe('ipcKanalen', () => {
-  it('bevat alle 54 kanalen uit §6.2 (49 + 3 keuzelijsten, OFM-034, + adres:zoek, OFM-031, + offerte:mail, OFM-041), uniek, elk met een invoerschema', () => {
-    expect(IPC_KANALEN).toHaveLength(54);
-    expect(new Set(IPC_KANALEN).size).toBe(54);
+  it('bevat alle 57 kanalen uit §6.2 (49 + 3 keuzelijsten, OFM-034, + adres:zoek, OFM-031, + offerte:mail, OFM-041, + 3 werkzaamheden, OFM-043), uniek, elk met een invoerschema', () => {
+    expect(IPC_KANALEN).toHaveLength(57);
+    expect(new Set(IPC_KANALEN).size).toBe(57);
     expect(Object.keys(invoerSchemas).sort()).toEqual([...IPC_KANALEN].sort());
     expect(IPC_KANALEN).toContain('app:openMap');
     expect(IPC_KANALEN).toContain('claude:kiesPad');
@@ -19,7 +19,7 @@ describe('ipcKanalen', () => {
     expect(apiNaam('offerte:maak')).toBe('offerteMaak');
     expect(apiNaam('app:info')).toBe('appInfo');
     expect(apiNaam('instellingen:kiesLogo')).toBe('instellingenKiesLogo');
-    expect(new Set(IPC_KANALEN.map(apiNaam)).size).toBe(54);
+    expect(new Set(IPC_KANALEN.map(apiNaam)).size).toBe(57);
   });
 
   it('window.api heeft getypeerde in- en uitvoer', () => {

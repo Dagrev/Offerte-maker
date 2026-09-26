@@ -105,7 +105,7 @@ describe('prijsposten (V-15)', () => {
 
   it('lijst staat op volgorde', () => {
     const lijst = lijstPrijsposten();
-    expect(lijst).toHaveLength(22);
+    expect(lijst.filter((p) => !p.sleutel?.includes(':'))).toHaveLength(22);
     expect(lijst[0]).toMatchObject({ id: 'start-epdm_11', volgorde: 10, prijsCent: null });
     expect(lijst.map((p) => p.volgorde)).toEqual([...lijst.map((p) => p.volgorde)].sort((a, b) => a - b));
   });
@@ -113,7 +113,12 @@ describe('prijsposten (V-15)', () => {
   it('nieuw krijgt een id, sleutel null en volgorde max + 10', () => {
     const { id } = bewaarPrijspost(nieuw);
     expect(id).not.toBe('');
-    expect(haalPrijspost(id)).toEqual({ ...nieuw, id, sleutel: null, volgorde: 230 });
+    const hoogste = Math.max(
+      ...lijstPrijsposten()
+        .filter((p) => p.id !== id)
+        .map((p) => p.volgorde),
+    );
+    expect(haalPrijspost(id)).toEqual({ ...nieuw, id, sleutel: null, volgorde: hoogste + 10 });
   });
 
   it('bijwerken houdt de sleutel; onbekende id geeft VALIDATIE', () => {
@@ -128,6 +133,6 @@ describe('prijsposten (V-15)', () => {
     verwijderPrijspost('start-hwa');
     expect(haalPrijspost('start-hwa')).toBeNull();
     expect(haalPrijspostOpSleutel('hwa')).toBeNull();
-    expect(lijstPrijsposten()).toHaveLength(21);
+    expect(lijstPrijsposten().filter((p) => !p.sleutel?.includes(':'))).toHaveLength(21);
   });
 });

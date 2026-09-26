@@ -5,7 +5,7 @@ import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
 import { haalKeuzes } from '../db/repo/keuzeopties';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
-import { haalPrijspost, lijstPrijsposten } from '../db/repo/prijsposten';
+import { haalPrijspost, prijslijstVoorAgent } from '../db/repo/prijsposten';
 import { schrijfLogregel, type Logregel } from '../db/repo/privacylog';
 import { log } from '../log';
 import { anonimiseer } from '../privacy/anonimiseer';
@@ -330,7 +330,7 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
     const systeemprompt = bouwSysteemprompt({ template: werkmap.template, api });
     const opdracht = bouwOpdrachtMaken({
       klus,
-      prijslijst: lijstPrijsposten(),
+      prijslijst: prijslijstVoorAgent(),
       teksten: { inleiding: teksten.inleiding, afsluiting: teksten.afsluiting },
       aantalVoorbeelden: werkmap.voorbeelden,
       template: werkmap.template,
@@ -408,7 +408,7 @@ export function pasAanMetClaude(
     const opdracht = bouwOpdrachtAanpassen({
       huidige,
       instructie: gefilterdeInstructie,
-      prijslijst: lijstPrijsposten(),
+      prijslijst: prijslijstVoorAgent(),
       aantalVoorbeelden: werkmap.voorbeelden,
       template: werkmap.template,
       ...(api && { api: voorbeeldenVoorApi() }),

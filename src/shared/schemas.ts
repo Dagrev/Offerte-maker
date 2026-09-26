@@ -388,6 +388,104 @@ export const keuzeoptieSchema = z.object({
   inGebruik: z.boolean(),
 });
 
+/** Werkzaamheden, opties en materialen (OFM-043, §6.2 `werkzaamheden:*`); prijzen uit de prijslijst. */
+const prijsCentSchema = z.number().int().nonnegative().nullable();
+/** Een lege naam weigert main met een eigen melding (`werkLeegLabel`). */
+const itemLabelSchema = z.string().max(80);
+
+export const werkOptieSchema = z.object({
+  id: idSchema,
+  sleutel: keuzeSleutelSchema,
+  label: z.string(),
+  eenheid: eenheidSchema,
+  prijsCent: prijsCentSchema,
+  verborgen: z.boolean(),
+  inGebruik: z.boolean(),
+});
+
+export const werkzaamheidSchema = z.object({
+  id: idSchema,
+  sleutel: keuzeSleutelSchema,
+  label: z.string(),
+  eenheid: eenheidSchema,
+  prijsCent: prijsCentSchema,
+  verborgen: z.boolean(),
+  /** Uit de startset (voor "Herstel startset"). */
+  standaard: z.boolean(),
+  /** Komt voor in een niet-verwijderde offerte: niet te verwijderen, wel te verbergen. */
+  inGebruik: z.boolean(),
+  /** Sleutels uit de keuzelijst `soortWerk` waar deze werkzaamheid bij hoort. */
+  soortenWerk: z.array(keuzeSleutelSchema),
+  opties: z.array(werkOptieSchema),
+  /** Kiesbare materialen (id's uit `materialen`), in de volgorde van de materialenlijst. */
+  materialen: z.array(z.object({ materiaalId: idSchema, standaard: z.boolean() })),
+});
+
+export const materiaalSchema = z.object({
+  id: idSchema,
+  sleutel: keuzeSleutelSchema,
+  label: z.string(),
+  eenheid: eenheidSchema,
+  prijsCent: prijsCentSchema,
+  verborgen: z.boolean(),
+  standaard: z.boolean(),
+  inGebruik: z.boolean(),
+});
+
+/** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar`: alles in één keer, in volgorde. */
+export const werkzaamhedenSetSchema = z.object({
+  /** De keuzelijst `soortWerk` met per soort de gekoppelde werkzaamheden (id's, in volgorde). */
+  soortenWerk: z.array(
+    z.object({
+      sleutel: keuzeSleutelSchema,
+      label: z.string(),
+      verborgen: z.boolean(),
+      werkzaamheden: z.array(idSchema),
+    }),
+  ),
+  werkzaamheden: z.array(werkzaamheidSchema),
+  materialen: z.array(materiaalSchema),
+});
+
+/** Invoer van `werkzaamheden:bewaar`: de hele set in de nieuwe volgorde. Een onbekende `id` = nieuw. */
+export const werkzaamhedenBewaarSchema = z.object({
+  werkzaamheden: z
+    .array(
+      z.object({
+        id: idSchema,
+        label: itemLabelSchema,
+        eenheid: eenheidSchema,
+        prijsCent: prijsCentSchema,
+        verborgen: z.boolean(),
+        soortenWerk: z.array(keuzeSleutelSchema).max(100),
+        opties: z
+          .array(
+            z.object({
+              id: idSchema,
+              label: itemLabelSchema,
+              eenheid: eenheidSchema,
+              prijsCent: prijsCentSchema,
+              verborgen: z.boolean(),
+            }),
+          )
+          .max(50),
+        materialen: z.array(z.object({ materiaalId: idSchema, standaard: z.boolean() })).max(200),
+      }),
+    )
+    .max(200),
+  materialen: z
+    .array(
+      z.object({
+        id: idSchema,
+        label: itemLabelSchema,
+        eenheid: eenheidSchema,
+        prijsCent: prijsCentSchema,
+        verborgen: z.boolean(),
+      }),
+    )
+    .max(200),
+});
+
 // ---------- §6.2 Invoer per kanaal ----------
 
 const geenInvoer = z.undefined();
@@ -468,6 +566,10 @@ export const invoerSchemas = {
       .max(100),
   }),
   'keuzelijsten:herstel': z.object({ lijst: keuzeLijstSchema }),
+
+  'werkzaamheden:haal': geenInvoer,
+  'werkzaamheden:bewaar': werkzaamhedenBewaarSchema,
+  'werkzaamheden:herstel': geenInvoer,
 
   /** OFM-031: alleen een geldige postcode en een geldig huisnummer gaan naar PDOK (A-29). */
   'adres:zoek': z.object({
