@@ -1,5 +1,7 @@
 import { Check } from 'lucide-react';
 import { nl } from '../teksten/nl';
+import type { StapMarkering } from './stapMarkering';
+import { Tooltip } from './Tooltip';
 
 export interface StappenbalkProps {
   /** Namen van de stappen, in volgorde. */
@@ -10,8 +12,11 @@ export interface StappenbalkProps {
   opKies?: (stap: number) => void;
   /** Elke stap is klikbaar, ook latere (wizard, OFM-035). */
   vrij?: boolean;
-  /** Aantal punten per stap (index 0 = stap 1); > 0 geeft een oranje markering met dat aantal. */
-  markeringen?: readonly number[];
+  /**
+   * Per stap (index 0 = stap 1) de punten die nog niet in orde zijn; `aantal` > 0 geeft een oranje
+   * markering met dat aantal, `punten` staan in de tooltip bij hover en focus (OFM-035, OFM-042).
+   */
+  markeringen?: readonly StapMarkering[];
 }
 
 /** Genummerde stappen bovenaan de wizard; de huidige stap heeft `aria-current="step"`. */
@@ -22,10 +27,14 @@ export function Stappenbalk({ stappen, huidig, opKies, vrij = false, markeringen
       <ol className="flex flex-wrap items-center gap-2">
         {stappen.map((naam, index) => {
           const nummer = index + 1;
-          const punten = markeringen?.[index] ?? 0;
+          const markering = markeringen?.[index];
+          const punten = markering?.aantal ?? 0;
+          const uitleg = punten > 0 ? (markering?.punten ?? []) : [];
           const klaar = nummer < huidig && punten === 0;
           const actief = nummer === huidig;
-          const klikbaar = opKies !== undefined && !actief && (vrij || nummer < huidig);
+          // De huidige stap is ook een knop als hij een markering heeft: dan is de uitleg met het
+          // toetsenbord te bereiken (OFM-042); klikken blijft op dezelfde stap.
+          const klikbaar = opKies !== undefined && (actief ? uitleg.length > 0 : vrij || nummer < huidig);
           const rondje = (
             <span
               aria-hidden="true"
@@ -49,7 +58,7 @@ export function Stappenbalk({ stappen, huidig, opKies, vrij = false, markeringen
                 {klaar && <span className="sr-only"> ({nl.componenten.stapKlaar})</span>}
               </span>
               {punten > 0 && (
-                <span className="rounded-full bg-status-verstuurd px-2.5 py-0.5 text-base font-semibold text-white">
+                <span className="rounded-full border-2 border-status-verstuurd bg-schatting-vlak px-2.5 py-0.5 text-base font-semibold text-tekst">
                   <span aria-hidden="true">{punten}</span>
                   <span className="sr-only">{nl.componenten.stapPunten(punten)}</span>
                 </span>
@@ -59,17 +68,22 @@ export function Stappenbalk({ stappen, huidig, opKies, vrij = false, markeringen
           return (
             <li key={naam} className="flex items-center gap-2" aria-current={actief ? 'step' : undefined}>
               {index > 0 && <span aria-hidden="true" className="h-0.5 w-8 bg-rand" />}
-              {klikbaar ? (
-                <button
-                  type="button"
-                  onClick={() => opKies(nummer)}
-                  className="flex min-h-12 items-center gap-2 rounded-knop px-2 hover:bg-vlak"
-                >
-                  {inhoud}
-                </button>
-              ) : (
-                <span className="flex min-h-12 items-center gap-2 px-2">{inhoud}</span>
-              )}
+              <Tooltip regels={uitleg}>
+                {(koppeling) =>
+                  klikbaar ? (
+                    <button
+                      type="button"
+                      onClick={() => opKies(nummer)}
+                      className="flex min-h-12 items-center gap-2 rounded-knop px-2 hover:bg-vlak"
+                      {...koppeling}
+                    >
+                      {inhoud}
+                    </button>
+                  ) : (
+                    <span className="flex min-h-12 items-center gap-2 px-2">{inhoud}</span>
+                  )
+                }
+              </Tooltip>
             </li>
           );
         })}

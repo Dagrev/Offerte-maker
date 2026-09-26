@@ -8,13 +8,7 @@ import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/typ
 import { bewaarbareKlant } from '@shared/validatie';
 import { puntTekst } from '@shared/teksten/wizardPunten';
 import type { Verplicht } from '@shared/verplicht';
-import {
-  ontbrekendInStap1,
-  puntenPerStap,
-  puntSleutel,
-  wizardPunten,
-  type WizardPunt,
-} from '@shared/wizardControle';
+import { ontbrekendInStap1, puntSleutel, wizardPunten, type WizardPunt } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
 import { useInstellingen } from '../../api/instellingen';
@@ -24,6 +18,7 @@ import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
+import { stapMarkeringen } from '../../componenten/stapMarkering';
 import { Stappenbalk } from '../../componenten/Stappenbalk';
 import { markeerMislukt, toonZonderClaude } from '../../stores/mislukteMaken';
 import { useNavigatie, type WizardStap } from '../../stores/navigatie';
@@ -225,7 +220,7 @@ function WizardFormulier({
         huidig={stap}
         opKies={naarStap}
         vrij
-        markeringen={puntenPerStap(punten)}
+        markeringen={stapMarkeringen(punten)}
       />
 
       {storeFout && (
