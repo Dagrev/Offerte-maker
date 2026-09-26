@@ -5,7 +5,7 @@ appId: nl.greven.offertemaker
 productName: Offerte maker
 directories: { output: release, buildResources: build }
 files: ['out/**', 'package.json', '!**/*.map', '!.trees/**', '!.claude/**']
-extraResources: [{ from: resources/fonts, to: fonts }]
+extraResources: [{ from: resources/fonts, to: fonts }, { from: resources/mail, to: mail }]
 asarUnpack: ['**/node_modules/better-sqlite3/**']
 win:
   target: [{ target: nsis, arch: [x64] }]

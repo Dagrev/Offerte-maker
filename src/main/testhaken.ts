@@ -2,7 +2,8 @@ import { app } from 'electron';
 
 // Testhaken (TDO §3, V-10). Alleen actief in een niet-verpakte app; in de geïnstalleerde versie heeft
 // OFFERTE_MAKER_TESTHAAK geen effect.
-export type TesthaakNaam = 'privacyfilter-uit' | 'vandaag' | 'agent-timeout' | 'pdf-bezet' | 'ipc-fout';
+export type TesthaakNaam =
+  'privacyfilter-uit' | 'vandaag' | 'agent-timeout' | 'pdf-bezet' | 'ipc-fout' | 'mail-shell';
 
 const bekendeHaken: readonly TesthaakNaam[] = [
   'privacyfilter-uit',
@@ -10,6 +11,8 @@ const bekendeHaken: readonly TesthaakNaam[] = [
   'agent-timeout',
   'pdf-bezet',
   'ipc-fout',
+  // OFM-041: `mail-shell=<pad>` legt mailto/Verkenner vast in dat bestand in plaats van ze te openen.
+  'mail-shell',
 ];
 
 /** Waarde per haak: `true` voor een vlag (`pdf-bezet`), de tekst na `=` voor een waarde (`vandaag=…`). */

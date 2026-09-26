@@ -1,6 +1,6 @@
 import type { Eenheid } from '@shared/types';
 
-// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-014, OFM-015, OFM-016, OFM-017 (schermen/Detail.tsx).
+// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-014, OFM-015, OFM-016, OFM-017, OFM-041 (schermen/Detail.tsx).
 // Alleen het eigenaarticket vult deze module.
 export const detail = {
   titel: 'Offerte',
@@ -30,6 +30,14 @@ export const detail = {
   openPdf: 'Open PDF',
   afdrukken: 'Afdrukken',
   toonInMap: 'Toon in map',
+
+  /** Verstuur per e-mail (OFM-041). */
+  verstuurPerMail: 'Verstuur per e-mail',
+  mailWordtGeopend: 'Het mailprogramma wordt geopend…',
+  mailZonderBijlage: 'Je mailprogramma ondersteunt geen bijlage vanuit de app; sleep de PDF in de mail.',
+  isVerstuurdTitel: 'Is de offerte verstuurd?',
+  isVerstuurdUitleg: 'Kies Ja als je de mail hebt verstuurd. De status wordt dan Verstuurd.',
+  ja: 'Ja',
   maakKopie: 'Maak kopie',
   verwijderen: 'Verwijderen',
 

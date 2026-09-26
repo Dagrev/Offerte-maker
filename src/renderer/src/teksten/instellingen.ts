@@ -71,6 +71,10 @@ export const instellingen = {
     afsluiting: 'Afsluiting',
     voetnoot: 'Voetnoot',
     voetnootHint: 'Kleine tekst onderaan de offerte. Mag leeg blijven.',
+    /** OFM-041 */
+    emailTekst: 'E-mailtekst',
+    emailTekstHint:
+      'De tekst van de mail bij Verstuur per e-mail. Deze woorden vult de app zelf in: {aanhef}, {achternaam}, {nummer}, {bedrijfsnaam} en {geldigTot}.',
   },
 
   prijzen: {

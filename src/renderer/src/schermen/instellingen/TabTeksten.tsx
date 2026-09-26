@@ -18,6 +18,7 @@ const TEKSTVAKKEN: { sleutel: TekstSleutel; rijen: number; hint?: string }[] = [
   { sleutel: 'betalingsvoorwaarden', rijen: 2 },
   { sleutel: 'afsluiting', rijen: 3 },
   { sleutel: 'voetnoot', rijen: 2, hint: t.voetnootHint },
+  { sleutel: 'emailTekst', rijen: 9, hint: t.emailTekstHint },
 ];
 
 const geldigeDagen = (d: number | null): d is number =>

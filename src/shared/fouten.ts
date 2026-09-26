@@ -20,6 +20,7 @@ export const FOUT_CODES = [
   'VALIDATIE',
   'BACKUP_MISLUKT',
   'HERSTEL_MISLUKT',
+  'MAIL_GEEN_PROGRAMMA',
   'ONBEKEND',
 ] as const;
 
@@ -47,6 +48,7 @@ export const FOUT_ACTIE: Record<FoutCode, FoutActie | null> = {
   VALIDATIE: null,
   BACKUP_MISLUKT: null,
   HERSTEL_MISLUKT: null,
+  MAIL_GEEN_PROGRAMMA: null,
   ONBEKEND: null,
 };
 

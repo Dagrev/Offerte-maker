@@ -20,6 +20,7 @@ const domeinen = await Promise.all(
     './offerteAgent',
     './offerteInhoud',
     './offerteDefinitief',
+    './mail',
     './offerteBeheer',
     './instellingen',
     './keuzelijsten',

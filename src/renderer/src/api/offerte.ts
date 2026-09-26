@@ -71,6 +71,14 @@ export function usePdfActie(id: string) {
   });
 }
 
+/**
+ * `offerte:mail` (OFM-041): concept in het mailprogramma. Kan lang duren: bij Outlook wacht main tot
+ * het mailvenster dicht is.
+ */
+export function useMailOfferte(id: string) {
+  return useMutation({ mutationFn: () => roep(window.api.offerteMail({ id })) });
+}
+
 /** Query-key van de prullenbak (OFM-016); los van `queryKeys` (OFM-008), dat niet meer wijzigt. */
 export const PRULLENBAK_KEY = ['prullenbak'] as const;
 

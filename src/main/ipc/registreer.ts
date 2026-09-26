@@ -12,6 +12,7 @@ import { backupHandlers } from './backup';
 import { claudeHandlers } from './claude';
 import { instellingenHandlers } from './instellingen';
 import { keuzelijstenHandlers } from './keuzelijsten';
+import { mailHandlers } from './mail';
 import { offerteAgentHandlers } from './offerteAgent';
 import { offerteBeheerHandlers } from './offerteBeheer';
 import { offerteDefinitiefHandlers } from './offerteDefinitief';
@@ -45,6 +46,7 @@ export const alleHandlers: AlleHandlers = {
   ...offerteAgentHandlers,
   ...offerteInhoudHandlers,
   ...offerteDefinitiefHandlers,
+  ...mailHandlers,
   ...offerteBeheerHandlers,
   ...instellingenHandlers,
   ...keuzelijstenHandlers,

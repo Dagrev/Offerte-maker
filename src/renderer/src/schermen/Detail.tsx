@@ -18,10 +18,12 @@ import { ClaudeAanpassen } from './detail/ClaudeAanpassen';
 import { EerdereVersies } from './detail/EerdereVersies';
 import { KopieEnVerwijderen } from './detail/KopieEnVerwijderen';
 import { StatusKnoppen } from './detail/StatusKnoppen';
+import { VerstuurPerMail } from './detail/VerstuurPerMail';
 
 // Detailscherm (FO S4, UC-06; TDO §13.4, V-05). Links het voorbeeld (gelijk aan de PDF, FE-050),
 // rechts het actiepaneel: definitief en PDF (OFM-015), status, kopie en verwijderen (OFM-016, in
-// `detail/`), Laat Claude aanpassen en eerdere versies (OFM-017, in `detail/`).
+// `detail/`), Laat Claude aanpassen en eerdere versies (OFM-017, in `detail/`), Verstuur per e-mail
+// (OFM-041, in `detail/`).
 
 const t = nl.detail;
 
@@ -176,7 +178,7 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
               onClick={() => gaNaar({ scherm: 'bewerken', offerteId: detail.id })}
             />
             <ClaudeAanpassen id={detail.id} />
-            {/* Open PDF, Afdrukken, Toon in map (FE-057): alleen met een PDF. */}
+            {/* Open PDF, Afdrukken, Verstuur per e-mail (OFM-041), Toon in map (FE-057): alleen met een PDF. */}
             {laatstePdf && (
               <>
                 <Knop
@@ -193,6 +195,7 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
                   disabled={pdfActie.isPending}
                   onClick={() => pdfActie.mutate('afdrukken')}
                 />
+                <VerstuurPerMail id={detail.id} status={detail.status} />
                 <Knop
                   label={t.toonInMap}
                   icoon={FolderOpen}
