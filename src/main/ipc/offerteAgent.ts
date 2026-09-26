@@ -12,6 +12,7 @@ import {
 } from '../agent/taken';
 import { zetVersieTerug } from '../db/repo/offertesInhoud';
 import { maakZonderClaude } from '../offerte/maakZonderClaude';
+import { controleerVolledig } from '../offerte/volledigheid';
 import type { DomeinHandlers } from './registreer';
 
 // Eigenaar: OFM-013 (maak, stop), OFM-017 (pasAanMetClaude, zetVersieTerug), OFM-025 (maakZonderClaude). Vervang een stub door de echte handler; de kanalen zelf staan vast (V-03).
@@ -30,7 +31,11 @@ export function stuurNaar(sender: Pick<WebContents, 'isDestroyed' | 'send'>): St
 }
 
 export const offerteAgentHandlers: DomeinHandlers<Kanalen> = {
-  'offerte:maak': ({ id }, event) => maakOfferte(id, { stuur: stuurNaar(event.sender) }),
+  // OFM-035: eerst de wizardpunten (klantnaam, soort werk, dakvlak, ongeldige klantvelden).
+  'offerte:maak': ({ id }, event) => {
+    controleerVolledig(id);
+    return maakOfferte(id, { stuur: stuurNaar(event.sender) });
+  },
   'offerte:stop': ({ id }) => {
     stopTaak(id);
     return null;
@@ -42,5 +47,8 @@ export const offerteAgentHandlers: DomeinHandlers<Kanalen> = {
     if (isBezig(id)) throw new AppFout('VALIDATIE', MELDING_AL_BEZIG);
     return zetVersieTerug(id, versieId);
   },
-  'offerte:maakZonderClaude': ({ id }) => maakZonderClaude(id),
+  'offerte:maakZonderClaude': ({ id }) => {
+    controleerVolledig(id);
+    return maakZonderClaude(id);
+  },
 };

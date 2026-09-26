@@ -304,6 +304,16 @@ describe('ipc offerte:maak en offerte:stop', { timeout: 30_000 }, () => {
     expect(send).toHaveBeenCalledWith('offerte:voortgang', expect.objectContaining({ id, fase: 'klaar' }));
   });
 
+  it('OFM-035: onvolledige offerte → VALIDATIE, niets naar Claude', async () => {
+    claude = gebruikNepClaude('ok');
+    const id = nieuweOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
+    const handler = maakIpcHandler('offerte:maak', offerteAgentHandlers['offerte:maak']);
+    const uit = await handler({ sender: { isDestroyed: () => false, send: vi.fn() } } as never, { id });
+    expect(uit).toMatchObject({ ok: false, fout: { code: 'VALIDATIE' } });
+    expect(uit.ok ? '' : uit.fout.melding).toContain('Naam van de klant ontbreekt');
+    expect(claude.aanroepen().filter((a) => a.args.includes('-p'))).toEqual([]);
+  });
+
   it('een gesloten venster krijgt geen voortgang', async () => {
     claude = gebruikNepClaude('ok');
     const id = offerteMet();

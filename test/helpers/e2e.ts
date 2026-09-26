@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { _electron, expect, type ElectronApplication, type Page } from '@playwright/test';
 import type { Api, OfferteLijstItem } from '../../src/shared/types';
 import { nl } from '../../src/renderer/src/teksten/nl';
+import { KEUZE_STARTSET } from '../../src/shared/keuzelijsten';
 
 // E2E-hulp (OFM-027, TDO §15.4): start de gebouwde app (`out/`, na `pnpm build`) via Playwright
 // `_electron` met eigen data- en documentenmap (eigen single-instance-lock, OFM-002), de nep-CLI
@@ -209,7 +210,8 @@ export interface KlantInvoer {
 }
 
 /**
- * Hoofdscherm → Maak nieuwe offerte → stap 1 (naam, plaats) → stap 4 (optioneel Overig).
+ * Hoofdscherm → Maak nieuwe offerte → stap 1 (naam, plaats) → stap 2 (soort werk en een dakvlak, want
+ * die zijn sinds OFM-035 nodig om te maken) → stap 4 (optioneel Overig).
  * Geeft het offerte-ID terug.
  */
 export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Promise<string> {
@@ -221,11 +223,20 @@ export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Pro
   for (let stap = 2; stap <= 4; stap++) {
     await page.getByRole('button', { name: w.volgende, exact: true }).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${w.stappen[stap - 1]}` })).toBeVisible();
+    if (stap === 2) await vulDakIn(page);
   }
   if (klant.overig !== undefined) {
     await page.getByLabel(w.overig.vraag, { exact: true }).fill(klant.overig);
   }
   return offerteIdVan(page, klant.naam);
+}
+
+/** Stap 2: soort werk "Dak vervangen" en dakvlak 8 × 5 m (het minimum om te mogen maken, OFM-035). */
+export async function vulDakIn(page: Page): Promise<void> {
+  const soortWerk = KEUZE_STARTSET.soortWerk.find((o) => o.sleutel === 'dak_vervangen')?.label ?? '';
+  await page.getByRole('button', { name: soortWerk, exact: true }).click();
+  await page.getByLabel(nl.wizard.dak.lengte, { exact: true }).fill('8');
+  await page.getByLabel(nl.wizard.dak.breedte, { exact: true }).fill('5');
 }
 
 /** ID van de (enige) offerte met deze klantnaam, via `overzicht:zoek`. */

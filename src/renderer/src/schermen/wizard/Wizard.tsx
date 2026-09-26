@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { differenceInCalendarDays } from 'date-fns';
-import { ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide-react';
 import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
 import { alsKeuzes } from '@shared/keuzelijsten';
 import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { bewaarbareKlant } from '@shared/validatie';
-import { klantCompleet } from '@shared/wizardControle';
+import { puntTekst } from '@shared/teksten/wizardPunten';
+import { puntenPerStap, wizardPunten, type WizardPunt } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
@@ -73,6 +74,40 @@ function TerugKnop({ opKlik }: { opKlik: () => void }) {
   );
 }
 
+/**
+ * Wat er nog ontbreekt (OFM-035): één regio met `role="alert"`, per punt de tekst en een knop naar de
+ * stap waar het hoort. Verdwijnt vanzelf als alles in orde is.
+ */
+function Samenvatting({ punten, opNaarStap }: { punten: WizardPunt[]; opNaarStap: (stap: number) => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col gap-4 rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak p-5 text-waarschuwing"
+    >
+      <p className="flex items-center gap-3 text-xl font-semibold">
+        <AlertTriangle aria-hidden="true" className="size-6 shrink-0" />
+        {t.punten.kop}
+      </p>
+      <p>{t.punten.uitleg}</p>
+      <ul className="flex flex-col gap-3">
+        {punten.map((punt) => (
+          <li
+            key={punt.soort === 'ongeldig' ? punt.veld : punt.soort}
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
+            <span className="font-semibold">{puntTekst(punt)}</span>
+            <Knop
+              label={t.punten.naarStap(punt.stap)}
+              icoon={ArrowRight}
+              onClick={() => opNaarStap(punt.stap)}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuzelijsten: Keuzelijsten }) {
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const vandaag = useNavigatie((s) => s.vandaag);
@@ -95,6 +130,8 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   const [offertedatum, setOffertedatum] = useState(detail.offertedatum);
   const [stap, setStap] = useState<WizardStap>(alsStap(storeStap ?? detail.wizardStap));
   const [toonFouten, setToonFouten] = useState(false);
+  // OFM-035: na een poging tot maken met open punten de samenvatting tonen (tot alles in orde is).
+  const [toonSamenvatting, setToonSamenvatting] = useState(false);
   const klantRef = useRef(klant);
   // OFM-030: de laatst bewaarde klant; een ongeldig veld gaat met deze waarde mee naar main.
   const bewaardeKlantRef = useRef(detail.klant);
@@ -124,12 +161,11 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
     bewaar.plan({ offertedatum: geldig });
   };
 
-  /** Naar een andere stap; stap 1 → verder alleen met naam en plaats (FE-024). Direct bewaren (FE-025). */
+  // OFM-035: live de punten die nog ontbreken of ongeldig zijn; ze blokkeren alleen het maken.
+  const punten = wizardPunten(klant, invoer);
+
+  /** Naar een andere stap: altijd toegestaan (OFM-035). Direct bewaren (FE-025). */
   const naarStap = (doel: number) => {
-    if (doel > 1 && stap === 1 && !klantCompleet(klantRef.current)) {
-      setToonFouten(true);
-      return;
-    }
     const nieuw = alsStap(doel);
     setStap(nieuw);
     bewaar.plan({ wizardStap: nieuw });
@@ -143,9 +179,9 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   };
 
   const maak = async (soort: 'maken' | 'zonder_claude' = 'maken') => {
-    if (!klantCompleet(klantRef.current)) {
-      setStap(1);
+    if (wizardPunten(klantRef.current, invoerRef.current).length > 0) {
       setToonFouten(true);
+      setToonSamenvatting(true);
       return;
     }
     await bewaar.nu();
@@ -161,7 +197,13 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
         <BewaardIndicator signaal={bewaar.signaal} />
       </div>
       <h1 className="text-3xl font-semibold">{t.titel}</h1>
-      <Stappenbalk stappen={t.stappen} huidig={stap} opKies={naarStap} />
+      <Stappenbalk
+        stappen={t.stappen}
+        huidig={stap}
+        opKies={naarStap}
+        vrij
+        markeringen={puntenPerStap(punten)}
+      />
 
       {storeFout && (
         <Foutmelding fout={storeFout} opnieuw={() => void maak()} opnieuwInloggen={opnieuwInloggen} />
@@ -187,6 +229,8 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
           />
         )}
       </section>
+
+      {toonSamenvatting && punten.length > 0 && <Samenvatting punten={punten} opNaarStap={naarStap} />}
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-rand pt-6">
         {stap > 1 ? <Knop label={t.vorige} icoon={ArrowLeft} onClick={() => naarStap(stap - 1)} /> : <span />}

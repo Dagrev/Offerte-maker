@@ -115,7 +115,7 @@ test('bedrijfsgegevens: ongeldig wordt gemeld en niet bewaard, geldig wordt geno
   expect(gestart.paginaFouten).toEqual([]);
 });
 
-test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bewaard', async () => {
+test('wizardstap 1: ongeldig wordt gemeld (Volgende blokkeert niet meer, OFM-035), geldig wordt genormaliseerd bewaard', async () => {
   gestart = await startApp(mappen);
   const { page } = gestart;
   await overslaanWelkom(page);
@@ -126,12 +126,12 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
   await page.getByLabel(w.klant.naam, { exact: true }).fill('Jansen');
   await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Eindhoven');
 
-  // Ongeldig telefoonnummer blokkeert Volgende.
+  // Ongeldig telefoonnummer: melding na het verlaten van het veld en een markering in de stappenbalk.
   await page.getByLabel(w.klant.telefoon, { exact: true }).fill('06 1234');
   await expect(page.getByText(VALIDATIE_FOUTEN.telefoon, { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: w.volgende, exact: true }).click();
+  await page.getByLabel(w.klant.telefoon, { exact: true }).press('Tab');
   await expect(page.getByText(VALIDATIE_FOUTEN.telefoon, { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
+  await expect(page.getByText(nl.componenten.stapPunten(1))).toHaveCount(1);
 
   const gevallen: Geval[] = [
     {
@@ -164,7 +164,9 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
     },
   ];
   for (const g of gevallen) await controleerVeld(page, g);
-  // Huisnummer zonder straat (OFM-031): melding onder Straat tot die is ingevuld.
+  // Huisnummer zonder straat (OFM-031): melding onder Straat (na aanraken) tot die is ingevuld.
+  await page.getByLabel(a.straat, { exact: true }).focus();
+  await page.getByLabel(a.straat, { exact: true }).press('Tab');
   await expect(page.getByText(a.straatLeeg, { exact: true })).toBeVisible();
   await page.getByLabel(a.straat, { exact: true }).fill('Dorpsstraat');
   await expect(page.getByText(a.straatLeeg, { exact: true })).toHaveCount(0);

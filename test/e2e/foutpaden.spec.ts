@@ -220,7 +220,9 @@ test('pdf-bezet: melding met Opnieuw, geen nummer verbruikt (V-01)', async () =>
   await page.getByRole('listitem').filter({ hasText: KLANT.naam }).click();
   await expect(page.getByRole('heading', { name: d.controleerEven })).toBeVisible();
   await page.getByRole('button', { name: d.maakDefinitief }).click();
-  await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible({
+    timeout: 20_000,
+  });
 });
 
 test('ipc-fout: onverwachte fout bij openen, invoer blijft bewaard', async () => {

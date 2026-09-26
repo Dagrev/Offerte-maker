@@ -8,7 +8,7 @@ import {
   normaliseerKlant,
   zoektekstVan,
 } from './nieuweOfferte';
-import { controleerKlant, klantCompleet } from './wizardControle';
+import { controleerKlant } from './wizardControle';
 
 describe('fabrieken (§5, §6.2)', () => {
   it("lege klant en lege KlusInvoer volgen het ontwerp en passen op de schema's", () => {
@@ -90,25 +90,22 @@ describe('controleerKlant (FE-024, V-16)', () => {
 
   it('geldige klant: geen fouten', () => {
     expect(controleerKlant(geldig)).toEqual({ fouten: {}, ongeldig: {} });
-    expect(klantCompleet(geldig)).toBe(true);
     expect(controleerKlant({ ...geldig, email: '', adres: { ...geldig.adres, postcode: '5611ab' } })).toEqual(
       { fouten: {}, ongeldig: {} },
     );
   });
 
-  it('lege naam en plaats blokkeren', () => {
+  it('lege naam is een fout; plaats is sinds OFM-035 optioneel', () => {
     const c = controleerKlant({ ...geldig, naam: ' ', adres: { ...geldig.adres, plaats: '' } });
-    expect(c.fouten).toEqual({ naam: 'leeg', plaats: 'leeg' });
-    expect(klantCompleet({ ...geldig, naam: '' })).toBe(false);
+    expect(c.fouten).toEqual({ naam: 'leeg' });
   });
 
-  it('postcode 12345 en een raar e-mailadres zijn ongeldig en blokkeren (OFM-030)', () => {
+  it('postcode 12345 en een raar e-mailadres zijn ongeldig (OFM-030)', () => {
     const k = { ...geldig, email: 'jan@nl', adres: { ...geldig.adres, postcode: '12345' } };
     expect(controleerKlant(k)).toEqual({
       fouten: {},
       ongeldig: { 'adres.postcode': 'postcode', email: 'email' },
     });
-    expect(klantCompleet(k)).toBe(false);
     expect(controleerKlant({ ...geldig, adres: { ...geldig.adres, postcode: '0611 AB' } }).ongeldig).toEqual({
       'adres.postcode': 'postcode',
     });

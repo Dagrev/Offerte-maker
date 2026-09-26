@@ -40,6 +40,8 @@ export const componenten = {
   stap: (nummer: number, totaal: number) => `Stap ${nummer} van ${totaal}`,
   stappen: 'Stappen',
   stapKlaar: 'klaar',
+  /** Oranje markering in de stappenbalk (OFM-035). */
+  stapPunten: (n: number) => (n === 1 ? '(1 punt nog niet in orde)' : `(${n} punten nog niet in orde)`),
 
   pdfVoorbeeld: 'Voorbeeld van de offerte',
   pdfVoorbeeldLaden: 'Het voorbeeld wordt gemaakt…',

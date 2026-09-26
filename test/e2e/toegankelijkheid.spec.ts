@@ -8,6 +8,7 @@ import {
   maakTestMappen,
   REPO,
   sluitApp,
+  vulDakIn,
   startApp,
   type GestarteApp,
   type TestMappen,
@@ -86,6 +87,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     await knop(page, wz.volgende).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${wz.stappen[stap - 1]}` })).toBeVisible();
     await controleerScherm(page, `Wizard ${stap} ${wz.stappen[stap - 1]}`, uitkomsten);
+    if (stap === 2) await vulDakIn(page);
   }
 
   // Bezig (nep-CLI traag), dan Stoppen: stap 4 met melding en "Maak zonder Claude".

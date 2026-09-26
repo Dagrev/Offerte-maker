@@ -24,7 +24,7 @@ const AANHEF_OPTIES: readonly TegelOptie<Aanhef>[] = [
 export interface StapKlantProps {
   klant: Klant;
   opWijzig: (klant: Klant) => void;
-  /** Na een poging tot **Volgende**: verplichte en ongeldige velden als fout tonen (FE-024). */
+  /** Na een poging tot **Maak de offerte**: verplichte en ongeldige velden als fout tonen (FE-024, OFM-035). */
   toonFouten: boolean;
 }
 
@@ -92,12 +92,7 @@ export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
       </Kaart>
 
       <Kaart>
-        <AdresVelden
-          waarde={klant.adres}
-          opWijzig={zetAdres}
-          toonFouten={toonFouten}
-          plaatsFout={toonFouten && fouten.plaats ? t.plaatsLeeg : undefined}
-        />
+        <AdresVelden waarde={klant.adres} opWijzig={zetAdres} toonFouten={toonFouten} />
         <div className="grid gap-6 md:grid-cols-2">
           <Veld
             label={t.telefoon}

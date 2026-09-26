@@ -6,20 +6,26 @@ export interface StappenbalkProps {
   stappen: readonly string[];
   /** Huidige stap, vanaf 1. */
   huidig: number;
-  /** Optioneel: naar een eerdere stap springen. Latere stappen zijn niet klikbaar. */
+  /** Optioneel: naar een andere stap springen. Zonder `vrij` alleen naar eerdere stappen. */
   opKies?: (stap: number) => void;
+  /** Elke stap is klikbaar, ook latere (wizard, OFM-035). */
+  vrij?: boolean;
+  /** Aantal punten per stap (index 0 = stap 1); > 0 geeft een oranje markering met dat aantal. */
+  markeringen?: readonly number[];
 }
 
 /** Genummerde stappen bovenaan de wizard; de huidige stap heeft `aria-current="step"`. */
-export function Stappenbalk({ stappen, huidig, opKies }: StappenbalkProps) {
+export function Stappenbalk({ stappen, huidig, opKies, vrij = false, markeringen }: StappenbalkProps) {
   return (
     <nav aria-label={nl.componenten.stappen}>
       <p className="sr-only">{nl.componenten.stap(huidig, stappen.length)}</p>
       <ol className="flex flex-wrap items-center gap-2">
         {stappen.map((naam, index) => {
           const nummer = index + 1;
-          const klaar = nummer < huidig;
+          const punten = markeringen?.[index] ?? 0;
+          const klaar = nummer < huidig && punten === 0;
           const actief = nummer === huidig;
+          const klikbaar = opKies !== undefined && !actief && (vrij || nummer < huidig);
           const rondje = (
             <span
               aria-hidden="true"
@@ -42,12 +48,18 @@ export function Stappenbalk({ stappen, huidig, opKies }: StappenbalkProps) {
                 {naam}
                 {klaar && <span className="sr-only"> ({nl.componenten.stapKlaar})</span>}
               </span>
+              {punten > 0 && (
+                <span className="rounded-full bg-status-verstuurd px-2.5 py-0.5 text-base font-semibold text-white">
+                  <span aria-hidden="true">{punten}</span>
+                  <span className="sr-only">{nl.componenten.stapPunten(punten)}</span>
+                </span>
+              )}
             </>
           );
           return (
             <li key={naam} className="flex items-center gap-2" aria-current={actief ? 'step' : undefined}>
               {index > 0 && <span aria-hidden="true" className="h-0.5 w-8 bg-rand" />}
-              {opKies && klaar ? (
+              {klikbaar ? (
                 <button
                   type="button"
                   onClick={() => opKies(nummer)}

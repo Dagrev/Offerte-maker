@@ -10,6 +10,13 @@ export const wizard = {
   /** OFM-025 (FE-110, V-09): alleen zichtbaar als Claude niet werkt. */
   maakZonderClaude: 'Maak zonder Claude',
   laden: 'De offerte wordt geopend…',
+  /** OFM-035: samenvatting bij Maak de offerte als er nog iets ontbreekt; de punten zelf staan in
+   *  `@shared/teksten/wizardPunten` (ook gebruikt door main). */
+  punten: {
+    kop: 'Nog niet alles is ingevuld',
+    uitleg: 'Vul dit eerst aan; daarna kun je de offerte maken.',
+    naarStap: (stap: number) => `Naar stap ${stap}`,
+  },
 
   klant: {
     titel: 'Klant',
@@ -23,7 +30,6 @@ export const wizard = {
     anderWerkadres: 'Het werk is op een ander adres',
     werkadres: 'Werkadres',
     naamLeeg: 'Vul de naam van de klant in',
-    plaatsLeeg: 'Vul de plaats in',
   },
 
   dak: {

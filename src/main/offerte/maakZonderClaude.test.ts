@@ -66,6 +66,21 @@ const rij = (id: string) =>
   };
 
 describe('offerte:maakZonderClaude (FE-110)', () => {
+  it('OFM-035: onvolledige offerte → VALIDATIE met de punten, er wordt niets gemaakt', async () => {
+    const id = nieuweOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
+    const uit = await handler({} as never, { id });
+    expect(uit).toEqual({
+      ok: false,
+      fout: {
+        code: 'VALIDATIE',
+        melding:
+          'De offerte kan nog niet worden gemaakt. Dit ontbreekt nog of klopt niet:\n' +
+          '- Naam van de klant ontbreekt\n- Soort werk is niet gekozen\n- Geen dakvlak ingevuld',
+      },
+    });
+    expect(rij(id).inhoud_json).toBeNull();
+  });
+
   it('zonder koppeling: regels, controlepunten, versie zonder_claude, niets naar Claude', async () => {
     claude = gebruikNepClaude('niet-ingelogd');
     const post = haalPrijspostOpSleutel('voorrijkosten')!;
