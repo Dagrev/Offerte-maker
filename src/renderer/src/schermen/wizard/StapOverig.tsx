@@ -114,7 +114,7 @@ function samenvatting(
   }
   voeg(s.huidigeBedekking, invoer.huidigeBedekking && label('huidigeBedekking', invoer.huidigeBedekking));
   voeg(s.ondergrond, invoer.ondergrond && label('ondergrond', invoer.ondergrond));
-  voeg(s.hoogte, label('hoogte', invoer.hoogte));
+  voeg(s.hoogte, invoer.hoogte && label('hoogte', invoer.hoogte));
 
   // OFM-044: per werkzaamheid het aantal, de materialen en opties en het subtotaal.
   const werk = werkGroepen(invoer.werkzaamheden, catalogus)
@@ -128,7 +128,7 @@ function samenvatting(
   voeg(s.werkzaamheden, werk);
 
   voeg(s.steiger, invoer.steigerNodig && t.ja);
-  voeg(s.garantie, label('garantie', invoer.garantieJaren));
+  voeg(s.garantie, invoer.garantieJaren && label('garantie', invoer.garantieJaren));
   voeg(s.gewensteUitvoering, invoer.gewensteUitvoering.trim());
   return regels;
 }

@@ -29,6 +29,8 @@ export interface OptieInvoer {
   id: string;
   label: string;
   verborgen: boolean;
+  /** OFM-049: hoogstens één per lijst. */
+  standaardkeuze: boolean;
 }
 
 /** De hele lijst in de nieuwe volgorde; ontbrekende opties worden verwijderd. Geeft de bewaarde lijst. */

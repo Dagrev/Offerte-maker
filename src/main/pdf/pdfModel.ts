@@ -29,13 +29,14 @@ export interface PdfModelBron {
 
 /**
  * Garantietekst (§9.4): de standaardteksten bij 10 en 20 jaar; bij een zelf toegevoegde garantie
- * (OFM-034) een vaste zin met het label van die keuze.
+ * (OFM-034) een vaste zin met het label van die keuze; zonder garantiekeuze (OFM-049) leeg.
  */
 export function garantieTekst(
-  garantie: string,
+  garantie: string | null,
   teksten: Pick<Teksten, 'garantie10' | 'garantie20'>,
   keuzes: Pick<Keuzes, 'garantie'>,
 ): string {
+  if (garantie === null) return '';
   if (garantie === '10') return teksten.garantie10;
   if (garantie === '20') return teksten.garantie20;
   return `Op de uitgevoerde werkzaamheden geven wij garantie: ${keuzeLabel(keuzes, 'garantie', garantie)}.`;

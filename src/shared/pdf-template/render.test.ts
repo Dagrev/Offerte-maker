@@ -84,6 +84,11 @@ describe('renderOfferteHtml', () => {
     ]);
   });
 
+  it('zonder garantietekst geen sectie Garantie (OFM-049: geen garantiekeuze)', () => {
+    const html = renderOfferteHtml(model({ garantietekst: '' }), 'pdf');
+    expect(sectieKlassen(html)).not.toContain('garantie');
+  });
+
   it('gebruikt de sectiekoppen letterlijk (V-22)', () => {
     const html = renderOfferteHtml(model({ inhoud: { ...VOORBEELD_INHOUD, opmerkingen: 'x' } }), 'pdf');
     const koppen = [...html.matchAll(/<h2>([^<]+)<\/h2>/g)].map((m) => m[1]);

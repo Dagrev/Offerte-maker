@@ -131,11 +131,11 @@ export const klusInvoerSchema = z.object({
   dakvlakken: z.array(dakvlakSchema).max(20),
   huidigeBedekking: huidigeBedekkingSchema.nullable(),
   ondergrond: ondergrondSchema.nullable(),
-  hoogte: hoogteSchema,
+  hoogte: hoogteSchema.nullable(),
   werkzaamheden: z.array(gekozenWerkzaamheidSchema).max(40).default([]),
   steigerNodig: z.boolean(),
   /** Sleutel uit de lijst `garantie` ('10', '20', …); vóór migratie 002 een getal. */
-  garantieJaren: garantieSchema,
+  garantieJaren: garantieSchema.nullable(),
   gewensteUitvoering: z.string(),
   overig: z.string(),
 });
@@ -447,8 +447,11 @@ export const keuzeoptieSchema = z.object({
   verborgen: z.boolean(),
   /** Uit de startset (voor "Herstel standaardlijst"). */
   standaard: z.boolean(),
-  /** Standaardkeuze van een nieuwe offerte: niet te verbergen of te verwijderen. */
-  vast: z.boolean(),
+  /**
+   * Standaardkeuze van een nieuwe offerte (OFM-049; hoogstens één per lijst): niet te verbergen of te
+   * verwijderen. Vervangt `vast` (OFM-034, vaste waarden in de code).
+   */
+  standaardkeuze: z.boolean(),
   /** Komt voor in een niet-verwijderde offerte: niet te verwijderen, wel te verbergen. */
   inGebruik: z.boolean(),
 });
@@ -627,9 +630,12 @@ export const invoerSchemas = {
           id: z.string().max(100),
           label: z.string().trim().min(1).max(80),
           verborgen: z.boolean(),
+          /** OFM-049: hoogstens één optie per lijst; geen enkele = geen standaard. */
+          standaardkeuze: z.boolean(),
         }),
       )
-      .max(100),
+      .max(100)
+      .refine((opties) => opties.filter((o) => o.standaardkeuze).length <= 1),
   }),
   'keuzelijsten:herstel': z.object({ lijst: keuzeLijstSchema }),
 

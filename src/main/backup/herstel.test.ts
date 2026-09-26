@@ -36,7 +36,16 @@ beforeEach(async () => {
 afterEach(() => t.opruimen());
 
 /** Maakt van een kopie van de huidige database een database van vóór OFM-043 (zonder migratie 004). */
+/** Maakt migratie 007 (OFM-049) ongedaan: de kolom `standaardkeuze` en zijn index weg. */
+function zonderStandaardkeuze(db: Database.Database): void {
+  db.exec(`
+    DROP INDEX idx_keuzeopties_standaardkeuze;
+    ALTER TABLE keuzeopties DROP COLUMN standaardkeuze;
+  `);
+}
+
 function maakVersie2(db: Database.Database): void {
+  zonderStandaardkeuze(db);
   db.exec(`
     DROP TABLE werkzaamheid_materiaal;
     DROP TABLE werkzaamheid_soortwerk;
@@ -273,6 +282,35 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
       expect(db.prepare("SELECT COUNT(*) AS n FROM keuzeopties WHERE lijst = 'isolatie'").get()).toEqual({
         n: 0,
       });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('OFM-049: back-up met schemaversie 6 wordt teruggezet; bij de herstart draait 007 opnieuw', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 3, 9, 0, 0),
+    });
+    const kopie = new Database(join(map, bestand));
+    zonderStandaardkeuze(kopie);
+    kopie.pragma('user_version = 6');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 6,
+        naar: SCHEMA_VERSIE,
+      });
+      expect(
+        db.prepare('SELECT lijst, sleutel FROM keuzeopties WHERE standaardkeuze = 1 ORDER BY lijst').all(),
+      ).toEqual([
+        { lijst: 'garantie', sleutel: '10' },
+        { lijst: 'hoogte', sleutel: '1' },
+      ]);
     } finally {
       db.close();
     }
