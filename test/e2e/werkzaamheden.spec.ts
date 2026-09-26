@@ -36,6 +36,7 @@ test.afterEach(async () => {
 });
 
 const t = nl.werkzaamheden;
+const tc = t.categorie;
 const tw = nl.wizard.werk;
 const w = nl.wizard;
 const knop = (page: Page, naam: string) => page.getByRole('button', { name: naam, exact: true });
@@ -50,12 +51,10 @@ async function naarTab(page: Page, tab: 'materialen' | 'werkzaamheden'): Promise
   await expect(page.getByRole('heading', { name: kop, level: 2, exact: true })).toBeVisible();
 }
 
-/** De namen in een lijst van naamvelden, in schermvolgorde. */
-async function namen(page: Page, lijst: string): Promise<string[]> {
-  const velden = await page
-    .getByRole('list', { name: lijst, exact: true })
-    .getByRole('textbox', { name: /^Naam van/ })
-    .all();
+/** De namen van de materialen (in een lijst, of alle zichtbare), in schermvolgorde. */
+async function namen(page: Page, lijst?: string): Promise<string[]> {
+  const bron = lijst === undefined ? page : page.getByRole('list', { name: lijst, exact: true });
+  const velden = await bron.getByRole('textbox', { name: /^Naam van materiaal/ }).all();
   return Promise.all(velden.map((v) => v.inputValue()));
 }
 
@@ -89,10 +88,12 @@ test('materiaal en werkzaamheid met optie en uurprijs in twee tabs; per uur in d
   await expect(page.getByRole('heading', { name: t.werkzaamheden, level: 2, exact: true })).toHaveCount(0);
   await controleerScherm(page, 'Instellingen Materialen en prijzen', []);
 
-  // 1. Materialen alfabetisch; een nieuw materiaal komt op zijn plek en krijgt de focus.
-  const voor = await namen(page, t.materialen);
-  expect(voor.length).toBeGreaterThan(2);
-  expect(voor).toEqual(abc(voor));
+  // 1. Materialen per categorie (OFM-057) en daarin alfabetisch; een nieuw materiaal komt op zijn plek
+  // (onderaan toevoegen = Overig) en krijgt de focus.
+  const isolatie = await namen(page, tc.materialenIn('Isolatie'));
+  expect(isolatie).toEqual(['EPS', 'PIR 60 mm', 'PIR 80 mm', 'PIR 100 mm']);
+  const voor = await namen(page);
+  expect(voor).toHaveLength(9);
   await page.getByLabel(t.nieuwMateriaal, { exact: true }).fill('Zink');
   await knop(page, t.materiaalToevoegen).click();
   await expect(page.getByLabel(t.materiaalNaam('Zink'), { exact: true })).toHaveValue('Zink');
@@ -100,9 +101,7 @@ test('materiaal en werkzaamheid met optie en uurprijs in twee tabs; per uur in d
   await page.getByLabel(t.nieuwMateriaal, { exact: true }).fill('Afdekkap');
   await knop(page, t.materiaalToevoegen).click();
   await expect(page.getByLabel(t.materiaalNaam('Afdekkap'), { exact: true })).toBeFocused();
-  const na = await namen(page, t.materialen);
-  expect(na).toEqual(abc([...voor, 'Zink', 'Afdekkap']));
-  expect(na[0]).toBe('Afdekkap');
+  expect(await namen(page, tc.materialenIn('Overig'))).toEqual(['Afdekkap', 'Zink']);
   await vul(page, t.materiaalPrijs('Zink'), '12,50');
   await page.getByLabel(t.materiaalBtw('Zink'), { exact: true }).selectOption('9');
 
@@ -112,12 +111,12 @@ test('materiaal en werkzaamheid met optie en uurprijs in twee tabs; per uur in d
   await expect(page.getByLabel(t.materiaalNaam('Houtschroef 5 x 50'), { exact: true })).toBeFocused();
   const zoek = page.getByRole('searchbox', { name: t.zoekMateriaal });
   await zoek.fill('SCHROEF');
-  expect(await namen(page, t.materialen)).toEqual(['Houtschroef 5 x 50']);
+  expect(await namen(page)).toEqual(['Houtschroef 5 x 50']);
   await zoek.fill('xyz');
   await expect(page.getByText(t.geenMaterialenGevonden)).toBeVisible();
   await controleerScherm(page, 'Materialen en prijzen zonder zoekresultaat', []);
   await zoek.fill('');
-  expect(await namen(page, t.materialen)).toHaveLength(na.length + 1);
+  expect(await namen(page)).toHaveLength(voor.length + 3);
 
   // Overige prijzen: voorrijkosten.
   await vul(page, t.postPrijs('Voorrijkosten'), '45');

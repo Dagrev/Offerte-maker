@@ -551,6 +551,18 @@ export const materiaalSchema = z.object({
   inGebruik: z.boolean(),
   /** OFM-055 */
   tags: materiaalTagsSchema,
+  /** OFM-057: id uit `categorieen`; `null` = Overig. */
+  categorieId: idSchema.nullable(),
+});
+
+/**
+ * OFM-057: categorie van materialen (migratie 012). Startcategorieën hebben id `cat:<sleutel>` en
+ * `standaard` true; `cat:overig` (Overig) is er altijd en is niet te verwijderen of te hernoemen.
+ */
+export const categorieSchema = z.object({
+  id: idSchema,
+  naam: z.string(),
+  standaard: z.boolean(),
 });
 
 /** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar`: alles in één keer, in volgorde. */
@@ -566,6 +578,8 @@ export const werkzaamhedenSetSchema = z.object({
   ),
   werkzaamheden: z.array(werkzaamheidSchema),
   materialen: z.array(materiaalSchema),
+  /** OFM-057: categorieën van materialen, in volgorde (Overig inbegrepen). */
+  categorieen: z.array(categorieSchema),
 });
 
 /** Invoer van `werkzaamheden:bewaar`: de hele set in de nieuwe volgorde. Een onbekende `id` = nieuw. */
@@ -617,9 +631,19 @@ export const werkzaamhedenBewaarSchema = z.object({
         verborgen: z.boolean(),
         /** OFM-055; weglaten = niet wijzigen (nieuw: alle). Onbekende sleutels vervallen stil. */
         tags: materiaalTagsSchema.optional(),
+        /** OFM-057; weglaten = niet wijzigen (nieuw: Overig). `null` of `cat:overig` = Overig. */
+        categorieId: idSchema.nullable().optional(),
       }),
     )
     .max(200),
+  /**
+   * OFM-057; weglaten = niet wijzigen. Alle categorieën in de nieuwe volgorde: een onbekende id is nieuw,
+   * een ontbrekende wordt verwijderd (materialen naar Overig). Overig blijft altijd en houdt zijn naam.
+   */
+  categorieen: z
+    .array(z.object({ id: idSchema, naam: z.string().max(40) }))
+    .max(50)
+    .optional(),
 });
 
 // ---------- §6.2 Invoer per kanaal ----------

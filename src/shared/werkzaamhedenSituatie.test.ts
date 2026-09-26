@@ -38,6 +38,7 @@ const materiaal = (
   btwTarief: 21,
   verborgen: false,
   standaard: false,
+  categorieId: null,
   inGebruik: false,
   tags,
 });

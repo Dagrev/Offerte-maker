@@ -100,7 +100,7 @@ function metEigenMaterialen(): WerkzaamhedenSet {
 
 describe('migratie 011 (OFM-055)', () => {
   it('nieuwe database: starttags, vinkje en situaties bij Nieuwe bedekking en Plaatselijk herstel', () => {
-    expect(SCHEMA_VERSIE).toBe(11);
+    expect(SCHEMA_VERSIE).toBeGreaterThanOrEqual(11);
     const set = haalWerkzaamheden();
     expect(tagsVan(set, 'bitumen')).toEqual({ ondergrond: 'alle', bedekking: ['bitumen'] });
     expect(tagsVan(set, 'epdm')).toEqual({ ondergrond: 'alle', bedekking: ['epdm'] });
@@ -141,7 +141,7 @@ describe('migratie 011 (OFM-055)', () => {
     regel.run(BED, 'beton', null, 'start-mat-epdm');
     expect(await migreer(t.db, { migraties: alle, backup: () => Promise.resolve() })).toMatchObject({
       van: 10,
-      naar: 11,
+      naar: SCHEMA_VERSIE,
     });
     const set = haalWerkzaamheden();
     const iso = werk(set, ISO);

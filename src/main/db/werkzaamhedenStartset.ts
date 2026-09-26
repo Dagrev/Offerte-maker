@@ -25,6 +25,8 @@ export interface ItemRij {
   standaard: number;
   /** OFM-055 (migratie 011; alleen bij werkzaamheden). */
   per_situatie?: number;
+  /** OFM-057 (migratie 012; alleen bij materialen); `null` = Overig. */
+  categorie_id?: string | null;
 }
 
 export interface OptieRij {

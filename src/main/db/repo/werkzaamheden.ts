@@ -4,6 +4,7 @@ import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { BtwTarief, KlusInvoer, WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
 import {
   ALLE_TAGS,
+  CATEGORIE_OVERIG,
   gebruikteWerkzaamheden,
   itemSleutel,
   materiaalPrijsSleutel,
@@ -20,6 +21,7 @@ import {
   zetSituatieStartset,
   zetStartTags,
 } from '../daksituatie';
+import { categorieenVan, hernummerCategorieen, zetCategorieenStartset } from '../materiaalCategorieen';
 import { database, type Db } from '../verbinding';
 import {
   materiaalRijen,
@@ -172,7 +174,9 @@ function haalSet(db: Db): WerkzaamhedenSet {
       standaard: m.standaard === 1,
       inGebruik: gebruik.materialen.has(m.sleutel),
       tags: tags.get(m.id) ?? ALLE_TAGS,
+      categorieId: m.categorie_id ?? null,
     })),
+    categorieen: categorieenVan(db),
   };
 }
 
@@ -257,6 +261,49 @@ function controleer(db: Db, invoer: WerkzaamhedenBewaar): void {
       throw ongeldig(VALIDATIE_MELDINGEN.werkDubbel);
     }
   }
+
+  // OFM-057: categorieën (Overig telt niet mee: die houdt zijn naam) en de categorie per materiaal.
+  if (invoer.categorieen) {
+    const eigen = invoer.categorieen.filter((c) => c.id !== CATEGORIE_OVERIG);
+    if (eigen.some((c) => c.naam.trim() === '')) throw ongeldig(VALIDATIE_MELDINGEN.categorieLeeg);
+    if (!uniek(invoer.categorieen.map((c) => c.id))) throw ongeldig(VALIDATIE_MELDINGEN.werkDubbel);
+    const namen = [...eigen.map((c) => c.naam), 'Overig'].map((n) => n.trim().toLocaleLowerCase('nl'));
+    if (!uniek(namen)) throw ongeldig(VALIDATIE_MELDINGEN.categorieDubbel);
+  }
+  // Bestaande (ook als ze nu verwijderd worden: dan gaat het materiaal naar Overig) en nieuwe categorieën.
+  const categorieIds = new Set([
+    ...categorieenVan(db).map((c) => c.id),
+    ...(invoer.categorieen ?? []).map((c) => c.id),
+    CATEGORIE_OVERIG,
+  ]);
+  for (const m of invoer.materialen) {
+    if (m.categorieId && !categorieIds.has(m.categorieId)) {
+      throw ongeldig(VALIDATIE_MELDINGEN.werkOnbekendeKoppeling);
+    }
+  }
+}
+
+/**
+ * OFM-057: de categorieën in de nieuwe volgorde. Nieuwe id's komen erbij, ontbrekende verdwijnen (hun
+ * materialen naar Overig via `ON DELETE SET NULL`); Overig blijft en houdt zijn naam, altijd als laatste.
+ */
+function schrijfCategorieen(db: Db, lijst: readonly { id: string; naam: string }[]): void {
+  const blijft = new Set(lijst.map((c) => c.id));
+  for (const c of categorieenVan(db)) {
+    if (c.id !== CATEGORIE_OVERIG && !blijft.has(c.id)) {
+      db.prepare('DELETE FROM materiaal_categorieen WHERE id = ?').run(c.id);
+    }
+  }
+  const zet = db.prepare(
+    'INSERT INTO materiaal_categorieen (id, naam, volgorde, standaard) VALUES (?, ?, 0, 0) ' +
+      'ON CONFLICT (id) DO UPDATE SET naam = excluded.naam',
+  );
+  const eigen = lijst.filter((c) => c.id !== CATEGORIE_OVERIG);
+  for (const c of eigen) zet.run(c.id, c.naam.trim());
+  hernummerCategorieen(
+    db,
+    eigen.map((c) => c.id),
+  );
 }
 
 /** Sleutels die al bezet zijn: werkzaamheden, opties en materialen, en de prijsposten van die groepen. */
@@ -323,6 +370,10 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
       db.prepare('DELETE FROM materialen WHERE id = ?').run(r.id);
     }
 
+    if (invoer.categorieen) schrijfCategorieen(db, invoer.categorieen);
+    // Na het schrijven: een categorie die nu weg is, telt voor de materialen als Overig.
+    const categorieIds = new Set(categorieenVan(db).map((c) => c.id));
+
     const bezet = bezetteSleutels(db);
     const nieuweSleutel = (label: string) => {
       const sleutel = maakSleutel(label, bezet);
@@ -348,6 +399,13 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
       materiaalSleutel.set(m.id, sleutel);
       zetPrijspost(db, materiaalPrijsSleutel(sleutel), label, m.eenheid, m.prijsCent, m.btwTarief);
       if (m.tags) schrijfTags(db, m.id, m.tags);
+      if (m.categorieId !== undefined) {
+        const id = m.categorieId === null || !categorieIds.has(m.categorieId) ? null : m.categorieId;
+        db.prepare('UPDATE materialen SET categorie_id = ? WHERE id = ?').run(
+          id === CATEGORIE_OVERIG ? null : id,
+          m.id,
+        );
+      }
     });
 
     // Werkzaamheden met opties en koppelingen.
@@ -423,7 +481,8 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
 /**
  * `werkzaamheden:herstel` ("Herstel startset"). OFM-055: ook de starttags van de startmaterialen en het
  * vinkje "Materiaal per daksituatie" met de startsituaties van de startwerkzaamheden; eigen materialen en
- * werkzaamheden houden hun tags en situaties.
+ * werkzaamheden houden hun tags en situaties. OFM-057: ook de startcategorieën (eigen categorieën blijven)
+ * en de categorie van de startmaterialen.
  */
 export function herstelWerkzaamheden(): void {
   const db = database();
@@ -431,5 +490,6 @@ export function herstelWerkzaamheden(): void {
     zetWerkzaamhedenStartset(db);
     zetStartTags(db);
     zetSituatieStartset(db);
+    zetCategorieenStartset(db);
   })();
 }

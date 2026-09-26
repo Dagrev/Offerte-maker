@@ -3,7 +3,7 @@ import { useInstellingenWeergave } from '../../src/renderer/src/stores/instellin
 
 // OFM-056: open/dicht-stand van de werkzaamheidkaarten in Instellingen.
 
-beforeEach(() => useInstellingenWeergave.setState({ openWerk: {} }));
+beforeEach(() => useInstellingenWeergave.setState({ openWerk: {}, dichteCategorieen: {} }));
 
 describe('useInstellingenWeergave', () => {
   it('begint met alle kaarten dicht', () => {
@@ -25,5 +25,29 @@ describe('useInstellingenWeergave', () => {
     expect(useInstellingenWeergave.getState().openWerk).toEqual({ a: true, b: true, c: true });
     zetAlleWerk(['a', 'b', 'c'], false);
     expect(useInstellingenWeergave.getState().openWerk).toEqual({});
+  });
+});
+
+// OFM-057: categoriegroepen in de tab Materialen en prijzen (standaard open).
+describe('categoriegroepen', () => {
+  const dicht = () => useInstellingenWeergave.getState().dichteCategorieen;
+
+  it('begint met alle groepen open; sluiten en openen per groep', () => {
+    expect(dicht()).toEqual({});
+    const { zetCategorieOpen } = useInstellingenWeergave.getState();
+    zetCategorieOpen('a', false);
+    zetCategorieOpen('b', false);
+    expect(dicht()).toEqual({ a: true, b: true });
+    zetCategorieOpen('a', true);
+    expect(dicht()).toEqual({ b: true });
+  });
+
+  it('opent groepen met treffers en laat de rest; alles sluiten en openen', () => {
+    const { zetAlleCategorieen, openCategorieen } = useInstellingenWeergave.getState();
+    zetAlleCategorieen(['a', 'b', 'c'], false);
+    openCategorieen(['a', 'c']);
+    expect(dicht()).toEqual({ b: true });
+    zetAlleCategorieen(['a', 'b', 'c'], true);
+    expect(dicht()).toEqual({});
   });
 });

@@ -65,6 +65,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       id: 'm-pir60',
       sleutel: 'pir_60',
       label: 'PIR 60 mm',
+      categorieId: 'cat:isolatie',
       eenheid: 'm²',
       prijsCent: 1500,
       btwTarief: 21,
@@ -77,6 +78,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       id: 'm-pir80',
       sleutel: 'pir_80',
       label: 'PIR 80 mm',
+      categorieId: 'cat:isolatie',
       eenheid: 'm²',
       prijsCent: 1800,
       btwTarief: 21,
@@ -89,6 +91,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       id: 'm-trim',
       sleutel: 'daktrim',
       label: 'Daktrim',
+      categorieId: null,
       eenheid: 'm¹',
       prijsCent: null,
       btwTarief: 21,
@@ -97,6 +100,10 @@ export const CATALOGUS: WerkzaamhedenSet = {
       inGebruik: false,
       tags: { ondergrond: 'alle', bedekking: 'alle' },
     },
+  ],
+  categorieen: [
+    { id: 'cat:isolatie', naam: 'Isolatie', standaard: true },
+    { id: 'cat:overig', naam: 'Overig', standaard: true },
   ],
 };
 

@@ -9,7 +9,7 @@ export const werkzaamheden = {
   // Sectie Materialen
   materialen: 'Materialen',
   materialenUitleg:
-    'Op alfabetische volgorde. Welke materialen bij een werkzaamheid kiesbaar zijn, vink je aan bij die werkzaamheid in de tab Werkzaamheden.',
+    'Per categorie, en daarin op alfabetische volgorde. Welke materialen bij een werkzaamheid kiesbaar zijn, vink je aan bij die werkzaamheid in de tab Werkzaamheden.',
   geenMaterialenLijst: 'Er zijn nog geen materialen.',
   materiaalNaam: (label: string) => `Naam van materiaal ${label}`,
   materiaalEenheid: (label: string) => `Eenheid van materiaal ${label}`,
@@ -20,6 +20,36 @@ export const werkzaamheden = {
   materiaalToevoegen: 'Materiaal toevoegen',
   zoekMateriaal: 'Zoek een materiaal',
   geenMaterialenGevonden: 'Geen materialen gevonden.',
+
+  // Categorieën van materialen (OFM-057)
+  categorie: {
+    kop: 'Categorie',
+    vanMateriaal: (materiaal: string) => `Categorie van ${materiaal}`,
+    groep: (categorie: string) => `Categorie ${categorie}`,
+    materialenIn: (categorie: string) => `Materialen in ${categorie}`,
+    aantal: (n: number) => (n === 1 ? '1 materiaal' : `${n} materialen`),
+    leeg: 'Nog geen materialen in deze categorie.',
+    nieuwIn: (categorie: string) => `Nieuw materiaal in ${categorie}`,
+    toevoegenIn: (categorie: string) => `Materiaal toevoegen aan ${categorie}`,
+    beheer: 'Categorieën',
+    beheerUitleg:
+      'Hier voeg je categorieën toe en verander je de naam en de volgorde. Verwijder je een categorie, dan gaan de materialen erin naar Overig. Overig blijft altijd bestaan.',
+    naamVan: (categorie: string) => `Naam van categorie ${categorie}`,
+    overigVast: 'vast, voor materialen zonder categorie',
+    nieuw: 'Nieuwe categorie',
+    toevoegen: 'Categorie toevoegen',
+    fout: {
+      leeg: 'Vul een naam in.',
+      dubbel: 'Er is al een categorie met deze naam.',
+    },
+    verwijderTitel: 'Categorie verwijderen?',
+    verwijderTekst: (categorie: string, aantal: number) =>
+      aantal === 0
+        ? `"${categorie}" verdwijnt. Er staan geen materialen in.`
+        : aantal === 1
+          ? `"${categorie}" verdwijnt. Het materiaal erin gaat naar Overig.`
+          : `"${categorie}" verdwijnt. De ${aantal} materialen erin gaan naar Overig.`,
+  },
 
   // Sectie Werkzaamheden
   werkzaamheden: 'Werkzaamheden',
@@ -111,6 +141,8 @@ export const werkzaamheden = {
   btw: 'Btw',
   btwTarief: (tarief: number) => `${tarief}%`,
   toevoegen: 'Toevoegen',
+  omhoog: (label: string) => `${label} omhoog`,
+  omlaag: (label: string) => `${label} omlaag`,
   verberg: (label: string) => `${label} verbergen`,
   toon: (label: string) => `${label} weer tonen`,
   verwijder: (label: string) => `${label} verwijderen`,

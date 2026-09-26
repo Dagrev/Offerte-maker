@@ -49,15 +49,20 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
       perSituatie: w.perSituatie,
       situaties: w.situaties,
     })),
-    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, btwTarief, verborgen, tags }) => ({
-      id,
-      label: label.trim(),
-      eenheid,
-      prijsCent,
-      btwTarief,
-      verborgen,
-      tags,
-    })),
+    materialen: set.materialen.map(
+      ({ id, label, eenheid, prijsCent, btwTarief, verborgen, tags, categorieId }) => ({
+        id,
+        label: label.trim(),
+        eenheid,
+        prijsCent,
+        btwTarief,
+        verborgen,
+        tags,
+        // OFM-057
+        categorieId,
+      }),
+    ),
+    categorieen: set.categorieen.map(({ id, naam }) => ({ id, naam: naam.trim() })),
   };
 }
 

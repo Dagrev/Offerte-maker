@@ -1,4 +1,5 @@
 import type {
+  Categorie,
   Eenheid,
   GekozenMateriaal,
   GekozenWerkzaamheid,
@@ -43,18 +44,89 @@ export interface StartMateriaal {
    * sleutel die niet (meer) in de keuzelijst staat, telt niet.
    */
   tags?: { ondergrond?: readonly string[]; bedekking?: readonly string[] };
+  /** OFM-057: sleutel uit `CATEGORIEEN_STARTSET`. */
+  categorie: string;
+}
+
+// ---------- Categorieën van materialen (OFM-057, migratie 012) ----------
+
+export interface StartCategorie {
+  sleutel: string;
+  naam: string;
+}
+
+/** Startcategorieën in volgorde; de id is `cat:<sleutel>` (zo herkent Herstel startset ze). */
+export const CATEGORIEEN_STARTSET: readonly StartCategorie[] = [
+  { sleutel: 'dakbedekking', naam: 'Dakbedekking' },
+  { sleutel: 'isolatie', naam: 'Isolatie' },
+  { sleutel: 'kappen', naam: 'Kappen' },
+  { sleutel: 'afwerkmateriaal', naam: 'Afwerkmateriaal' },
+  { sleutel: 'schroeven', naam: 'Schroeven en toebehoren' },
+  { sleutel: 'overig', naam: 'Overig' },
+];
+
+export const categorieIdVan = (sleutel: string): string => `cat:${sleutel}`;
+
+/** Overig: niet te verwijderen of te hernoemen; een materiaal zonder categorie (`NULL`) staat hier. */
+export const CATEGORIE_OVERIG = categorieIdVan('overig');
+
+/**
+ * Migratie 012: materialen buiten de startset die toch een startcategorie krijgen (als ze bestaan; de
+ * dakdekker kan ze zelf hebben gemaakt, zoals in OFM-055).
+ */
+export const MIGRATIE_CATEGORIE: Readonly<Record<string, string>> = {
+  houtschroeven: 'schroeven',
+  betonpluggen: 'schroeven',
+};
+
+/** Categorie van een materiaal: `null` of een onbekende id telt als Overig. */
+export function categorieVan(
+  materiaal: Pick<Materiaal, 'categorieId'>,
+  categorieen: readonly Pick<Categorie, 'id'>[],
+): string {
+  const id = materiaal.categorieId;
+  return id !== null && categorieen.some((c) => c.id === id) ? id : CATEGORIE_OVERIG;
+}
+
+/**
+ * Materialen per categorie, in de volgorde van de categorieën; binnen een groep in de volgorde van de
+ * invoer. Lege categorieën staan er ook in (met een lege lijst). Staat Overig niet in de lijst, dan komt
+ * hij achteraan (alleen als er materialen in zitten).
+ */
+export function groepeerOpCategorie<M extends Pick<Materiaal, 'categorieId'>>(
+  materialen: readonly M[],
+  categorieen: readonly Categorie[],
+): { categorie: Categorie; materialen: M[] }[] {
+  const groepen = categorieen.map((categorie) => ({ categorie, materialen: [] as M[] }));
+  for (const m of materialen) {
+    const id = categorieVan(m, categorieen);
+    let groep = groepen.find((g) => g.categorie.id === id);
+    if (!groep) {
+      // Alleen Overig kan ontbreken (categorieVan geeft anders een id uit de lijst).
+      groep = { categorie: { id: CATEGORIE_OVERIG, naam: 'Overig', standaard: true }, materialen: [] };
+      groepen.push(groep);
+    }
+    groep.materialen.push(m);
+  }
+  return groepen;
 }
 
 export const MATERIALEN_STARTSET: readonly StartMateriaal[] = [
-  { sleutel: 'pir_60', label: 'PIR 60 mm', eenheid: 'm²' },
-  { sleutel: 'pir_80', label: 'PIR 80 mm', eenheid: 'm²' },
-  { sleutel: 'pir_100', label: 'PIR 100 mm', eenheid: 'm²' },
-  { sleutel: 'eps', label: 'EPS', eenheid: 'm²' },
-  { sleutel: 'bitumen', label: 'Bitumen', eenheid: 'm²', tags: { bedekking: ['bitumen'] } },
-  { sleutel: 'epdm', label: 'EPDM', eenheid: 'm²', tags: { bedekking: ['epdm'] } },
-  { sleutel: 'pvc', label: 'PVC', eenheid: 'm²', tags: { bedekking: ['pvc'] } },
-  { sleutel: 'daktrim_aluminium', label: 'Daktrim aluminium', eenheid: 'm¹' },
-  { sleutel: 'boeideel', label: 'Boeideel', eenheid: 'm¹' },
+  { sleutel: 'pir_60', label: 'PIR 60 mm', eenheid: 'm²', categorie: 'isolatie' },
+  { sleutel: 'pir_80', label: 'PIR 80 mm', eenheid: 'm²', categorie: 'isolatie' },
+  { sleutel: 'pir_100', label: 'PIR 100 mm', eenheid: 'm²', categorie: 'isolatie' },
+  { sleutel: 'eps', label: 'EPS', eenheid: 'm²', categorie: 'isolatie' },
+  {
+    sleutel: 'bitumen',
+    label: 'Bitumen',
+    eenheid: 'm²',
+    tags: { bedekking: ['bitumen'] },
+    categorie: 'dakbedekking',
+  },
+  { sleutel: 'epdm', label: 'EPDM', eenheid: 'm²', tags: { bedekking: ['epdm'] }, categorie: 'dakbedekking' },
+  { sleutel: 'pvc', label: 'PVC', eenheid: 'm²', tags: { bedekking: ['pvc'] }, categorie: 'dakbedekking' },
+  { sleutel: 'daktrim_aluminium', label: 'Daktrim aluminium', eenheid: 'm¹', categorie: 'afwerkmateriaal' },
+  { sleutel: 'boeideel', label: 'Boeideel', eenheid: 'm¹', categorie: 'afwerkmateriaal' },
 ];
 
 const ISOLATIE = ['pir_60', 'pir_80', 'pir_100', 'eps'];

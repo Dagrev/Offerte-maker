@@ -3,6 +3,7 @@ import type { WerkzaamhedenSet } from '@shared/types';
 import {
   allesBenoemd,
   beginSetLabels,
+  categorieNaamFout,
   naamVan,
   sorteerOpNaam,
   vergelijkNaam,
@@ -80,9 +81,25 @@ describe('namen', () => {
         werkzaamheden: [{ label: werk, opties: [{ label: optie }] }],
         materialen: [{ label: materiaal }],
         soortenWerk: [],
+        categorieen: [{ id: 'cat:overig', naam: 'Overig', standaard: true }],
       }) as unknown as WerkzaamhedenSet;
     expect(allesBenoemd(set('Slopen', 'Container', 'Zink'))).toBe(true);
     expect(allesBenoemd(set('Slopen', ' ', 'Zink'))).toBe(false);
     expect(allesBenoemd(set('Slopen', 'Container', ''))).toBe(false);
+    const metCategorieen = set('Slopen', 'Container', 'Zink');
+    metCategorieen.categorieen.push({ id: 'x', naam: ' overig ', standaard: false });
+    expect(allesBenoemd(metCategorieen)).toBe(false);
+  });
+
+  it('categorieNaamFout: leeg, dubbel (zonder hoofdletterverschil) of goed; de eigen naam telt niet', () => {
+    const lijst = [
+      { id: 'a', naam: 'Isolatie' },
+      { id: 'b', naam: 'Kappen' },
+    ];
+    expect(categorieNaamFout('  ', null, lijst)).toBe('leeg');
+    expect(categorieNaamFout(' ISOLATIE ', null, lijst)).toBe('dubbel');
+    expect(categorieNaamFout('Isolatie', 'a', lijst)).toBeNull();
+    expect(categorieNaamFout('Kappen', 'a', lijst)).toBe('dubbel');
+    expect(categorieNaamFout('Lood', null, lijst)).toBeNull();
   });
 });

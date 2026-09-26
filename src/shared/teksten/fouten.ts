@@ -54,6 +54,9 @@ export const VALIDATIE_MELDINGEN = {
   werkDubbel: 'Een werkzaamheid, optie of materiaal staat er twee keer in. Laad het scherm opnieuw.',
   werkOnbekendeKoppeling: 'Een gekoppelde soort werk of een gekoppeld materiaal bestaat niet (meer).',
   werkLeegLabel: 'Vul bij elke werkzaamheid, optie en elk materiaal een naam in.',
+  /** OFM-057 */
+  categorieLeeg: 'Vul bij elke categorie een naam in.',
+  categorieDubbel: 'Er is al een categorie met deze naam.',
   werkEenStandaard: 'Kies per werkzaamheid hooguit één standaardmateriaal.',
   werkPrijspostVast:
     'Deze prijspost hoort bij een werkzaamheid, optie of materiaal. Verwijder of hernoem die onder Werkzaamheden.',

@@ -61,6 +61,8 @@ export type Materiaal = z.infer<typeof s.materiaalSchema>;
 export type MateriaalTags = z.infer<typeof s.materiaalTagsSchema>;
 /** Standaardmaterialen van een werkzaamheid bij een daksituatie (OFM-055). */
 export type Situatie = z.infer<typeof s.situatieSchema>;
+/** Categorie van materialen (OFM-057). */
+export type Categorie = z.infer<typeof s.categorieSchema>;
 /** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar` (OFM-043). */
 export type WerkzaamhedenSet = z.infer<typeof s.werkzaamhedenSetSchema>;
 /** Invoer van `werkzaamheden:bewaar` (OFM-043). */

@@ -1,14 +1,35 @@
-import { useState } from 'react';
-import { Check } from 'lucide-react';
-import type { Keuzeoptie, Materiaal, MateriaalTags, Prijspost } from '@shared/types';
-import { ALLE_TAGS, ONDERGROND_ONBEKEND, prijsGroep, zetTag, type TagGroep } from '@shared/werkzaamheden';
+import { useId, useState, type ReactNode } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Trash2,
+} from 'lucide-react';
+import type { Categorie, Keuzeoptie, Materiaal, MateriaalTags, Prijspost } from '@shared/types';
+import {
+  ALLE_TAGS,
+  CATEGORIE_OVERIG,
+  ONDERGROND_ONBEKEND,
+  categorieVan,
+  groepeerOpCategorie,
+  prijsGroep,
+  zetTag,
+  type TagGroep,
+} from '@shared/werkzaamheden';
 import { bewaarPrijspost, usePrijzen } from '../../api/prijzen';
 import { alsFout } from '../../api/roep';
+import { Bevestiging } from '../../componenten/Bevestiging';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
+import { Knop } from '../../componenten/Knop';
+import { useInstellingenWeergave } from '../../stores/instellingenWeergave';
 import { nl } from '../../teksten/nl';
 import { useAutoBewaar } from './autoBewaar';
-import { sorteerOpNaam, zoekOpNaam } from './werkzaamhedenGedeeld';
+import { categorieNaamFout, sorteerOpNaam, zoekOpNaam } from './werkzaamhedenGedeeld';
 import {
   BtwKeuze,
   Deel,
@@ -29,14 +50,17 @@ import {
 } from './werkzaamhedenOnderdelen';
 
 // Tab Materialen en prijzen (OFM-056; tot dan het eerste deel van de tab Werkzaamheden en prijzen,
-// OFM-048/055). Materialen met naam, eenheid, prijs, btw en tags (ondergrond en nieuwe dakbedekking),
-// alfabetisch op naam en doorzoekbaar; daaronder de Overige prijzen (steiger, verzekerde garantie,
-// voorrijkosten) via `prijzen:bewaar`. Welke materialen bij een werkzaamheid kiesbaar zijn, staat in de tab
-// Werkzaamheden.
+// OFM-048/055). Materialen met naam, eenheid, prijs, btw, categorie en tags (ondergrond en nieuwe
+// dakbedekking), doorzoekbaar; daaronder de Overige prijzen (steiger, verzekerde garantie, voorrijkosten)
+// via `prijzen:bewaar`. OFM-057: de materialen staan per categorie in inklapbare groepen (standaard open,
+// binnen een groep alfabetisch) en bovenaan staat het inklapbare blok Categorieën (toevoegen, hernoemen,
+// volgorde, verwijderen; Overig is vast). Welke materialen bij een werkzaamheid kiesbaar zijn, staat in de
+// tab Werkzaamheden.
 
-/** Materiaalrij: naam, eenheid, prijs, btw, knoppen. */
-const RIJ_MATERIAAL = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_auto] items-center gap-3';
+/** Materiaalrij: naam, eenheid, prijs, btw, categorie, knoppen. */
+const RIJ_MATERIAAL = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto] items-center gap-3';
 const RIJ_OVERIG = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem] items-center gap-3';
+const tc = t.categorie;
 
 export function TabMaterialen() {
   return (
@@ -50,17 +74,21 @@ export function TabMaterialen() {
 function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: SetProps) {
   const b = useSetBewerker(beginSet, soorten);
   const { set } = b;
+  const dicht = useInstellingenWeergave((s) => s.dichteCategorieen);
+  const zetCategorieOpen = useInstellingenWeergave((s) => s.zetCategorieOpen);
+  const openCategorieen = useInstellingenWeergave((s) => s.openCategorieen);
+  const zetAlleCategorieen = useInstellingenWeergave((s) => s.zetAlleCategorieen);
   const [nieuwMateriaal, setNieuwMateriaal] = useState('');
   const [zoekterm, setZoekterm] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
 
-  const voegMateriaalToe = () => {
-    const label = nieuwMateriaal.trim();
-    if (label === '') return;
+  const voegMateriaalToe = (label: string, categorieId: string | null) => {
+    const naam = label.trim();
+    if (naam === '') return;
     const nieuw: Materiaal = {
       id: crypto.randomUUID(),
       sleutel: '',
-      label,
+      label: naam,
       eenheid: 'm²',
       prijsCent: null,
       btwTarief: 21,
@@ -68,22 +96,23 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
       standaard: false,
       inGebruik: false,
       tags: ALLE_TAGS,
+      categorieId: categorieId === CATEGORIE_OVERIG ? null : categorieId,
     };
-    setNieuwMateriaal('');
-    // Het nieuwe materiaal moet zichtbaar zijn: zoeken wissen.
+    // Het nieuwe materiaal moet zichtbaar zijn: zoeken wissen en zijn groep openen.
     setZoekterm('');
+    zetCategorieOpen(categorieId ?? CATEGORIE_OVERIG, true);
     setFocusId(nieuw.id);
     b.wijzig({ ...set, materialen: [...set.materialen, nieuw] }, true);
   };
   const verwijderMateriaal = (id: string) =>
     b.wijzig(
       {
+        ...set,
         werkzaamheden: set.werkzaamheden.map((w) => ({
           ...w,
           materialen: w.materialen.filter((m) => m.materiaalId !== id),
         })),
         materialen: set.materialen.filter((m) => m.id !== id),
-        soortenWerk: set.soortenWerk,
       },
       true,
     );
@@ -92,7 +121,24 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
   const tagOndergronden = ondergronden.filter((o) => !o.verborgen && o.sleutel !== ONDERGROND_ONBEKEND);
   const tagBedekkingen = bedekkingen.filter((o) => !o.verborgen);
 
-  const zichtbaar = zoekOpNaam(sorteerOpNaam(set.materialen, b.materiaalNamen), zoekterm);
+  const zoekend = zoekterm.trim() !== '';
+  const groepen = groepeerOpCategorie(sorteerOpNaam(set.materialen, b.materiaalNamen), set.categorieen).map(
+    (g) => ({ ...g, zichtbaar: zoekOpNaam(g.materialen, zoekterm) }),
+  );
+  const getoond = zoekend ? groepen.filter((g) => g.zichtbaar.length > 0) : groepen;
+  const zoek = (term: string) => {
+    setZoekterm(term);
+    // Groepen met treffers gaan open.
+    if (term.trim() !== '') {
+      openCategorieen(
+        groepen.filter((g) => zoekOpNaam(g.materialen, term).length > 0).map((g) => g.categorie.id),
+      );
+    }
+  };
+  const categorieNaam = (id: string) =>
+    beginSet.categorieen.find((c) => c.id === id)?.naam ??
+    set.categorieen.find((c) => c.id === id)?.naam ??
+    '';
 
   return (
     <div className="flex flex-col gap-10">
@@ -101,11 +147,18 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
 
       <Deel titel={t.materialen} uitleg={t.materialenUitleg}>
         <BeschikbareTags ondergronden={tagOndergronden} bedekkingen={tagBedekkingen} />
-        {set.materialen.length === 0 ? (
-          <p className="text-tekst-zacht">{t.geenMaterialenLijst}</p>
-        ) : (
-          <>
-            <div className="flex max-w-xl flex-col gap-2">
+        <CategorieBeheer
+          categorieen={set.categorieen}
+          bewaard={beginSet.categorieen}
+          materialen={set.materialen}
+          opWijzig={(categorieen, materialen, direct) =>
+            b.wijzig({ ...set, categorieen, materialen: materialen ?? set.materialen }, direct)
+          }
+          opBlur={b.bewaren.bewaarNu}
+        />
+        {set.materialen.length > 0 && (
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex min-w-72 max-w-xl flex-1 flex-col gap-2">
               <label htmlFor="zoek-materiaal" className="font-semibold">
                 {t.zoekMateriaal}
               </label>
@@ -115,18 +168,50 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
                 className={invoerKlasse}
                 value={zoekterm}
                 autoComplete="off"
-                onChange={(e) => setZoekterm(e.target.value)}
+                onChange={(e) => zoek(e.target.value)}
               />
             </div>
-            {zichtbaar.length === 0 ? (
-              <p role="status" className="text-tekst-zacht">
-                {t.geenMaterialenGevonden}
-              </p>
+            <Knop
+              label={t.allesOpenen}
+              icoon={ChevronsUpDown}
+              variant="secundair"
+              onClick={() => zetAlleCategorieen([], true)}
+            />
+            <Knop
+              label={t.allesSluiten}
+              icoon={ChevronsDownUp}
+              variant="secundair"
+              onClick={() =>
+                zetAlleCategorieen(
+                  groepen.map((g) => g.categorie.id),
+                  false,
+                )
+              }
+            />
+          </div>
+        )}
+        {set.materialen.length === 0 && <p className="text-tekst-zacht">{t.geenMaterialenLijst}</p>}
+        {zoekend && getoond.length === 0 && (
+          <p role="status" className="text-tekst-zacht">
+            {t.geenMaterialenGevonden}
+          </p>
+        )}
+        {getoond.map((g) => (
+          <Groep
+            key={g.categorie.id}
+            naam={categorieNaam(g.categorie.id) || g.categorie.naam}
+            aantal={g.materialen.length}
+            open={dicht[g.categorie.id] !== true}
+            opOpen={(open) => zetCategorieOpen(g.categorie.id, open)}
+            opToevoegen={(label) => voegMateriaalToe(label, g.categorie.id)}
+          >
+            {g.zichtbaar.length === 0 ? (
+              <p className="text-tekst-zacht">{tc.leeg}</p>
             ) : (
               <>
-                <Koppen klasse={RIJ_MATERIAAL} koppen={[t.naam, t.eenheid, t.prijs, t.btw]} />
-                <ul aria-label={t.materialen} className="flex flex-col">
-                  {zichtbaar.map((m) => {
+                <Koppen klasse={RIJ_MATERIAAL} koppen={[t.naam, t.eenheid, t.prijs, t.btw, tc.kop]} />
+                <ul aria-label={tc.materialenIn(g.categorie.naam)} className="flex flex-col">
+                  {g.zichtbaar.map((m) => {
                     const naam = b.materiaalNaam(m);
                     return (
                       <li key={m.id} className={`${RIJ_MATERIAAL} border-b border-rand px-2 py-2`}>
@@ -153,6 +238,22 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
                           waarde={m.btwTarief}
                           opWijzig={(btwTarief) => b.zetMateriaal(m.id, { btwTarief }, true)}
                         />
+                        <select
+                          className={invoerKlasse}
+                          aria-label={tc.vanMateriaal(naam)}
+                          value={categorieVan(m, set.categorieen)}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            zetCategorieOpen(id, true);
+                            b.zetMateriaal(m.id, { categorieId: id === CATEGORIE_OVERIG ? null : id }, true);
+                          }}
+                        >
+                          {set.categorieen.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {categorieNaam(c.id) || c.naam}
+                            </option>
+                          ))}
+                        </select>
                         <ItemKnoppen
                           naam={naam}
                           item={m}
@@ -179,19 +280,234 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
                 </ul>
               </>
             )}
-          </>
-        )}
+          </Groep>
+        ))}
         <NieuwFormulier
           label={t.nieuwMateriaal}
           hint={t.nieuwMateriaalHint}
           waarde={nieuwMateriaal}
           opWijzig={setNieuwMateriaal}
-          opToevoegen={voegMateriaalToe}
+          opToevoegen={() => {
+            voegMateriaalToe(nieuwMateriaal, null);
+            setNieuwMateriaal('');
+          }}
           toevoegenLabel={t.materiaalToevoegen}
         />
       </Deel>
       {b.verwijderVragen}
     </div>
+  );
+}
+
+/** OFM-057: één categorie als inklapbare groep met een eigen "Materiaal toevoegen". */
+function Groep({
+  naam,
+  aantal,
+  open,
+  opOpen,
+  opToevoegen,
+  children,
+}: {
+  naam: string;
+  aantal: number;
+  open: boolean;
+  opOpen: (open: boolean) => void;
+  opToevoegen: (label: string) => void;
+  children: ReactNode;
+}) {
+  const [nieuw, setNieuw] = useState('');
+  const inhoudId = useId();
+  return (
+    <section aria-label={tc.groep(naam)} className="flex flex-col rounded-knop border-2 border-rand">
+      <h3 className="p-2 text-xl font-semibold">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={inhoudId}
+          onClick={() => opOpen(!open)}
+          className="inline-flex min-h-12 items-center gap-2 rounded-knop px-2 text-left hover:text-accent"
+        >
+          {open ? (
+            <ChevronDown aria-hidden="true" className="size-6" />
+          ) : (
+            <ChevronRight aria-hidden="true" className="size-6" />
+          )}
+          <span>{naam}</span>
+          <span className="font-normal text-tekst-zacht">{`(${tc.aantal(aantal)})`}</span>
+        </button>
+      </h3>
+      {open && (
+        <div id={inhoudId} className="flex flex-col gap-4 border-t-2 border-rand p-4">
+          {children}
+          <NieuwFormulier
+            label={tc.nieuwIn(naam)}
+            waarde={nieuw}
+            opWijzig={setNieuw}
+            opToevoegen={() => {
+              opToevoegen(nieuw);
+              setNieuw('');
+            }}
+            toevoegenLabel={tc.toevoegenIn(naam)}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * OFM-057: inklapbaar blok Categorieën: toevoegen (naam uniek en niet leeg), hernoemen, volgorde en
+ * verwijderen (materialen naar Overig, bevestiging met het aantal). Overig staat vast onderaan.
+ */
+function CategorieBeheer({
+  categorieen,
+  bewaard,
+  materialen,
+  opWijzig,
+  opBlur,
+}: {
+  categorieen: Categorie[];
+  bewaard: Categorie[];
+  materialen: Materiaal[];
+  opWijzig: (categorieen: Categorie[], materialen: Materiaal[] | null, direct: boolean) => void;
+  opBlur: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [nieuw, setNieuw] = useState('');
+  const [teVerwijderen, setTeVerwijderen] = useState<Categorie | null>(null);
+  const inhoudId = useId();
+  const eigen = categorieen.filter((c) => c.id !== CATEGORIE_OVERIG);
+  const naamVan = (c: Categorie) => bewaard.find((x) => x.id === c.id)?.naam ?? (c.naam.trim() || t.naam);
+  const aantalIn = (id: string) => materialen.filter((m) => categorieVan(m, categorieen) === id).length;
+  const nieuwFout = nieuw.trim() === '' ? null : categorieNaamFout(nieuw, null, categorieen);
+  const overig = categorieen.find((c) => c.id === CATEGORIE_OVERIG);
+
+  const verplaats = (index: number, richting: -1 | 1) => {
+    const kopie = [...eigen];
+    const [item] = kopie.splice(index, 1);
+    if (item) kopie.splice(index + richting, 0, item);
+    opWijzig([...kopie, ...(overig ? [overig] : [])], null, true);
+  };
+  const voegToe = () => {
+    if (nieuw.trim() === '' || nieuwFout !== null) return;
+    const categorie: Categorie = { id: crypto.randomUUID(), naam: nieuw.trim(), standaard: false };
+    setNieuw('');
+    opWijzig([...eigen, categorie, ...(overig ? [overig] : [])], null, true);
+  };
+
+  return (
+    <section aria-label={tc.beheer} className="flex flex-col rounded-knop border-2 border-rand">
+      <h3 className="p-2 text-lg font-semibold">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={inhoudId}
+          onClick={() => setOpen(!open)}
+          className="inline-flex min-h-12 items-center gap-2 rounded-knop px-2 text-left hover:text-accent"
+        >
+          {open ? (
+            <ChevronDown aria-hidden="true" className="size-6" />
+          ) : (
+            <ChevronRight aria-hidden="true" className="size-6" />
+          )}
+          <span>{tc.beheer}</span>
+          <span className="font-normal text-tekst-zacht">{`(${categorieen.length})`}</span>
+        </button>
+      </h3>
+      {open && (
+        <div id={inhoudId} className="flex flex-col gap-4 border-t-2 border-rand p-4">
+          <p className="max-w-3xl text-tekst-zacht">{tc.beheerUitleg}</p>
+          <ul aria-label={tc.beheer} className="flex flex-col">
+            {eigen.map((c, index) => {
+              const naam = naamVan(c);
+              const fout = categorieNaamFout(c.naam, c.id, categorieen);
+              return (
+                <li
+                  key={c.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-rand px-2 py-2"
+                >
+                  <input
+                    className={`${invoerKlasse} max-w-xl`}
+                    aria-label={tc.naamVan(naam)}
+                    aria-invalid={fout !== null || undefined}
+                    title={fout === null ? undefined : tc.fout[fout]}
+                    value={c.naam}
+                    maxLength={40}
+                    onChange={(e) =>
+                      opWijzig(
+                        categorieen.map((x) => (x.id === c.id ? { ...x, naam: e.target.value } : x)),
+                        null,
+                        false,
+                      )
+                    }
+                    onBlur={opBlur}
+                  />
+                  <span className="text-tekst-zacht">{tc.aantal(aantalIn(c.id))}</span>
+                  <div className="flex items-center gap-2">
+                    <Knop
+                      label={t.omhoog(naam)}
+                      icoon={ArrowUp}
+                      alleenIcoon
+                      disabled={index === 0}
+                      onClick={() => verplaats(index, -1)}
+                    />
+                    <Knop
+                      label={t.omlaag(naam)}
+                      icoon={ArrowDown}
+                      alleenIcoon
+                      disabled={index === eigen.length - 1}
+                      onClick={() => verplaats(index, 1)}
+                    />
+                    <Knop
+                      label={t.verwijder(naam)}
+                      icoon={Trash2}
+                      alleenIcoon
+                      onClick={() => setTeVerwijderen(c)}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+            {overig && (
+              <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-2 py-2">
+                <span className="px-3">
+                  {overig.naam} <span className="text-tekst-zacht">{`— ${tc.overigVast}`}</span>
+                </span>
+                <span className="text-tekst-zacht">{tc.aantal(aantalIn(CATEGORIE_OVERIG))}</span>
+              </li>
+            )}
+          </ul>
+          <NieuwFormulier
+            label={tc.nieuw}
+            waarde={nieuw}
+            opWijzig={setNieuw}
+            opToevoegen={voegToe}
+            toevoegenLabel={tc.toevoegen}
+            fout={nieuwFout === null ? undefined : tc.fout[nieuwFout]}
+          />
+        </div>
+      )}
+      <Bevestiging
+        open={teVerwijderen !== null}
+        titel={tc.verwijderTitel}
+        bevestigLabel={t.verwijderJa}
+        annuleerLabel={t.verwijderNee}
+        gevaar
+        opAnnuleer={() => setTeVerwijderen(null)}
+        opBevestig={() => {
+          const weg = teVerwijderen;
+          setTeVerwijderen(null);
+          if (!weg) return;
+          opWijzig(
+            categorieen.filter((c) => c.id !== weg.id),
+            materialen.map((m) => (m.categorieId === weg.id ? { ...m, categorieId: null } : m)),
+            true,
+          );
+        }}
+      >
+        <p>{teVerwijderen && tc.verwijderTekst(naamVan(teVerwijderen), aantalIn(teVerwijderen.id))}</p>
+      </Bevestiging>
+    </section>
   );
 }
 

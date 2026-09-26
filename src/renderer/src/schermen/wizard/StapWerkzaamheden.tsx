@@ -13,6 +13,7 @@ import type {
 } from '@shared/types';
 import {
   gebruikSituatie,
+  groepeerOpCategorie,
   kiesbareMaterialen,
   kiesMateriaal,
   kiesWerkzaamheid,
@@ -329,6 +330,8 @@ function WerkKaart({
   // (OFM-055), plus wat al gekozen is.
   const gekozenMat = new Set(werk.materialen.flatMap((m) => (m.sleutel === null ? [] : [m.sleutel])));
   const kiesbaar = kiesbareMaterialen(item, set, situatie, gekozenMat);
+  const groepen = groepeerOpCategorie(kiesbaar, set.categorieen).filter((g) => g.materialen.length > 0);
+  const groepId = useId();
   const hintNamen = hint ? opsomming(hint.materialen.map((m) => m.label)) : '';
   const wisselMateriaal = (sleutel: string, aan: boolean) => {
     const materiaal = set.materialen.find((m) => m.sleutel === sleutel);
@@ -435,16 +438,42 @@ function WerkKaart({
             />
           </div>
         )}
-        <div className="grid gap-x-6 md:grid-cols-2">
-          {kiesbaar.map((m) => (
-            <Vinkje
-              key={m.id}
-              label={m.label}
-              aan={gekozenMat.has(m.sleutel)}
-              opWijzig={(aan) => wisselMateriaal(m.sleutel, aan)}
-            />
-          ))}
-        </div>
+        {/* OFM-057: gegroepeerd op categorie als er meer dan één categorie in voorkomt. */}
+        {groepen.length > 1 ? (
+          groepen.map((g) => (
+            <div
+              key={g.categorie.id}
+              role="group"
+              aria-labelledby={`${groepId}-${g.categorie.id}`}
+              className="flex flex-col gap-1"
+            >
+              <span id={`${groepId}-${g.categorie.id}`} className="text-tekst-zacht">
+                {g.categorie.naam}
+              </span>
+              <div className="grid gap-x-6 md:grid-cols-2">
+                {g.materialen.map((m) => (
+                  <Vinkje
+                    key={m.id}
+                    label={m.label}
+                    aan={gekozenMat.has(m.sleutel)}
+                    opWijzig={(aan) => wisselMateriaal(m.sleutel, aan)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="grid gap-x-6 md:grid-cols-2">
+            {kiesbaar.map((m) => (
+              <Vinkje
+                key={m.id}
+                label={m.label}
+                aan={gekozenMat.has(m.sleutel)}
+                opWijzig={(aan) => wisselMateriaal(m.sleutel, aan)}
+              />
+            ))}
+          </div>
+        )}
         {werk.materialen.map((m) => {
           const mi = materiaalInfo(set, m);
           return (

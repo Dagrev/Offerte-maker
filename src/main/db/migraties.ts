@@ -5,6 +5,7 @@ import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
 import { zetDaksituatiesOm } from './daksituatie';
 import { zetHuidigDakStartset, zetNieuweBedekkingOm } from './huidigDak';
+import { zetCategorieenStartset } from './materiaalCategorieen';
 import { zetOffertesOm } from './omzettingWerkzaamheden';
 import { voegPrijzenSamen } from './prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from './werkzaamhedenStartset';
@@ -84,6 +85,8 @@ const NA_MIGRATIE: Record<string, (db: Db) => void> = {
     const aantal = zetDaksituatiesOm(db);
     log.info(`materiaal per daksituatie: ${aantal} werkzaamheid(en) omgezet`);
   },
+  // OFM-057: startcategorieën; startmaterialen (en houtschroeven/betonpluggen) krijgen een categorie.
+  '012_materiaal_categorieen.sql': (db) => zetCategorieenStartset(db, { migratie: true }),
 };
 
 /**

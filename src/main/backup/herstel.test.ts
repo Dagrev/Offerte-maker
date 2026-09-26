@@ -87,12 +87,21 @@ function zonderDaksysteem(db: Database.Database): void {
  * `daksysteem_materiaal` van migratie 010.
  */
 function zonderSituaties(db: Database.Database): void {
+  zonderCategorieen(db);
   db.exec(`
     DROP TABLE werkzaamheid_situatie_materiaal;
     DROP TABLE materiaal_tag;
     ALTER TABLE werkzaamheden DROP COLUMN per_situatie;
   `);
   db.exec(readFileSync(new URL('../db/migraties/010_daksysteem.sql', import.meta.url), 'utf8'));
+}
+
+/** Vóór OFM-057 (migratie 012): zonder categorieën van materialen. */
+function zonderCategorieen(db: Database.Database): void {
+  db.exec(`
+    ALTER TABLE materialen DROP COLUMN categorie_id;
+    DROP TABLE materiaal_categorieen;
+  `);
 }
 
 function zonderStandaardkeuze(db: Database.Database): void {
@@ -466,6 +475,33 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
       expect(
         db.prepare("SELECT name FROM sqlite_master WHERE name = 'daksysteem_materiaal'").get(),
       ).toBeUndefined();
+    } finally {
+      db.close();
+    }
+  });
+
+  it('OFM-057: back-up met schemaversie 11 wordt teruggezet; 012 zet de startcategorieën erin', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 4, 9, 0, 0),
+    });
+    const kopie = new Database(join(map, bestand));
+    zonderCategorieen(kopie);
+    kopie.pragma('user_version = 11');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 11,
+        naar: SCHEMA_VERSIE,
+      });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM materiaal_categorieen').get()).toEqual({ n: 6 });
+      expect(db.prepare("SELECT categorie_id FROM materialen WHERE sleutel = 'epdm'").get()).toEqual({
+        categorie_id: 'cat:dakbedekking',
+      });
     } finally {
       db.close();
     }

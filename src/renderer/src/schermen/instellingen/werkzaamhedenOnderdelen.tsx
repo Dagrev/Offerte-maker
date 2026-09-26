@@ -236,6 +236,7 @@ export function NieuwFormulier({
   opWijzig,
   opToevoegen,
   toevoegenLabel,
+  fout,
 }: {
   label: string;
   hint?: string;
@@ -243,6 +244,8 @@ export function NieuwFormulier({
   opWijzig: (waarde: string) => void;
   opToevoegen: () => void;
   toevoegenLabel: string;
+  /** OFM-057: een fout bij de naam (bijv. al in gebruik); de knop is dan uit. */
+  fout?: string;
 }) {
   return (
     <form
@@ -253,9 +256,14 @@ export function NieuwFormulier({
       }}
     >
       <div className="min-w-72 flex-1">
-        <Veld label={label} hint={hint} waarde={waarde} opWijzig={opWijzig} maxLength={80} />
+        <Veld label={label} hint={hint} fout={fout} waarde={waarde} opWijzig={opWijzig} maxLength={80} />
       </div>
-      <Knop type="submit" label={toevoegenLabel} icoon={Plus} disabled={waarde.trim() === ''} />
+      <Knop
+        type="submit"
+        label={toevoegenLabel}
+        icoon={Plus}
+        disabled={waarde.trim() === '' || fout !== undefined}
+      />
     </form>
   );
 }

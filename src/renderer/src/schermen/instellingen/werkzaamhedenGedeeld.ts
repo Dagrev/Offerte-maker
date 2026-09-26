@@ -36,8 +36,26 @@ export function naamVan(item: MetNaam, bewaard: readonly MetNaam[], terugval: st
   return bewaard.find((b) => b.id === item.id)?.label ?? (item.label.trim() || terugval);
 }
 
-/** Alleen bewaren als alles een naam heeft (een lege naam is een tussenstand). */
+/**
+ * Fout bij de naam van een categorie (OFM-057): leeg, of dezelfde naam als een andere categorie (zonder
+ * hoofdletterverschil). `null` = goed.
+ */
+export function categorieNaamFout(
+  naam: string,
+  id: string | null,
+  categorieen: readonly { id: string; naam: string }[],
+): 'leeg' | 'dubbel' | null {
+  const schoon = naam.trim().toLocaleLowerCase('nl');
+  if (schoon === '') return 'leeg';
+  const dubbel = categorieen.some((c) => c.id !== id && c.naam.trim().toLocaleLowerCase('nl') === schoon);
+  return dubbel ? 'dubbel' : null;
+}
+
+/**
+ * Alleen bewaren als alles een naam heeft (een lege naam is een tussenstand) en de namen van de
+ * categorieën goed zijn (OFM-057).
+ */
 export const allesBenoemd = (set: WerkzaamhedenSet): boolean =>
   [...set.werkzaamheden, ...set.werkzaamheden.flatMap((w) => w.opties), ...set.materialen].every(
     (i) => i.label.trim() !== '',
-  );
+  ) && set.categorieen.every((c) => categorieNaamFout(c.naam, c.id, set.categorieen) === null);
