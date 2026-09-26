@@ -38,4 +38,13 @@ export const overzicht = {
   samenvatting: (aantal: number, totaal: string, akkoord: number) =>
     `${aantal} ${aantal === 1 ? 'offerte' : 'offertes'} · ${totaal} totaal · ${akkoord} akkoord`,
   subtotaal: (bedrag: string) => `subtotaal ${bedrag}`,
+
+  /** OFM-029: hint zolang de bedrijfsnaam leeg is; wegklikken geldt voor deze start. */
+  bedrijfHint: {
+    titel: 'Vul je bedrijfsgegevens in',
+    tekst:
+      'Je bedrijfsnaam en andere gegevens komen op elke offerte. Zolang ze leeg zijn, blijven ze weg uit de PDF.',
+    naarInstellingen: 'Naar Instellingen › Bedrijf',
+    verberg: 'Verberg deze melding',
+  },
 };

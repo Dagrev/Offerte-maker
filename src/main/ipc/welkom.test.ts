@@ -54,6 +54,14 @@ describe('welkomstscherm (FE-003, FE-004)', () => {
     expect(await info(event, undefined)).toMatchObject({ ok: true, data: { welkomVoltooid: true } });
   });
 
+  it('voltooien kan met lege bedrijfsgegevens; die blijven leeg (OFM-029, V-20)', async () => {
+    expect(haalInstelling('bedrijf').naam).toBe('');
+    expect(await voltooi(event, undefined)).toEqual({ ok: true, data: null });
+    herstart();
+    expect(await info(event, undefined)).toMatchObject({ ok: true, data: { welkomVoltooid: true } });
+    expect(haalInstelling('bedrijf')).toEqual(standaardInstelling('bedrijf'));
+  });
+
   it('halverwege afsluiten: welkomstscherm komt terug, ingevulde bedrijfsgegevens zijn bewaard', async () => {
     bewaarInstelling('bedrijf', { ...standaardInstelling('bedrijf'), naam: 'Dakwerken Zuid' });
     herstart();

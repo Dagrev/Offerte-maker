@@ -40,7 +40,7 @@ function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
 
 /**
  * Tab Bedrijf (FE-070): bedrijfsgegevens en logo; elk veld bewaart vanzelf (FE-075). `opWijzig` is
- * voor het welkomstscherm (OFM-023), dat de bedrijfsnaam nodig heeft voor **Volgende** (V-20).
+ * voor het welkomstscherm (OFM-023), dat ontbrekende gegevens meldt bij het verlaten van stap 1 (OFM-029).
  */
 export function TabBedrijf({
   instellingen,

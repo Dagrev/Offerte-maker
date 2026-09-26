@@ -32,10 +32,8 @@ test('van welkom tot een akkoord-offerte met PDF', async () => {
   const { page } = gestart;
   const w = nl.welkom;
 
-  // Welkom, stap 1: bedrijfsgegevens (Volgende zonder naam mag niet).
+  // Welkom, stap 1: bedrijfsgegevens (geen verplichte velden meer, OFM-029; zie welkom-leeg.spec.ts).
   await expect(page.getByRole('heading', { name: w.titel, level: 1 })).toBeVisible();
-  await page.getByRole('button', { name: w.volgende, exact: true }).click();
-  await expect(page.getByText(w.naamNodig)).toBeVisible();
   await page.getByLabel(nl.instellingen.bedrijf.naam, { exact: true }).fill('Dakwerken Test');
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   // Stap 2: Claude-koppeling (nep-CLI: gekoppeld, dus geen gele melding).

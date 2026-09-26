@@ -1,4 +1,4 @@
-// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-023 (schermen/Welkom.tsx).
+// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-023 (schermen/Welkom.tsx); OFM-029 geen verplichte velden.
 // Alleen het eigenaarticket vult deze module.
 export const welkom = {
   titel: 'Welkom',
@@ -15,6 +15,8 @@ export const welkom = {
   vorige: 'Vorige',
   overslaan: 'Overslaan',
   klaar: 'Klaar',
-  naamNodig: 'Vul de bedrijfsnaam in',
+  /** OFM-029: gele, niet-blokkerende melding na stap 1 als er bedrijfsgegevens ontbreken (V-20). */
+  nogNietIngevuld: 'Nog niet alles ingevuld',
+  laterInvullen: 'Je kunt dit later invullen via Instellingen › Bedrijf',
   nietGekoppeld: 'Claude is nog niet gekoppeld. Dat kan later via Instellingen → Geavanceerd.',
 };

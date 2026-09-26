@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type { Fout } from '@shared/fouten';
+import type { Bedrijf } from '@shared/types';
 import { useClaudeStatus } from '../api/claude';
 import { useInstellingen } from '../api/instellingen';
 import { alsFout, roep } from '../api/roep';
+import { ontbrekendeBedrijfsgegevens, type OntbrekendGegeven } from '../componenten/bedrijfsgegevens';
 import { Foutmelding } from '../componenten/Foutmelding';
 import { GeleBalk } from '../componenten/GeleBalk';
 import { Knop } from '../componenten/Knop';
@@ -22,14 +24,18 @@ type Stap = 1 | 2 | 3;
  * Welkomstscherm bij de eerste start (FO UC-17/S6, TDO §13.4, V-20). Elke stap toont de tab uit
  * Instellingen inline (Bedrijf, Claude-koppeling, Voorbeelden); die bewaren zelf direct. **Klaar** of
  * **Overslaan** roept `welkom:voltooi` aan en opent het hoofdscherm (FE-004).
+ *
+ * Geen verplichte velden (OFM-029): **Volgende**, **Overslaan** en **Klaar** werken altijd. Ontbreken
+ * bij het verlaten van stap 1 bedrijfsgegevens, dan staat er in stap 2 en 3 een gele, niet-blokkerende
+ * melding; het hoofdscherm toont daarna een hint zolang de bedrijfsnaam leeg is (`BedrijfHint`).
  */
 export function Welkom() {
   const instellingen = useInstellingen();
   const claudeStatus = useClaudeStatus();
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const [stap, setStap] = useState<Stap>(1);
-  const [naam, setNaam] = useState<string | null>(null);
-  const [naamFout, setNaamFout] = useState(false);
+  const [bedrijf, setBedrijf] = useState<Partial<Bedrijf>>({});
+  const [ontbrekend, setOntbrekend] = useState<OntbrekendGegeven[]>([]);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<Fout | null>(null);
 
@@ -46,19 +52,17 @@ export function Welkom() {
       </main>
     );
   const data = instellingen.data;
-  const bedrijfsnaam = (naam ?? data.bedrijf.naam).trim();
 
   const naar = (nieuw: Stap) => {
+    // Stap 1 verlaten: ontbrekende gegevens melden, niet blokkeren (OFM-029, V-20).
+    if (stap === 1 && nieuw !== 1)
+      setOntbrekend(ontbrekendeBedrijfsgegevens({ ...data.bedrijf, ...bedrijf }));
     setFout(null);
     setStap(nieuw);
     window.scrollTo({ top: 0 });
   };
 
   const volgende = () => {
-    if (stap === 1 && bedrijfsnaam === '') {
-      setNaamFout(true);
-      return;
-    }
     if (stap < 3) naar((stap + 1) as Stap);
   };
 
@@ -91,15 +95,13 @@ export function Welkom() {
           <p className="text-tekst-zacht">{t.uitleg[stap - 1]}</p>
         </div>
 
-        {stap === 1 && (
-          <TabBedrijf
-            instellingen={data}
-            opWijzig={(b) => {
-              setNaam(b.naam);
-              if (b.naam.trim() !== '') setNaamFout(false);
-            }}
-          />
+        {stap !== 1 && ontbrekend.length > 0 && (
+          <GeleBalk titel={t.nogNietIngevuld} punten={ontbrekend.map((g) => nl.instellingen.bedrijf[g])}>
+            <p>{t.laterInvullen}</p>
+          </GeleBalk>
         )}
+
+        {stap === 1 && <TabBedrijf instellingen={data} opWijzig={setBedrijf} />}
         {stap === 2 && (
           <>
             {claudeStatus?.toestand !== 'gekoppeld' && <GeleBalk>{t.nietGekoppeld}</GeleBalk>}
@@ -113,13 +115,7 @@ export function Welkom() {
 
       <footer className="sticky bottom-0 flex flex-wrap items-center gap-4 border-t-2 border-rand bg-achtergrond py-4">
         {stap > 1 && <Knop label={t.vorige} icoon={ArrowLeft} onClick={() => naar((stap - 1) as Stap)} />}
-        <div className="flex-1">
-          {naamFout && stap === 1 && (
-            <p role="alert" className="font-semibold text-fout">
-              {t.naamNodig}
-            </p>
-          )}
-        </div>
+        <div className="flex-1" />
         {stap === 3 ? (
           <>
             <Knop label={t.overslaan} disabled={bezig} onClick={() => void voltooi()} />

@@ -6,7 +6,10 @@ import type { DomeinHandlers } from './registreer';
 type Kanalen = 'welkom:voltooi';
 
 export const welkomHandlers: DomeinHandlers<Kanalen> = {
-  /** **Klaar** of **Overslaan**: het welkomstscherm komt bij een volgende start niet meer terug. */
+  /**
+   * **Klaar** of **Overslaan**: het welkomstscherm komt bij een volgende start niet meer terug. Geen
+   * controle op de bedrijfsgegevens: lege velden mogen (OFM-029, V-20).
+   */
   'welkom:voltooi': () => {
     wijzigInstelling('app', { welkomVoltooid: true });
     log.info('welkomstscherm voltooid');

@@ -12,6 +12,7 @@ import { Knop } from '../componenten/Knop';
 import { OfferteRij, offerteRijKolommen } from '../componenten/OfferteRij';
 import { useNavigatie, type Weergave } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
+import { BedrijfHint } from './BedrijfHint';
 
 // Hoofdscherm (FO S1, UC-02, UC-03; TDO §8.2, §13.4). Eigenaar: OFM-009.
 
@@ -65,6 +66,8 @@ export function Overzicht() {
           <Knop label={t.instellingen} icoon={Settings} onClick={() => gaNaar({ scherm: 'instellingen' })} />
         </div>
       </header>
+
+      <BedrijfHint />
 
       <div>
         <Knop
