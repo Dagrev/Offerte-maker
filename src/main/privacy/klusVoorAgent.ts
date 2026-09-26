@@ -40,12 +40,13 @@ export interface KlusVoorAgent {
   dakvlakken: { naam: string; m2: number }[];
   huidigeBedekking: string | null;
   ondergrond: string | null;
-  hoogte: string;
+  /** `null` als er (nog) geen hoogte is gekozen (OFM-049: geen standaard). */
+  hoogte: string | null;
   /** OFM-044: de gekozen werkzaamheden, met materialen en opties. */
   werkzaamheden: WerkzaamheidVoorAgent[];
   steigerNodig: boolean;
   /** Label van de garantiekeuze, bv. "10 jaar" (OFM-034; was garantieJaren: 10 | 20). */
-  garantie: string;
+  garantie: string | null;
   gewensteUitvoering: string;
   overig: string;
   totaalM2: number;
@@ -126,10 +127,10 @@ export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): Klus
     huidigeBedekking:
       invoer.huidigeBedekking === null ? null : label('huidigeBedekking', invoer.huidigeBedekking),
     ondergrond: invoer.ondergrond === null ? null : label('ondergrond', invoer.ondergrond),
-    hoogte: label('hoogte', invoer.hoogte),
+    hoogte: invoer.hoogte === null ? null : label('hoogte', invoer.hoogte),
     werkzaamheden,
     steigerNodig: invoer.steigerNodig,
-    garantie: label('garantie', invoer.garantieJaren),
+    garantie: invoer.garantieJaren === null ? null : label('garantie', invoer.garantieJaren),
     gewensteUitvoering: filter(invoer.gewensteUitvoering),
     overig: filter(invoer.overig),
     totaalM2: totaalM2(invoer.dakvlakken),

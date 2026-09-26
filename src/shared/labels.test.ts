@@ -4,9 +4,9 @@ import type { Aanhef } from './types';
 
 describe('namen (OFM-038)', () => {
   it('volledigeNaam: lege delen vallen weg', () => {
-    expect(volledigeNaam({ voornaam: ' Jan ', achternaam: 'de Vries' })).toBe('Jan de Vries');
-    expect(volledigeNaam({ voornaam: '', achternaam: 'Jansen' })).toBe('Jansen');
-    expect(volledigeNaam({ voornaam: 'Jan', achternaam: ' ' })).toBe('Jan');
+    expect(volledigeNaam({ voornaam: ' Jan ', tussenvoegsel: '', achternaam: 'de Vries' })).toBe('Jan de Vries');
+    expect(volledigeNaam({ voornaam: '', tussenvoegsel: '', achternaam: 'Jansen' })).toBe('Jansen');
+    expect(volledigeNaam({ voornaam: 'Jan', tussenvoegsel: '', achternaam: ' ' })).toBe('Jan');
   });
 
   it('voorletters: per deel, ook na een koppelteken', () => {
@@ -16,14 +16,14 @@ describe('namen (OFM-038)', () => {
   });
 
   it('naamMetVoorletters: zonder achternaam de voornaam voluit', () => {
-    expect(naamMetVoorletters({ voornaam: 'Jan', achternaam: 'Jansen' })).toBe('J. Jansen');
-    expect(naamMetVoorletters({ voornaam: '', achternaam: 'Jansen' })).toBe('Jansen');
-    expect(naamMetVoorletters({ voornaam: 'Jan', achternaam: '' })).toBe('Jan');
+    expect(naamMetVoorletters({ voornaam: 'Jan', tussenvoegsel: '', achternaam: 'Jansen' })).toBe('J. Jansen');
+    expect(naamMetVoorletters({ voornaam: '', tussenvoegsel: '', achternaam: 'Jansen' })).toBe('Jansen');
+    expect(naamMetVoorletters({ voornaam: 'Jan', tussenvoegsel: '', achternaam: '' })).toBe('Jan');
   });
 });
 
 describe('aanhefRegel §9.2', () => {
-  const k = (aanhef: Aanhef, achternaam: string, voornaam = 'Jan') => ({ aanhef, voornaam, achternaam });
+  const k = (aanhef: Aanhef, achternaam: string, voornaam = 'Jan') => ({ aanhef, voornaam, tussenvoegsel: '', achternaam });
   it('per aanhef, met de achternaam', () => {
     expect(aanhefRegel(k('dhr', 'Jansen'))).toBe('Geachte heer Jansen,');
     expect(aanhefRegel(k('mevr', 'De Vries'))).toBe('Geachte mevrouw De Vries,');
@@ -41,6 +41,7 @@ describe('klantWeergave §8.2', () => {
   const k = (aanhef: Aanhef, achternaam: string, bedrijfsnaam = '', voornaam = 'Jan') => ({
     aanhef,
     voornaam,
+    tussenvoegsel: '',
     achternaam,
     bedrijfsnaam,
   });
@@ -54,6 +55,16 @@ describe('klantWeergave §8.2', () => {
   it('zonder voornaam (oude offerte na migratie 003) precies zoals vroeger', () => {
     expect(klantWeergave(k('dhr', 'P. Jansen', '', ''))).toBe('Dhr. P. Jansen');
     expect(klantWeergave(k('fam', '', '', 'Jan'))).toBe('Fam. Jan');
+  });
+
+  it('OFM-046: tussenvoegsel klein na voorletters, met hoofdletter na "Fam." en in de aanhef', () => {
+    const berg = { voornaam: 'Jan', tussenvoegsel: 'van der', achternaam: 'Berg', bedrijfsnaam: 'Bouw BV' };
+    expect(klantWeergave({ ...berg, aanhef: 'dhr' })).toBe('Dhr. J. van der Berg');
+    expect(klantWeergave({ ...berg, aanhef: 'fam' })).toBe('Fam. Van der Berg');
+    expect(klantWeergave({ ...berg, aanhef: 'bedrijf', bedrijfsnaam: '' })).toBe('J. van der Berg');
+    expect(aanhefRegel({ ...berg, aanhef: 'dhr' })).toBe('Geachte heer Van der Berg,');
+    expect(aanhefRegel({ ...berg, aanhef: 'fam' })).toBe('Geachte familie Van der Berg,');
+    expect(volledigeNaam(berg)).toBe('Jan van der Berg');
   });
 
   it('bedrijf zonder bedrijfsnaam → de contactpersoon', () => {

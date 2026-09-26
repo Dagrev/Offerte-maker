@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Building2, Lock, User, UserRound, Users } from 'lucide-react';
+import { normaliseerTussenvoegsel } from '@shared/naam';
 import { leegAdres } from '@shared/nieuweOfferte';
 import type { Aanhef, Adres, Klant } from '@shared/types';
 import { VALIDATIE_FOUTEN } from '@shared/teksten/validatie';
@@ -89,12 +90,23 @@ export function StapKlant({ klant, opWijzig, toonFouten, ontbrekend }: StapKlant
           />
         )}
         {isBedrijf && <p className="text-lg font-semibold">{t.contactpersoon}</p>}
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* OFM-046: voornaam, tussenvoegsel (smal, nooit verplicht) en achternaam op één rij. */}
+        <div className="grid gap-6 md:grid-cols-[2fr_1fr_2fr]">
           <Veld
             label={t.voornaam}
             waarde={klant.voornaam}
             opWijzig={(voornaam) => zet({ voornaam })}
             fout={leegFout('voornaam')}
+            autoComplete="off"
+          />
+          <Veld
+            label={t.tussenvoegsel}
+            waarde={klant.tussenvoegsel}
+            opWijzig={(tussenvoegsel) => zet({ tussenvoegsel })}
+            onBlur={() => {
+              const netjes = normaliseerTussenvoegsel(klant.tussenvoegsel);
+              if (netjes !== klant.tussenvoegsel) zet({ tussenvoegsel: netjes });
+            }}
             autoComplete="off"
           />
           <Veld

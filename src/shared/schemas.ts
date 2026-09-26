@@ -40,11 +40,13 @@ export const adresSchema = z.object({
 /**
  * Tekstvelden mogen leeg zijn: een half ingevuld concept wordt ook bewaard (FE-025). Sinds OFM-038
  * voor- en achternaam apart (migratie 003 zette de oude `naam` in `achternaam`); bij aanhef `bedrijf`
- * zijn ze de contactpersoon.
+ * zijn ze de contactpersoon. Het tussenvoegsel (OFM-046) is optioneel en nooit verplicht; een offerte
+ * van vóór OFM-046 heeft het veld niet en krijgt bij lezen `''` (geen migratie).
  */
 export const klantSchema = z.object({
   aanhef: aanhefSchema,
   voornaam: z.string(),
+  tussenvoegsel: z.string().default(''),
   achternaam: z.string(),
   bedrijfsnaam: z.string(),
   adres: adresSchema,
@@ -134,11 +136,11 @@ export const klusInvoerSchema = z.object({
   dakvlakken: z.array(dakvlakSchema).max(20),
   huidigeBedekking: huidigeBedekkingSchema.nullable(),
   ondergrond: ondergrondSchema.nullable(),
-  hoogte: hoogteSchema,
+  hoogte: hoogteSchema.nullable(),
   werkzaamheden: z.array(gekozenWerkzaamheidSchema).max(40).default([]),
   steigerNodig: z.boolean(),
   /** Sleutel uit de lijst `garantie` ('10', '20', …); vóór migratie 002 een getal. */
-  garantieJaren: garantieSchema,
+  garantieJaren: garantieSchema.nullable(),
   gewensteUitvoering: z.string(),
   overig: z.string(),
 });
@@ -450,8 +452,11 @@ export const keuzeoptieSchema = z.object({
   verborgen: z.boolean(),
   /** Uit de startset (voor "Herstel standaardlijst"). */
   standaard: z.boolean(),
-  /** Standaardkeuze van een nieuwe offerte: niet te verbergen of te verwijderen. */
-  vast: z.boolean(),
+  /**
+   * Standaardkeuze van een nieuwe offerte (OFM-049; hoogstens één per lijst): niet te verbergen of te
+   * verwijderen. Vervangt `vast` (OFM-034, vaste waarden in de code).
+   */
+  standaardkeuze: z.boolean(),
   /** Komt voor in een niet-verwijderde offerte: niet te verwijderen, wel te verbergen. */
   inGebruik: z.boolean(),
 });
@@ -642,9 +647,12 @@ export const invoerSchemas = {
           id: z.string().max(100),
           label: z.string().trim().min(1).max(80),
           verborgen: z.boolean(),
+          /** OFM-049: hoogstens één optie per lijst; geen enkele = geen standaard. */
+          standaardkeuze: z.boolean(),
         }),
       )
-      .max(100),
+      .max(100)
+      .refine((opties) => opties.filter((o) => o.standaardkeuze).length <= 1),
   }),
   'keuzelijsten:herstel': z.object({ lijst: keuzeLijstSchema }),
 

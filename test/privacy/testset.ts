@@ -26,6 +26,7 @@ export function maakKlant(deel: Partial<Klant> = {}): Klant {
   return {
     aanhef: 'dhr',
     voornaam: '',
+    tussenvoegsel: '',
     achternaam: '',
     bedrijfsnaam: '',
     adres: leegAdres,
@@ -166,6 +167,17 @@ export const testset: Privacygeval[] = [
     klant: maakKlant({ aanhef: 'fam', achternaam: "'t Hart" }),
     invoer: maakInvoer({ overig: "Familie 't Hart heeft een hond; Hart vraagt om voorzichtigheid" }),
     verwacht: { nietInOpdracht: ['Hart'], welInOpdracht: ['heeft een hond'] },
+  },
+  {
+    omschrijving: 'OFM-046: tussenvoegsel als eigen veld, met hoofdletter, los en in de volledige naam',
+    klant: maakKlant({ voornaam: 'Joost', tussenvoegsel: 'van der', achternaam: 'Berg' }),
+    invoer: maakInvoer({
+      overig: 'Joost van der Berg is thuis; Van der Berg wil het werk van de goot eerst. Berg betaalt.',
+    }),
+    verwacht: {
+      nietInOpdracht: ['Joost', 'Berg'],
+      welInOpdracht: ['[KLANT_NAAM] is thuis', 'het werk van de goot eerst'],
+    },
   },
   {
     omschrijving: 'tussenvoegsel ter Horst',

@@ -358,5 +358,7 @@ describe('stelPdfModelSamen', () => {
     expect(garantieTekst('15_jaar', teksten, keuzes)).toBe(
       'Op de uitgevoerde werkzaamheden geven wij garantie: 15 jaar.',
     );
+    // OFM-049: zonder garantiekeuze (geen standaard) geen tekst.
+    expect(garantieTekst(null, teksten, keuzes)).toBe('');
   });
 });

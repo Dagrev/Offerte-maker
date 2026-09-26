@@ -1,5 +1,6 @@
 import type { Klant } from '@shared/types';
 import { volledigeNaam } from '@shared/labels';
+import { naamVan } from '@shared/naam';
 import { VERWIJDERD } from './patronen';
 
 // PII-set per klant (TDO §11.1, V-02). Alles wat het filter (§11.2) en de eindcontrole (§11.3)
@@ -106,11 +107,18 @@ export function bouwPiiSet(klant: Klant): PiiWaarde[] {
 
   // naam (OFM-038): voornaam, achternaam en de combinatie volledig (≥ 2), elk woord ≥ 3 dat geen
   // tussenvoegsel is. Dubbele waarden (bijv. bij een lege voornaam) haalt `uniek` weg.
-  for (const naam of [volledigeNaam(klant), klant.voornaam, klant.achternaam]) {
+  // OFM-046: ook "tussenvoegsel achternaam" ("van der Berg"; hoofdletterongevoelig, dus ook "Van der
+  // Berg"). Het tussenvoegsel zelf alleen via de woordfilter: "van de" als losse waarde zou in elke
+  // werkomschrijving ("vervangen van de goot") [KLANT_NAAM] worden.
+  const namen = [volledigeNaam(klant), klant.voornaam, klant.achternaam, naamVan(klant, 'achternaam')];
+  for (const naam of namen) {
     voegToe(naam, '[KLANT_NAAM]', 2);
     for (const w of woorden(naam)) {
       if (!TUSSENVOEGSELS.includes(w.toLowerCase())) voegToe(w, '[KLANT_NAAM]', 3);
     }
+  }
+  for (const w of woorden(klant.tussenvoegsel)) {
+    if (!TUSSENVOEGSELS.includes(w.toLowerCase())) voegToe(w, '[KLANT_NAAM]', 3);
   }
 
   // bedrijfsnaam: volledig (≥ 2), elk woord ≥ 4 behalve de algemene bedrijfswoorden

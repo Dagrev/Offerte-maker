@@ -24,6 +24,8 @@ export const wizard = {
     aanhef: 'Aanhef',
     aanhefOpties: { dhr: 'Dhr.', mevr: 'Mevr.', fam: 'Fam.', bedrijf: 'Bedrijf' },
     voornaam: 'Voornaam',
+    /** OFM-046: nooit verplicht; bij verlaten getrimd en in kleine letters. */
+    tussenvoegsel: 'Tussenvoegsel',
     achternaam: 'Achternaam',
     /** OFM-038: bij aanhef Bedrijf zijn voor- en achternaam de contactpersoon. */
     contactpersoon: 'Contactpersoon',

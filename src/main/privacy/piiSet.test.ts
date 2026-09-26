@@ -30,6 +30,14 @@ describe('bouwPiiSet (§11.1)', () => {
     ]);
   });
 
+  it('OFM-046: tussenvoegsel in volledige naam en "tussenvoegsel achternaam", niet los', () => {
+    const set = bouwPiiSet(maakKlant({ voornaam: 'Jan', tussenvoegsel: 'Van Der', achternaam: 'Berg' }));
+    expect(waarden(set, '[KLANT_NAAM]').sort()).toEqual(['Berg', 'Jan', 'Jan van der Berg', 'van der Berg']);
+    // Een onbekend tussenvoegselwoord van ≥ 3 tekens telt wel als naamwoord.
+    const vd = bouwPiiSet(maakKlant({ tussenvoegsel: 'uyt den', achternaam: 'Bogaard' }));
+    expect(waarden(vd, '[KLANT_NAAM]').sort()).toEqual(['Bogaard', 'uyt', 'uyt den Bogaard']);
+  });
+
   it('naam: koppeltekens splitsen dubbele achternamen', () => {
     const set = bouwPiiSet(maakKlant({ achternaam: 'Jansen-de Vries' }));
     expect(waarden(set, '[KLANT_NAAM]').sort()).toEqual(['Jansen', 'Jansen-de Vries', 'Vries']);

@@ -15,6 +15,7 @@ describe('fabrieken (§5, §6.2)', () => {
     expect(legeKlant()).toEqual({
       aanhef: 'dhr',
       voornaam: '',
+      tussenvoegsel: '',
       achternaam: '',
       bedrijfsnaam: '',
       adres: { straatHuisnummer: '', postcode: '', plaats: '' },
@@ -74,6 +75,7 @@ describe('fabrieken (§5, §6.2)', () => {
   it('zoektekstVan (§8.2)', () => {
     const k = {
       voornaam: 'Piet',
+      tussenvoegsel: '',
       achternaam: 'Jansen',
       bedrijfsnaam: 'Bouw BV',
       adres: { plaats: 'Eindhoven' },
@@ -82,6 +84,9 @@ describe('fabrieken (§5, §6.2)', () => {
     expect(zoektekstVan(k, null)).toBe('piet jansen bouw bv eindhoven ');
     // OFM-038: "piet jansen" (beide namen samen) vindt de klant ook.
     expect(zoektekstVan(k, null)).toContain('piet jansen');
+    // OFM-046: met tussenvoegsel vinden "van der berg" en "piet van der berg" de klant.
+    const berg = { ...k, tussenvoegsel: 'van der', achternaam: 'Berg' };
+    expect(zoektekstVan(berg, null)).toBe('piet van der berg bouw bv eindhoven ');
   });
 });
 

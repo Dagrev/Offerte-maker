@@ -4,7 +4,8 @@ import type Database from 'better-sqlite3';
 import { voegPrijzenSamen } from '../src/main/db/prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
-import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
+import { KEUZE_LIJSTEN, KEUZE_STARTSET, STANDAARDKEUZE_STARTSET } from '../src/shared/keuzelijsten';
+import { volledigeNaam } from '../src/shared/labels';
 import { legeKlant, legeKlusInvoer, zoektekstVan } from '../src/shared/nieuweOfferte';
 import { formatNummer } from '../src/shared/nummering';
 import { omschrijvingKort } from '../src/shared/omschrijvingKort';
@@ -101,10 +102,15 @@ const ACHTERNAMEN = [
 ];
 const VOORNAMEN = ['Anna', 'Bram', 'Jan', 'Maria', 'Pieter'];
 
-/** Vaste lijst van 200 namen (40 achternamen × 5 voornamen; OFM-038: voor- en achternaam apart). */
-export const SEED_NAMEN: readonly { voornaam: string; achternaam: string }[] = ACHTERNAMEN.flatMap(
-  (achternaam) => VOORNAMEN.map((voornaam) => ({ voornaam, achternaam })),
-);
+/**
+ * Vaste lijst van 200 namen (40 achternamen × 5 voornamen; OFM-038: voor- en achternaam apart). Sinds
+ * OFM-046 staat het tussenvoegsel (de kleine woorden vooraan, "van den") in een eigen veld.
+ */
+export const SEED_NAMEN: readonly { voornaam: string; tussenvoegsel: string; achternaam: string }[] =
+  ACHTERNAMEN.flatMap((volledig) => {
+    const [, tussenvoegsel = '', achternaam = volledig] = /^((?:[a-z']+ )*)(.+)$/.exec(volledig) ?? [];
+    return VOORNAMEN.map((voornaam) => ({ voornaam, tussenvoegsel: tussenvoegsel.trim(), achternaam }));
+  });
 
 const PLAATSEN = [
   'Eindhoven',
@@ -179,13 +185,15 @@ export function zorgVoorSchema(db: Database.Database): void {
         (index + 1) * 10,
       );
     });
-    // Zelfde startset als `voegKeuzeStartsetIn()` (OFM-034).
+    // Zelfde startset als `voegKeuzeStartsetIn()` (OFM-034), met de standaardkeuzes die migratie 007
+    // zet (OFM-049; hier draait de SQL vóór de startset, dus de UPDATE van 007 vond nog niets).
     const keuze = db.prepare(
-      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
+      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze) VALUES (?, ?, ?, ?, ?, 0, 1, ?)',
     );
     for (const lijst of KEUZE_LIJSTEN) {
       KEUZE_STARTSET[lijst].forEach((o, index) => {
-        keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10);
+        const standaardkeuze = STANDAARDKEUZE_STARTSET[lijst] === o.sleutel ? 1 : 0;
+        keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10, standaardkeuze);
       });
     }
     // Werkzaamheden, opties en materialen (OFM-043), na de keuzelijsten (koppeling met soort werk).
@@ -468,7 +476,7 @@ export function vulMetSeed(
         const pad = join(
           documentenMap,
           String(nr.jaar),
-          `${nr.nummer} ${o.klant.voornaam} ${o.klant.achternaam}.pdf`,
+          `${nr.nummer} ${volledigeNaam(o.klant)}.pdf`,
         );
         pdfSql.run(`${o.id}-pdf`, o.id, pad, tijdstip);
       }

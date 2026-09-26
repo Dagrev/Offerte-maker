@@ -21,6 +21,11 @@ describe('standaard', () => {
     expect(VELD_STAP.hoogte).toBe(2);
     expect(ALTIJD_VERPLICHT).toEqual(['soortWerk', 'dakvlak']);
     expect(VERPLICHT_VELDEN).not.toContain('soortWerk');
+    // OFM-046: het tussenvoegsel is nooit verplicht en staat dus niet in de tab Verplichte velden.
+    expect(VERPLICHT_VELDEN as readonly string[]).not.toContain('tussenvoegsel');
+    expect(ontbrekendeVelden(legeKlant(), legeKlusInvoer(), standaardVerplicht())).not.toContain(
+      'tussenvoegsel',
+    );
   });
 
   it('schema: ontbrekend = standaard, ook voor een later toegevoegd veld', () => {
@@ -47,6 +52,18 @@ describe('ontbrekendeVelden', () => {
     expect(met('')).toEqual(['huisnummer', 'straat']);
     expect(met('Kerkstraat')).toEqual(['huisnummer']);
     expect(met('Kerkstraat 12a')).toEqual([]);
+  });
+
+  it('OFM-049: hoogte zonder standaard (null) ontbreekt als hij verplicht is', () => {
+    const invoer = legeKlusInvoer({});
+    expect(invoer.hoogte).toBeNull();
+    expect(ontbrekendeVelden(legeKlant(), invoer, { ...standaardVerplicht(), hoogte: true })).toContain(
+      'hoogte',
+    );
+    expect(ontbrekendeVelden(legeKlant(), invoer, standaardVerplicht())).not.toContain('hoogte');
+    expect(
+      ontbrekendeVelden(legeKlant(), legeKlusInvoer(), { ...standaardVerplicht(), hoogte: true }),
+    ).not.toContain('hoogte');
   });
 
   it('witruimte telt als leeg', () => {

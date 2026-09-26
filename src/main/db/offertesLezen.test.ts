@@ -193,6 +193,22 @@ describe('lijstOverzicht (§8.2)', () => {
       ['', ''],
     ]);
   });
+
+  it('OFM-046: toont het tussenvoegsel; zonder het veld (oude offerte) als vroeger', () => {
+    voegToe({ id: 'a', datum: '2026-09-10', klant: { aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Jansen' } });
+    voegToe({
+      id: 'b',
+      datum: '2026-09-11',
+      klant: { aanhef: 'dhr', voornaam: 'Jan', tussenvoegsel: 'van der', achternaam: 'Berg' },
+    });
+    voegToe({
+      id: 'c',
+      datum: '2026-09-12',
+      klant: { aanhef: 'fam', voornaam: 'Jan', tussenvoegsel: 'van der', achternaam: 'Berg' },
+    });
+    const items = lijstOverzicht('maand', '2026-09-10').items;
+    expect(items.map((i) => i.klantWeergave)).toEqual(['Fam. Van der Berg', 'Dhr. J. van der Berg', 'Dhr. J. Jansen']);
+  });
 });
 
 describe('zoekOffertes (§8.2, FE-017)', () => {

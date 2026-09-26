@@ -44,11 +44,11 @@ const MAX_NAAM = 150;
 
 /**
  * §12.3 stap 5 / FE-056: `<nummer+versieletter> <klantnaam>.pdf`. Klantnaam = bedrijfsnaam bij aanhef
- * `bedrijf` (als ingevuld), anders voor- en achternaam; `<>:"/\|?*` en controletekens → `-`; max. 150 tekens.
+ * `bedrijf` (als ingevuld), anders voornaam, tussenvoegsel en achternaam; `<>:"/\|?*` en controletekens → `-`; max. 150 tekens.
  */
 export function pdfBestandsnaam(
   nummer: string,
-  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'bedrijfsnaam'>,
+  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'tussenvoegsel' | 'achternaam' | 'bedrijfsnaam'>,
 ): string {
   const bedrijf = klant.aanhef === 'bedrijf' ? klant.bedrijfsnaam.trim() : '';
   const naam = (bedrijf || volledigeNaam(klant)).replace(/[<>:"/\\|?*\p{Cc}]/gu, '-');

@@ -52,13 +52,15 @@ function klantVoorLijst(klantJson: string): { weergave: string; plaats: string }
   // OFM-038: voor- en achternaam; een rij van vóór migratie 003 met alleen `naam` telt als achternaam.
   const voornaam = tekst(ruw['voornaam']);
   const achternaam = tekst(ruw['achternaam'] ?? ruw['naam']);
+  // OFM-046: tussenvoegsel; ontbreekt bij offertes van daarvoor.
+  const tussenvoegsel = tekst(ruw['tussenvoegsel']);
   const bedrijfsnaam = tekst(ruw['bedrijfsnaam']);
   const adres =
     ruw['adres'] && typeof ruw['adres'] === 'object' ? (ruw['adres'] as Record<string, unknown>) : {};
   return {
     weergave: AANHEFFEN.has(aanhef)
-      ? klantWeergave({ aanhef, voornaam, achternaam, bedrijfsnaam })
-      : volledigeNaam({ voornaam, achternaam }),
+      ? klantWeergave({ aanhef, voornaam, tussenvoegsel, achternaam, bedrijfsnaam })
+      : volledigeNaam({ voornaam, tussenvoegsel, achternaam }),
     // De plaats van de klant (verplicht in wizardstap 1), ook als het werk op een ander adres is.
     plaats: tekst(adres['plaats']).trim(),
   };

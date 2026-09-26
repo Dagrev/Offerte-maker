@@ -3,10 +3,10 @@ import {
   KEUZE_LIJSTEN,
   KEUZE_SLEUTEL_PATROON,
   KEUZE_STARTSET,
-  VASTE_KEUZES,
+  STANDAARDKEUZE_STARTSET,
   alsKeuzes,
   gebruikteSleutels,
-  isVasteKeuze,
+  standaardKeuzes,
   keuzeLabel,
   maakSleutel,
 } from './keuzelijsten';
@@ -51,16 +51,37 @@ describe('startset (§9.1, OFM-034)', () => {
     }
   });
 
-  it('de standaardkeuzes van een lege KlusInvoer staan in de startset en zijn vast', () => {
+  it('de standaardkeuzes van de startset staan in de startset en vullen een lege KlusInvoer', () => {
     const leeg = legeKlusInvoer();
-    expect(VASTE_KEUZES).toEqual({ hoogte: leeg.hoogte, garantie: leeg.garantieJaren });
-    for (const [lijst, sleutel] of Object.entries(VASTE_KEUZES)) {
-      expect(KEUZE_STARTSET[lijst as keyof typeof VASTE_KEUZES].some((o) => o.sleutel === sleutel)).toBe(
-        true,
-      );
-      expect(isVasteKeuze(lijst as keyof typeof VASTE_KEUZES, sleutel)).toBe(true);
+    expect(STANDAARDKEUZE_STARTSET).toEqual({ hoogte: leeg.hoogte, garantie: leeg.garantieJaren });
+    for (const lijst of KEUZE_LIJSTEN) {
+      const sleutel = STANDAARDKEUZE_STARTSET[lijst];
+      if (sleutel !== undefined) expect(KEUZE_STARTSET[lijst].some((o) => o.sleutel === sleutel)).toBe(true);
     }
-    expect(isVasteKeuze('hoogte', '2')).toBe(false);
+  });
+});
+
+describe('standaardKeuzes (OFM-049)', () => {
+  it('per lijst de sleutel van de optie met standaardkeuze; zonder = geen entry', () => {
+    const o = (sleutel: string, standaardkeuze = false) => ({ sleutel, standaardkeuze });
+    expect(
+      standaardKeuzes({
+        soortDak: [o('plat'), o('hellend', true)],
+        hoogte: [o('1'), o('2')],
+        garantie: [o('10', true)],
+      }),
+    ).toEqual({ soortDak: 'hellend', garantie: '10' });
+  });
+
+  it('legeKlusInvoer neemt de standaardkeuzes over; ontbreekt er een, dan null', () => {
+    expect(legeKlusInvoer({ soortWerk: 'reparatie', ondergrond: 'hout' })).toMatchObject({
+      soortWerk: 'reparatie',
+      soortDak: null,
+      huidigeBedekking: null,
+      ondergrond: 'hout',
+      hoogte: null,
+      garantieJaren: null,
+    });
   });
 });
 

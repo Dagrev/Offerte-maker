@@ -5,7 +5,13 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SEED_NAMEN, vulMetSeed } from '../../scripts/seedGegevens';
-import { klusInvoerSchema } from '../../src/shared/schemas';
+import { volledigeNaam } from '../../src/shared/labels';
+import { klantSchema, klusInvoerSchema } from '../../src/shared/schemas';
+
+function hoogsteMigratie(): number {
+  const map = join(import.meta.dirname, '../../src/main/db/migraties');
+  return Math.max(...readdirSync(map).map((n) => Number(/^(\d{3})_/.exec(n)?.[1] ?? 0)));
+}
 
 // Seed-script (OFM-027, TDO §15.4): 5.000 offertes, random-seed 42, 10 % concept, 1–8 regels,
 // namen uit een vaste lijst van 200, 2022–2026, en twee runs geven dezelfde gegevens.
@@ -64,7 +70,7 @@ describe('vulMetSeed', () => {
       inhoud_json: string;
       totaal_incl_cent: number;
     }[];
-    const namen = new Set(SEED_NAMEN.map((n) => `${n.voornaam} ${n.achternaam}`));
+    const namen = new Set(SEED_NAMEN.map((n) => volledigeNaam(n)));
     expect(namen.size).toBe(200);
     const soorten = new Set<string>();
     for (const r of rijen) {
@@ -77,8 +83,8 @@ describe('vulMetSeed', () => {
       expect(invoer.werkzaamheden.length).toBeLessThanOrEqual(4);
       expect(JSON.parse(r.invoer_json)).not.toHaveProperty('bedekking');
       soorten.add(invoer.soortWerk ?? '');
-      const k = JSON.parse(r.klant_json) as { voornaam: string; achternaam: string };
-      expect(namen.has(`${k.voornaam} ${k.achternaam}`)).toBe(true);
+      const k = klantSchema.parse(JSON.parse(r.klant_json));
+      expect(namen.has(volledigeNaam(k))).toBe(true);
       expect(r.nummer === null).toBe(r.status === 'concept');
       expect(r.totaal_incl_cent).toBeGreaterThan(0);
     }
@@ -100,12 +106,14 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    // Hoogste migratienummer (zoals `migreer()`), niet vast: elke nieuwe migratie telt mee.
-    const hoogste = Math.max(
-      ...readdirSync(join(import.meta.dirname, '..', '..', 'src', 'main', 'db', 'migraties'))
-        .filter((n) => /^\d{3}_/.test(n))
-        .map((n) => Number(n.slice(0, 3))),
-    );
-    expect(a.pragma('user_version', { simple: true })).toBe(hoogste);
+    // Hoogste migratie (OFM-049: 007); niet hardgecodeerd, zodat een nieuwe migratie deze test niet breekt.
+    expect(a.pragma('user_version', { simple: true })).toBe(hoogsteMigratie());
+    // OFM-049: de standaardkeuzes van de startset (hoogte 1, garantie 10), net als na migratie 007.
+    expect(
+      a.prepare('SELECT lijst, sleutel FROM keuzeopties WHERE standaardkeuze = 1 ORDER BY lijst').all(),
+    ).toEqual([
+      { lijst: 'garantie', sleutel: '10' },
+      { lijst: 'hoogte', sleutel: '1' },
+    ]);
   });
 });
