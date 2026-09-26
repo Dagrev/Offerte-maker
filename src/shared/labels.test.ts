@@ -1,60 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import * as s from './schemas';
-import {
-  AFWERKING_LABELS,
-  BEDEKKING_LABELS,
-  HOOGTE_LABELS,
-  HUIDIGE_BEDEKKING_LABELS,
-  ISOLATIE_LABELS,
-  ONDERGROND_LABELS,
-  SOORT_DAK_LABELS,
-  SOORT_WERK_LABELS,
-  aanhefRegel,
-  klantWeergave,
-  labelBedekking,
-  labelIsolatie,
-} from './labels';
+import { KEUZE_STARTSET as K } from './keuzelijsten';
+import { aanhefRegel, klantWeergave, labelBedekking, labelIsolatie } from './labels';
 
-describe('labels §9.1', () => {
-  it('dekt precies de waardesets uit de schema’s', () => {
-    const paren: [readonly string[], Record<string, string>][] = [
-      [s.soortWerkSchema.options, SOORT_WERK_LABELS],
-      [s.soortDakSchema.options, SOORT_DAK_LABELS],
-      [s.bedekkingSchema.options, BEDEKKING_LABELS],
-      [s.huidigeBedekkingSchema.options, HUIDIGE_BEDEKKING_LABELS],
-      [s.ondergrondSchema.options, ONDERGROND_LABELS],
-      [s.isolatieSchema.options, ISOLATIE_LABELS],
-      [s.afwerkingSchema.options, AFWERKING_LABELS],
-      [s.hoogteSchema.options, HOOGTE_LABELS],
-    ];
-    for (const [waarden, labels] of paren) {
-      expect(Object.keys(labels).sort()).toEqual([...waarden].sort());
-      for (const label of Object.values(labels)) expect(label).not.toBe('');
-    }
-  });
-
-  it('bevat de letterlijke labels', () => {
-    expect(SOORT_WERK_LABELS.dak_vervangen).toBe('Dak vervangen');
-    expect(SOORT_DAK_LABELS).toEqual({ plat: 'plat dak', hellend: 'hellend dak' });
-    expect(BEDEKKING_LABELS.epdm_11).toBe('EPDM 1,1 mm');
-    expect(HUIDIGE_BEDEKKING_LABELS.onbekend).toBe('Weet ik niet');
-    expect(ONDERGROND_LABELS.staal).toBe('Staal');
-    expect(ISOLATIE_LABELS['80']).toBe('80 mm (Rc 3,5)');
-    expect(AFWERKING_LABELS.sedum).toBe('Sedum');
-    expect(HOOGTE_LABELS['1']).toBe('Begane grond / 1 bouwlaag');
-    expect(HOOGTE_LABELS['3plus']).toBe('3 of meer bouwlagen');
-  });
-
-  it('bedekking anders → de ingevulde tekst', () => {
-    expect(labelBedekking('epdm_15', 'wordt genegeerd')).toBe('EPDM 1,5 mm');
-    expect(labelBedekking('anders', ' Zink ')).toBe('Zink');
-    expect(labelBedekking('anders', '')).toBe('');
+describe('labels §9.1 (uit de keuzelijsten, OFM-034)', () => {
+  it('bedekking anders → de ingevulde tekst; andere sleutels → het label', () => {
+    expect(labelBedekking(K, 'epdm_15', 'wordt genegeerd')).toBe('EPDM 1,5 mm');
+    expect(labelBedekking(K, 'anders', ' Zink ')).toBe('Zink');
+    expect(labelBedekking(K, 'anders', '')).toBe('');
+    expect(labelBedekking({ bedekking: [{ sleutel: 'epdm_15', label: 'EPDM dik' }] }, 'epdm_15', '')).toBe(
+      'EPDM dik',
+    );
   });
 
   it('isolatie anders → <n> mm', () => {
-    expect(labelIsolatie('100', 140)).toBe('100 mm');
-    expect(labelIsolatie('anders', 140)).toBe('140 mm');
-    expect(labelIsolatie('anders', null)).toBe('');
+    expect(labelIsolatie(K, '100', 140)).toBe('100 mm');
+    expect(labelIsolatie(K, 'anders', 140)).toBe('140 mm');
+    expect(labelIsolatie(K, 'anders', null)).toBe('');
+  });
+
+  it('onbekende (verwijderde) sleutel toont zichzelf', () => {
+    expect(labelBedekking(K, 'leien', '')).toBe('leien');
+    expect(labelIsolatie(K, '160_mm', null)).toBe('160_mm');
   });
 });
 

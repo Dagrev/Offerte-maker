@@ -23,6 +23,8 @@ export const componenten = {
   } satisfies Record<Status, string>,
 
   gekozen: 'gekozen',
+  /** Bij een verborgen keuze die een oude offerte nog heeft (OFM-034). */
+  nietMeerInLijst: '(niet meer in de lijst)',
   stap: (nummer: number, totaal: number) => `Stap ${nummer} van ${totaal}`,
   stappen: 'Stappen',
   stapKlaar: 'klaar',

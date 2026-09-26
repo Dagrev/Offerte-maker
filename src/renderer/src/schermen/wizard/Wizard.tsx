@@ -3,10 +3,12 @@ import { differenceInCalendarDays } from 'date-fns';
 import { ArrowLeft, ArrowRight, FileText, Sparkles } from 'lucide-react';
 import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
-import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
+import { alsKeuzes } from '@shared/keuzelijsten';
+import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { klantCompleet } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
+import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
 import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
@@ -33,16 +35,24 @@ export function Wizard() {
   const gaNaar = useNavigatie((s) => s.gaNaar);
   // Altijd vers ophalen: de formulierstate wordt één keer uit de database gevuld.
   const query = useOfferte(offerteId, { vers: true });
+  const keuzelijsten = useKeuzelijsten();
+  const fout = query.isError ? query.error : keuzelijsten.isError ? keuzelijsten.error : null;
 
-  if (query.isError) {
+  if (fout !== null) {
     return (
       <main className="mx-auto flex max-w-5xl flex-col gap-6 p-10">
         <TerugKnop opKlik={() => gaNaar({ scherm: 'overzicht' })} />
-        <Foutmelding fout={alsFout(query.error)} opnieuw={() => void query.refetch()} />
+        <Foutmelding
+          fout={alsFout(fout)}
+          opnieuw={() => {
+            void query.refetch();
+            void keuzelijsten.refetch();
+          }}
+        />
       </main>
     );
   }
-  if (!offerteId || !query.data || !query.isFetchedAfterMount) {
+  if (!offerteId || !query.data || !query.isFetchedAfterMount || !keuzelijsten.data) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p role="status" className="text-tekst-zacht">
@@ -51,7 +61,7 @@ export function Wizard() {
       </main>
     );
   }
-  return <WizardFormulier key={offerteId} detail={query.data} />;
+  return <WizardFormulier key={offerteId} detail={query.data} keuzelijsten={keuzelijsten.data} />;
 }
 
 function TerugKnop({ opKlik }: { opKlik: () => void }) {
@@ -62,7 +72,7 @@ function TerugKnop({ opKlik }: { opKlik: () => void }) {
   );
 }
 
-function WizardFormulier({ detail }: { detail: OfferteDetail }) {
+function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuzelijsten: Keuzelijsten }) {
   const gaNaar = useNavigatie((s) => s.gaNaar);
   const vandaag = useNavigatie((s) => s.vandaag);
   const storeStap = useNavigatie((s) => s.wizardStap);
@@ -159,8 +169,8 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
           {stap}. {t.stappen[stap - 1]}
         </h2>
         {stap === 1 && <StapKlant klant={klant} opWijzig={wijzigKlant} toonFouten={toonFouten} />}
-        {stap === 2 && <StapDak invoer={invoer} opWijzig={wijzigInvoer} />}
-        {stap === 3 && <StapExtras invoer={invoer} opWijzig={wijzigInvoer} />}
+        {stap === 2 && <StapDak invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
+        {stap === 3 && <StapExtras invoer={invoer} opWijzig={wijzigInvoer} keuzelijsten={keuzelijsten} />}
         {stap === 4 && (
           <StapOverig
             klant={klant}
@@ -169,6 +179,7 @@ function WizardFormulier({ detail }: { detail: OfferteDetail }) {
             offertedatum={offertedatum}
             opWijzigDatum={wijzigDatum}
             geldigTot={berekenGeldigTot(offertedatum, geldigheidDagen)}
+            keuzes={alsKeuzes(keuzelijsten)}
           />
         )}
       </section>

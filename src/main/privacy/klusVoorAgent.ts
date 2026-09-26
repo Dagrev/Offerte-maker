@@ -1,20 +1,12 @@
 import { m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
-import {
-  AFWERKING_LABELS,
-  HOOGTE_LABELS,
-  HUIDIGE_BEDEKKING_LABELS,
-  ONDERGROND_LABELS,
-  SOORT_DAK_LABELS,
-  SOORT_WERK_LABELS,
-  labelBedekking,
-  labelIsolatie,
-} from '@shared/labels';
+import { VASTE_EXTRAS, extrasMetAantal, keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
+import { labelBedekking, labelIsolatie } from '@shared/labels';
 import type { Klant, KlusInvoer } from '@shared/types';
 import { anonimiseer } from './anonimiseer';
 import { bouwPiiSet } from './piiSet';
 
 // Klusgegevens zoals de agent ze krijgt (TDO §10.5 laatste alinea, V-26, FO §8.2, A-12).
-// Codes worden labels; van de klant gaan alleen plaatshouders mee, nooit aanhef, adres, postcode,
+// Codes worden labels uit de keuzelijsten (OFM-034); van de klant gaan alleen plaatshouders mee, nooit aanhef, adres, postcode,
 // telefoon of e-mail. Vrije tekst (gewensteUitvoering, overig, bedekkingAnders, dakvlaknamen) gaat
 // door het privacyfilter.
 
@@ -35,10 +27,13 @@ export interface KlusVoorAgent {
   noodoverloopAantal: number;
   doorvoerAantal: number;
   lichtkoepelAantal: number;
+  /** Zelf toegevoegde extra's (OFM-034) met een aantal > 0: label en aantal. */
+  extras: { naam: string; aantal: number }[];
   afwerking: string;
   hoogte: string;
   steigerNodig: boolean;
-  garantieJaren: 10 | 20;
+  /** Label van de garantiekeuze, bv. "10 jaar" (OFM-034; was garantieJaren: 10 | 20). */
+  garantie: string;
   gewensteUitvoering: string;
   overig: string;
   totaalM2: number;
@@ -55,6 +50,8 @@ export interface KlusBron {
   invoer: KlusInvoer;
   klant: Klant;
   offertedatum: string;
+  /** Keuzelijsten uit de database (OFM-034). */
+  keuzes: Keuzes;
 }
 
 export interface KlusOpties {
@@ -66,23 +63,25 @@ export interface KlusOpties {
 }
 
 export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): KlusVoorAgent {
-  const { invoer, klant, offertedatum } = bron;
+  const { invoer, klant, offertedatum, keuzes } = bron;
+  const label = (lijst: Parameters<typeof keuzeLabel>[1], sleutel: string) =>
+    keuzeLabel(keuzes, lijst, sleutel);
   const piiSet = bouwPiiSet(klant);
   const filter = opties.filteren === false ? (t: string) => t : (t: string) => anonimiseer(t, piiSet);
   const bedekkingAnders = filter(invoer.bedekkingAnders);
   const isBedrijf = klant.aanhef === 'bedrijf';
 
   return {
-    soortWerk: invoer.soortWerk === null ? null : SOORT_WERK_LABELS[invoer.soortWerk],
-    soortDak: invoer.soortDak === null ? null : SOORT_DAK_LABELS[invoer.soortDak],
+    soortWerk: invoer.soortWerk === null ? null : label('soortWerk', invoer.soortWerk),
+    soortDak: invoer.soortDak === null ? null : label('soortDak', invoer.soortDak),
     dakvlakken: invoer.dakvlakken.map((v) => ({ naam: filter(v.naam), m2: m2VanDakvlak(v) })),
-    bedekking: invoer.bedekking === null ? null : labelBedekking(invoer.bedekking, bedekkingAnders),
+    bedekking: invoer.bedekking === null ? null : labelBedekking(keuzes, invoer.bedekking, bedekkingAnders),
     bedekkingAnders,
     huidigeBedekking:
-      invoer.huidigeBedekking === null ? null : HUIDIGE_BEDEKKING_LABELS[invoer.huidigeBedekking],
-    ondergrond: invoer.ondergrond === null ? null : ONDERGROND_LABELS[invoer.ondergrond],
+      invoer.huidigeBedekking === null ? null : label('huidigeBedekking', invoer.huidigeBedekking),
+    ondergrond: invoer.ondergrond === null ? null : label('ondergrond', invoer.ondergrond),
     slopenEnAfvoeren: invoer.slopenEnAfvoeren,
-    isolatie: labelIsolatie(invoer.isolatie, invoer.isolatieAndersMm),
+    isolatie: labelIsolatie(keuzes, invoer.isolatie, invoer.isolatieAndersMm),
     isolatieAndersMm: invoer.isolatieAndersMm,
     daktrimM1: invoer.daktrimM1,
     dakgootM1: invoer.dakgootM1,
@@ -90,10 +89,13 @@ export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): Klus
     noodoverloopAantal: invoer.noodoverloopAantal,
     doorvoerAantal: invoer.doorvoerAantal,
     lichtkoepelAantal: invoer.lichtkoepelAantal,
-    afwerking: AFWERKING_LABELS[invoer.afwerking],
-    hoogte: HOOGTE_LABELS[invoer.hoogte],
+    extras: extrasMetAantal(invoer, keuzes)
+      .filter((e) => !Object.hasOwn(VASTE_EXTRAS, e.sleutel))
+      .map((e) => ({ naam: e.label, aantal: e.aantal })),
+    afwerking: label('afwerking', invoer.afwerking),
+    hoogte: label('hoogte', invoer.hoogte),
     steigerNodig: invoer.steigerNodig,
-    garantieJaren: invoer.garantieJaren,
+    garantie: label('garantie', invoer.garantieJaren),
     gewensteUitvoering: filter(invoer.gewensteUitvoering),
     overig: filter(invoer.overig),
     totaalM2: totaalM2(invoer.dakvlakken),

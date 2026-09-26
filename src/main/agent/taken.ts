@@ -3,6 +3,7 @@ import { AppFout, type FoutCode } from '@shared/fouten';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { TekstenVoorstellen, Voortgang } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
+import { haalKeuzes } from '../db/repo/keuzeopties';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspost, lijstPrijsposten } from '../db/repo/prijsposten';
 import { schrijfLogregel, type Logregel } from '../db/repo/privacylog';
@@ -309,7 +310,12 @@ export function maakOfferte(id: string, opties: MaakOpties = {}): Promise<{ cont
     const offerte = haalOfferteVoorAgent(id);
     const piiSet = bouwPiiSet(offerte.klant);
     const klus = bouwKlusVoorAgent(
-      { invoer: offerte.invoer, klant: offerte.klant, offertedatum: offerte.offertedatum },
+      {
+        invoer: offerte.invoer,
+        klant: offerte.klant,
+        offertedatum: offerte.offertedatum,
+        keuzes: haalKeuzes(),
+      },
       { filteren: testhaak('privacyfilter-uit') === false },
     );
     controleerPrivacy(gebruikersTekst(klus).join('\n'), piiSet);
@@ -379,7 +385,12 @@ export function pasAanMetClaude(
     const filteren = testhaak('privacyfilter-uit') === false;
     const piiSet = bouwPiiSet(offerte.klant);
     const klus = bouwKlusVoorAgent(
-      { invoer: offerte.invoer, klant: offerte.klant, offertedatum: offerte.offertedatum },
+      {
+        invoer: offerte.invoer,
+        klant: offerte.klant,
+        offertedatum: offerte.offertedatum,
+        keuzes: haalKeuzes(),
+      },
       { filteren },
     );
     const gefilterdeInstructie = filteren ? anonimiseer(instructie, piiSet) : instructie;

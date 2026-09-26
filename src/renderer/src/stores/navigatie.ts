@@ -13,6 +13,7 @@ export type InstellingenTab =
   | 'opmaak'
   | 'teksten'
   | 'prijzen'
+  | 'keuzelijsten'
   | 'voorbeelden'
   | 'claudeKoppeling'
   | 'privacylog'

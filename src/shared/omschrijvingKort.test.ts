@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KEUZE_STARTSET } from './keuzelijsten';
 import { omschrijvingKort } from './omschrijvingKort';
 import type { KlusInvoer } from './types';
 
@@ -20,24 +21,34 @@ const invoer = (deel: Partial<Deel>): Deel => ({
   ...deel,
 });
 
+const kort = (deel: Deel) => omschrijvingKort(deel, KEUZE_STARTSET);
+
 describe('omschrijvingKort', () => {
+  it('gebruikt de labels uit de keuzelijsten (OFM-034)', () => {
+    const keuzes = {
+      soortWerk: [{ sleutel: 'dak_vervangen', label: 'Dak compleet vervangen' }],
+      bedekking: [{ sleutel: 'leien', label: 'Leien' }],
+    };
+    expect(omschrijvingKort(invoer({ bedekking: 'leien' }), keuzes)).toBe(
+      'Dak compleet vervangen · Leien · 34,8 m²',
+    );
+  });
+
   it('alle drie de delen', () => {
-    expect(omschrijvingKort(invoer({}))).toBe('Dak vervangen · EPDM 1,1 mm · 34,8 m²');
+    expect(kort(invoer({}))).toBe('Dak vervangen · EPDM 1,1 mm · 34,8 m²');
   });
 
   it('laat ontbrekende delen weg', () => {
-    expect(omschrijvingKort(invoer({ soortWerk: null }))).toBe('EPDM 1,1 mm · 34,8 m²');
-    expect(omschrijvingKort(invoer({ bedekking: null }))).toBe('Dak vervangen · 34,8 m²');
-    expect(omschrijvingKort(invoer({ dakvlakken: leegVlak }))).toBe('Dak vervangen · EPDM 1,1 mm');
-    expect(omschrijvingKort(invoer({ soortWerk: null, bedekking: null, dakvlakken: leegVlak }))).toBe('');
+    expect(kort(invoer({ soortWerk: null }))).toBe('EPDM 1,1 mm · 34,8 m²');
+    expect(kort(invoer({ bedekking: null }))).toBe('Dak vervangen · 34,8 m²');
+    expect(kort(invoer({ dakvlakken: leegVlak }))).toBe('Dak vervangen · EPDM 1,1 mm');
+    expect(kort(invoer({ soortWerk: null, bedekking: null, dakvlakken: leegVlak }))).toBe('');
   });
 
   it('bedekking anders: de ingevulde tekst, of weglaten als die leeg is', () => {
-    expect(omschrijvingKort(invoer({ bedekking: 'anders', bedekkingAnders: 'Zink' }))).toBe(
+    expect(kort(invoer({ bedekking: 'anders', bedekkingAnders: 'Zink' }))).toBe(
       'Dak vervangen · Zink · 34,8 m²',
     );
-    expect(omschrijvingKort(invoer({ bedekking: 'anders', bedekkingAnders: ' ' }))).toBe(
-      'Dak vervangen · 34,8 m²',
-    );
+    expect(kort(invoer({ bedekking: 'anders', bedekkingAnders: ' ' }))).toBe('Dak vervangen · 34,8 m²');
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import type { OfferteInhoud, Prijspost } from '@shared/types';
 import { maakInvoer, maakKlant } from '../../../test/privacy/testset';
 import { bouwKlusVoorAgent } from '../privacy/klusVoorAgent';
@@ -69,6 +70,7 @@ describe('opdracht bij maken (§10.5)', () => {
     invoer: maakInvoer({ overig: 'Bel Jansen' }),
     klant: maakKlant({ naam: 'Jansen' }),
     offertedatum: '2026-09-25',
+    keuzes: KEUZE_STARTSET,
   });
 
   it('secties Klusgegevens, Prijslijst, Standaardteksten en Voorbeelden', () => {

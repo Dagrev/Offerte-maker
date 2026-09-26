@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FOUT_CODES } from './fouten';
+import { KEUZE_LIJSTEN, KEUZE_SLEUTEL_PATROON } from './keuzelijsten';
 import type { Kanaal } from './ipcKanalen';
 
 // Zod-schema's: de bron voor alle domeintypes (TDO §5, §6.3, §4.3, V-15) en de invoer van elk
@@ -36,21 +37,20 @@ export const klantSchema = z.object({
   werkadres: adresSchema,
 });
 
-export const soortWerkSchema = z.enum([
-  'nieuw_dak',
-  'dak_vervangen',
-  'reparatie',
-  'dakgoten',
-  'isolatie',
-  'onderhoud',
-]);
-export const soortDakSchema = z.enum(['plat', 'hellend']);
-export const bedekkingSchema = z.enum(['epdm_11', 'epdm_15', 'resitrix', 'bitumen', 'anders']);
-export const huidigeBedekkingSchema = z.enum(['bitumen', 'epdm', 'grind_op_bitumen', 'onbekend']);
-export const ondergrondSchema = z.enum(['hout', 'beton', 'staal', 'onbekend']);
-export const isolatieSchema = z.enum(['geen', '80', '100', '120', 'anders']);
-export const afwerkingSchema = z.enum(['geen', 'grind', 'sedum']);
-export const hoogteSchema = z.enum(['1', '2', '3plus']);
+/**
+ * Keuzes uit de instelbare keuzelijsten (OFM-034): elke sleutel van de juiste vorm. Of de sleutel in
+ * `keuzeopties` bestaat, controleert main bij `offerte:bewaarInvoer` (VALIDATIE bij een onbekende).
+ */
+export const keuzeSleutelSchema = z.string().regex(KEUZE_SLEUTEL_PATROON);
+export const soortWerkSchema = keuzeSleutelSchema;
+export const soortDakSchema = keuzeSleutelSchema;
+export const bedekkingSchema = keuzeSleutelSchema;
+export const huidigeBedekkingSchema = keuzeSleutelSchema;
+export const ondergrondSchema = keuzeSleutelSchema;
+export const isolatieSchema = keuzeSleutelSchema;
+export const afwerkingSchema = keuzeSleutelSchema;
+export const hoogteSchema = keuzeSleutelSchema;
+export const garantieSchema = keuzeSleutelSchema;
 
 /** Maten en m² zijn nooit negatief (FE-024). */
 export const dakvlakSchema = z.object({
@@ -83,7 +83,10 @@ export const klusInvoerSchema = z.object({
   afwerking: afwerkingSchema,
   hoogte: hoogteSchema,
   steigerNodig: z.boolean(),
-  garantieJaren: z.union([z.literal(10), z.literal(20)]),
+  /** Sleutel uit de lijst `garantie` ('10', '20', …); vóór migratie 002 een getal. */
+  garantieJaren: garantieSchema,
+  /** Aantallen van extra's die de gebruiker zelf toevoegde (sleutel → aantal); ontbreekt = geen. */
+  extraAantallen: z.record(keuzeSleutelSchema, nietNegatief).default({}),
   gewensteUitvoering: z.string(),
   overig: z.string(),
 });
@@ -353,6 +356,22 @@ export const voortgangSchema = z.object({
   verstrekenS: aantal,
 });
 
+/** Keuzelijsten (OFM-034): één optie zoals `keuzelijsten:haal` hem geeft. */
+export const keuzeLijstSchema = z.enum(KEUZE_LIJSTEN);
+
+export const keuzeoptieSchema = z.object({
+  id: idSchema,
+  sleutel: keuzeSleutelSchema,
+  label: z.string(),
+  verborgen: z.boolean(),
+  /** Uit de startset (voor "Herstel standaardlijst"). */
+  standaard: z.boolean(),
+  /** Standaardkeuze van een nieuwe offerte: niet te verbergen of te verwijderen. */
+  vast: z.boolean(),
+  /** Komt voor in een niet-verwijderde offerte: niet te verwijderen, wel te verbergen. */
+  inGebruik: z.boolean(),
+});
+
 // ---------- §6.2 Invoer per kanaal ----------
 
 const geenInvoer = z.undefined();
@@ -416,6 +435,22 @@ export const invoerSchemas = {
   'instellingen:kiesLogo': geenInvoer,
   'instellingen:verwijderLogo': geenInvoer,
   'instellingen:opmaakVoorbeeld': z.object({ opmaak: opmaakSchema.required() }),
+
+  'keuzelijsten:haal': geenInvoer,
+  /** De hele lijst in de nieuwe volgorde; `id` leeg = nieuwe optie, ontbrekende opties = verwijderen. */
+  'keuzelijsten:bewaar': z.object({
+    lijst: keuzeLijstSchema,
+    opties: z
+      .array(
+        z.object({
+          id: z.string().max(100),
+          label: z.string().trim().min(1).max(80),
+          verborgen: z.boolean(),
+        }),
+      )
+      .max(100),
+  }),
+  'keuzelijsten:herstel': z.object({ lijst: keuzeLijstSchema }),
 
   'prijzen:lijst': geenInvoer,
   'prijzen:bewaar': prijspostSchema,

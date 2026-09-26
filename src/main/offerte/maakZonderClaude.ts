@@ -1,5 +1,6 @@
 import { maakInhoudZonderClaude } from '@shared/zonderClaude';
 import { haalInstelling } from '../db/repo/instellingen';
+import { haalKeuzes } from '../db/repo/keuzeopties';
 import { bewaarNieuweVersie, haalOfferteVoorAgent } from '../db/repo/offertesInhoud';
 import { haalPrijspostOpSleutel } from '../db/repo/prijsposten';
 import { log } from '../log';
@@ -14,6 +15,7 @@ export function maakZonderClaude(id: string): { controlepunten: number } {
   const teksten = haalInstelling('teksten');
   const inhoud = maakInhoudZonderClaude({
     invoer: offerte.invoer,
+    keuzes: haalKeuzes(),
     postOpSleutel: haalPrijspostOpSleutel,
     teksten: { inleiding: teksten.inleiding, afsluiting: teksten.afsluiting },
   });

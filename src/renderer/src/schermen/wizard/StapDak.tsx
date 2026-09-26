@@ -17,26 +17,20 @@ import {
 } from 'lucide-react';
 import { aantalNaarHonderdsten, totaalM2 } from '@shared/calc/bedragen';
 import { formatM2 } from '@shared/formatteer';
-import {
-  BEDEKKING_LABELS,
-  HUIDIGE_BEDEKKING_LABELS,
-  ONDERGROND_LABELS,
-  SOORT_DAK_LABELS,
-  SOORT_WERK_LABELS,
-} from '@shared/labels';
 import { MAX_DAKVLAKKEN, nieuwDakvlak } from '@shared/nieuweOfferte';
-import type { Dakvlak, KlusInvoer, SoortWerk } from '@shared/types';
+import type { Dakvlak, Keuzelijsten, KlusInvoer, SoortWerk } from '@shared/types';
 import { GetalVeld } from '../../componenten/GetalVeld';
 import { Kaart } from '../../componenten/Kaart';
 import { Knop } from '../../componenten/Knop';
 import { TegelKeuze } from '../../componenten/TegelKeuze';
 import { Veld } from '../../componenten/Veld';
 import { nl } from '../../teksten/nl';
-import { hoofdletter, opties } from './opties';
+import { hoofdletter, keuzeTegels } from './opties';
 
 const t = nl.wizard.dak;
 
-const SOORT_WERK_ICONEN: Record<SoortWerk, LucideIcon> = {
+// Iconen per sleutel van de startset; een zelf toegevoegde keuze krijgt een neutraal icoon (OFM-034).
+const SOORT_WERK_ICONEN: Record<string, LucideIcon> = {
   nieuw_dak: Home,
   dak_vervangen: Layers,
   reparatie: Wrench,
@@ -45,7 +39,7 @@ const SOORT_WERK_ICONEN: Record<SoortWerk, LucideIcon> = {
   onderhoud: Sparkles,
 };
 
-/** Huidige dakbedekking alleen bij vervangen en reparatie (FO UC-04). */
+/** Huidige dakbedekking alleen bij vervangen en reparatie (FO UC-04); geldt voor die twee sleutels. */
 export function vraagtHuidigeBedekking(soortWerk: SoortWerk | null): boolean {
   return soortWerk === 'dak_vervangen' || soortWerk === 'reparatie';
 }
@@ -53,16 +47,18 @@ export function vraagtHuidigeBedekking(soortWerk: SoortWerk | null): boolean {
 export interface StapDakProps {
   invoer: KlusInvoer;
   opWijzig: (deel: Partial<KlusInvoer>) => void;
+  /** Keuzelijsten uit de instellingen (OFM-034). */
+  keuzelijsten: Keuzelijsten;
 }
 
 /** Stap 2 (FE-022, FE-023): soort werk, soort dak, dakvlakken, bedekking en ondergrond. */
-export function StapDak({ invoer, opWijzig }: StapDakProps) {
+export function StapDak({ invoer, opWijzig, keuzelijsten: k }: StapDakProps) {
   return (
     <div className="flex flex-col gap-6">
       <Kaart>
         <TegelKeuze
           label={t.soortWerk}
-          opties={opties(SOORT_WERK_LABELS, SOORT_WERK_ICONEN)}
+          opties={keuzeTegels(k.soortWerk, invoer.soortWerk, SOORT_WERK_ICONEN)}
           waarde={invoer.soortWerk}
           opKies={(soortWerk) =>
             // Huidige bedekking hoort alleen bij vervangen en reparatie; anders niet meesturen.
@@ -73,10 +69,7 @@ export function StapDak({ invoer, opWijzig }: StapDakProps) {
         />
         <TegelKeuze
           label={t.soortDak}
-          opties={opties(
-            { plat: hoofdletter(SOORT_DAK_LABELS.plat), hellend: hoofdletter(SOORT_DAK_LABELS.hellend) },
-            { plat: Square, hellend: Triangle },
-          )}
+          opties={keuzeTegels(k.soortDak, invoer.soortDak, { plat: Square, hellend: Triangle }, hoofdletter)}
           waarde={invoer.soortDak}
           opKies={(soortDak) => opWijzig({ soortDak })}
         />
@@ -87,7 +80,7 @@ export function StapDak({ invoer, opWijzig }: StapDakProps) {
       <Kaart>
         <TegelKeuze
           label={t.bedekking}
-          opties={opties(BEDEKKING_LABELS, {
+          opties={keuzeTegels(k.bedekking, invoer.bedekking, {
             epdm_11: SquareStack,
             epdm_15: SquareStack,
             resitrix: SquareStack,
@@ -107,7 +100,7 @@ export function StapDak({ invoer, opWijzig }: StapDakProps) {
         {vraagtHuidigeBedekking(invoer.soortWerk) && (
           <TegelKeuze
             label={t.huidigeBedekking}
-            opties={opties(HUIDIGE_BEDEKKING_LABELS, {
+            opties={keuzeTegels(k.huidigeBedekking, invoer.huidigeBedekking, {
               bitumen: Layers,
               epdm: SquareStack,
               grind_op_bitumen: Hammer,
@@ -119,7 +112,7 @@ export function StapDak({ invoer, opWijzig }: StapDakProps) {
         )}
         <TegelKeuze
           label={t.ondergrond}
-          opties={opties(ONDERGROND_LABELS, {
+          opties={keuzeTegels(k.ondergrond, invoer.ondergrond, {
             hout: Ruler,
             beton: Square,
             staal: Layers,

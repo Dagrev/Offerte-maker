@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
@@ -47,6 +48,24 @@ export function voegStartsetIn(db: Db): void {
   });
 }
 
+/** Startset van de keuzelijsten (OFM-034), direct na migratie 002; `volgorde` = (index + 1) × 10. */
+export function voegKeuzeStartsetIn(db: Db): void {
+  const invoegen = db.prepare(
+    'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
+  );
+  for (const lijst of KEUZE_LIJSTEN) {
+    KEUZE_STARTSET[lijst].forEach((optie, index) => {
+      invoegen.run(`start-${lijst}-${optie.sleutel}`, lijst, optie.sleutel, optie.label, (index + 1) * 10);
+    });
+  }
+}
+
+/** Startsets per migratie (V-13): de SQL-bestanden zelf bevatten geen INSERTs. */
+const NA_MIGRATIE: Record<string, (db: Db) => void> = {
+  '001_basis.sql': voegStartsetIn,
+  '002_keuzelijsten.sql': voegKeuzeStartsetIn,
+};
+
 function isLeeg(db: Db): boolean {
   const rij = db
     .prepare("SELECT COUNT(*) AS aantal FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
@@ -83,7 +102,7 @@ export async function migreer(db: Db, opties: MigreerOpties = {}): Promise<Migre
   for (const migratie of open) {
     db.transaction(() => {
       db.exec(migratie.sql);
-      if (migratie.nr === 1) voegStartsetIn(db);
+      NA_MIGRATIE[migratie.naam]?.(db);
       db.pragma(`user_version = ${migratie.nr}`);
     })();
     log.info(`migratie ${migratie.naam} toegepast`);
