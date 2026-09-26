@@ -205,6 +205,13 @@ export const offerteLijstItemSchema = z.object({
   offertedatum: datumSchema,
 });
 
+/** OFM-053: filter en ordening van `overzicht:lijst` en `overzicht:zoek`. */
+export const ordeningSchema = z.enum(['datum', 'nummer_op', 'nummer_af']);
+const overzichtFilterVelden = {
+  statussen: z.array(statusSchema).max(5).optional(),
+  ordening: ordeningSchema.optional(),
+};
+
 export const overzichtResultaatSchema = z.object({
   periode: z.object({ van: datumSchema, tot: datumSchema, label: z.string() }),
   items: z.array(offerteLijstItemSchema),
@@ -611,8 +618,13 @@ export const invoerSchemas = {
   'app:openMap': z.object({ welke: z.enum(['log', 'offertes']) }),
   'welkom:voltooi': geenInvoer,
 
-  'overzicht:lijst': z.object({ weergave: z.enum(['dag', 'week', 'maand', 'jaar']), datum: datumSchema }),
-  'overzicht:zoek': z.object({ tekst: z.string().min(1).max(100) }),
+  // OFM-053: optioneel filter op status (leeg of weg = alle) en ordening (standaard datum).
+  'overzicht:lijst': z.object({
+    weergave: z.enum(['dag', 'week', 'maand', 'jaar']),
+    datum: datumSchema,
+    ...overzichtFilterVelden,
+  }),
+  'overzicht:zoek': z.object({ tekst: z.string().min(1).max(100), ...overzichtFilterVelden }),
 
   'offerte:nieuw': z.object({ bronId: idSchema.optional(), zelfdeKlant: z.boolean().optional() }),
   'offerte:haal': metId,

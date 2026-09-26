@@ -292,5 +292,53 @@ test('NFE-004: wisselen van periode, tab en zoekopdracht', async () => {
   expect(percentiel(periode, 95)).toBeLessThanOrEqual(MAX_WISSEL_P95_MS);
   expect(percentiel(tab, 95)).toBeLessThanOrEqual(MAX_WISSEL_P95_MS);
   expect(percentiel(zoeken, 95)).toBeLessThanOrEqual(MAX_WISSEL_P95_MS);
+
+  // OFM-053: met statusfilter (Klaar + Akkoord) en ordening Nummer oplopend. Eerst de query zelf
+  // (IPC-rondreis, 50 × een andere maand en 50 × zoeken), daarna de wissels in de app.
+  const ipc = await page.evaluate(async () => {
+    const api = (
+      globalThis as unknown as {
+        api: {
+          overzichtLijst: (i: unknown) => Promise<unknown>;
+          overzichtZoek: (i: unknown) => Promise<unknown>;
+        };
+      }
+    ).api;
+    const filter = { statussen: ['klaar', 'akkoord'], ordening: 'nummer_op' };
+    const lijst: number[] = [];
+    const zoek: number[] = [];
+    const zonder: number[] = [];
+    for (let i = 0; i < 50; i++) {
+      const maand = new Date(Date.UTC(2026, 8 - i, 1)).toISOString().slice(0, 10);
+      const begin = performance.now();
+      await api.overzichtLijst({ weergave: 'maand', datum: maand, ...filter });
+      lijst.push(performance.now() - begin);
+      const b0 = performance.now();
+      await api.overzichtLijst({ weergave: 'maand', datum: maand });
+      zonder.push(performance.now() - b0);
+      const b2 = performance.now();
+      await api.overzichtZoek({ tekst: ['jansen', 'de vries', 'bakker', '2024', 'ho'][i % 5], ...filter });
+      zoek.push(performance.now() - b2);
+    }
+    return { lijst, zoek, zonder };
+  });
+  bewaar('OFM-053 IPC overzicht:lijst zonder filter', ipc.zonder);
+  bewaar('OFM-053 IPC overzicht:lijst met filter en nummer', ipc.lijst);
+  bewaar('OFM-053 IPC overzicht:zoek met filter en nummer', ipc.zoek);
+  expect(percentiel(ipc.lijst, 95)).toBeLessThanOrEqual(50);
+  expect(percentiel(ipc.zoek, 95)).toBeLessThanOrEqual(MAX_WISSEL_P95_MS);
+
+  await page.getByRole('button', { name: nl.componenten.status.klaar, exact: true }).click();
+  await page.getByRole('button', { name: nl.componenten.status.akkoord, exact: true }).click();
+  await page.getByRole('button', { name: t.filter.ordeningen.nummer_op, exact: true }).click();
+  // Terug naar Maand op vandaag, zodat de 50 wissels (sept. 2026 → juli 2022) allemaal in de seed vallen.
+  await klik(page, t.weergave.maand);
+  const naarVandaag = page.getByRole('button', { name: t.vandaag });
+  if (await naarVandaag.isEnabled()) await naarVandaag.click();
+  await page.locator('[data-lijst="periode"][aria-busy="false"] li').first().waitFor();
+  const metFilter: number[] = [];
+  for (let i = 0; i < AANTAL_WISSELS; i++) metFilter.push(await klik(page, t.vorige));
+  bewaar('OFM-053 periode (◀) met filter en nummer', metFilter);
+  expect(percentiel(metFilter, 95)).toBeLessThanOrEqual(MAX_WISSEL_P95_MS);
   expect(gestart.paginaFouten).toEqual([]);
 });

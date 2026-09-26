@@ -1,4 +1,4 @@
-import type { Klant, OfferteLijstItem, OverzichtResultaat, Status } from '@shared/types';
+import type { Klant, OfferteLijstItem, Ordening, OverzichtResultaat, Status } from '@shared/types';
 import { klantWeergave, volledigeNaam } from '@shared/labels';
 import { weergaveNummer } from '@shared/nummering';
 import { periodeVan, type Weergave } from '@shared/periode';
@@ -30,8 +30,33 @@ export const lijstKolommen = `
   (SELECT p.versieletter FROM pdf_bestanden p WHERE p.offerte_id = o.id
      ORDER BY p.aangemaakt_op DESC, p.versieletter DESC LIMIT 1) AS laatste_letter`;
 
-/** Sortering uit §8.2: nieuwste datum eerst, concepten (zonder volgnummer) vóór genummerde. */
-export const LIJST_VOLGORDE = 'o.offertedatum DESC, o.volgnummer DESC NULLS FIRST, o.aangemaakt_op DESC';
+/**
+ * Sortering (§8.2, OFM-053). `datum`: nieuwste datum eerst, concepten (zonder volgnummer) vóór
+ * genummerde. `nummer_op`/`nummer_af`: op jaar en volgnummer (werkt voor `JJJJ-NNN` en
+ * `JJJJ-MM-DD-NNN`); offertes zonder nummer altijd onderaan, onderling nieuwste datum eerst.
+ */
+export function lijstVolgorde(ordening: Ordening = 'datum'): string {
+  if (ordening === 'datum') return 'o.offertedatum DESC, o.volgnummer DESC NULLS FIRST, o.aangemaakt_op DESC';
+  const richting = ordening === 'nummer_op' ? 'ASC' : 'DESC';
+  return `o.nummer IS NULL, o.jaar ${richting}, o.volgnummer ${richting}, o.offertedatum DESC, o.aangemaakt_op DESC`;
+}
+
+/** De standaardsortering (datum), ook voor de prullenbak (OFM-016). */
+export const LIJST_VOLGORDE = lijstVolgorde('datum');
+
+/** OFM-053: filter en ordening van de lijst en de zoekresultaten. */
+export interface LijstFilter {
+  /** Leeg of weg = alle statussen. */
+  statussen?: readonly Status[] | undefined;
+  ordening?: Ordening | undefined;
+}
+
+/** `AND o.status IN (?, …)` met de parameters; leeg zonder filter. */
+function statusVoorwaarde(statussen: readonly Status[] | undefined): { sql: string; params: Status[] } {
+  const uniek = [...new Set(statussen ?? [])];
+  if (uniek.length === 0) return { sql: '', params: [] };
+  return { sql: `AND o.status IN (${uniek.map(() => '?').join(', ')})`, params: uniek };
+}
 
 const AANHEFFEN = new Set<Klant['aanhef']>(['dhr', 'mevr', 'fam', 'bedrijf']);
 
@@ -85,16 +110,25 @@ function bedragVoorTotaal(item: OfferteLijstItem): number {
   return item.status === 'concept' ? 0 : (item.totaalInclCent ?? 0);
 }
 
-/** `overzicht:lijst`: offertes in de periode rond `datum`, met samenvatting en (bij jaar) maandgroepen. */
-export function lijstOverzicht(weergave: Weergave, datum: string): OverzichtResultaat {
+/**
+ * `overzicht:lijst`: offertes in de periode rond `datum`, met samenvatting en (bij jaar, geordend op
+ * datum) maandgroepen. Lijst en telling volgen `filter.statussen` (OFM-053).
+ */
+export function lijstOverzicht(
+  weergave: Weergave,
+  datum: string,
+  filter: LijstFilter = {},
+): OverzichtResultaat {
   const periode = periodeVan(weergave, datum);
+  const status = statusVoorwaarde(filter.statussen);
+  const ordening = filter.ordening ?? 'datum';
   const rijen = database()
     .prepare(
       `SELECT ${lijstKolommen} FROM offertes o
-       WHERE o.verwijderd_op IS NULL AND o.offertedatum BETWEEN ? AND ?
-       ORDER BY ${LIJST_VOLGORDE}`,
+       WHERE o.verwijderd_op IS NULL AND o.offertedatum BETWEEN ? AND ? ${status.sql}
+       ORDER BY ${lijstVolgorde(ordening)}`,
     )
-    .all(periode.van, periode.tot) as LijstRij[];
+    .all(periode.van, periode.tot, ...status.params) as LijstRij[];
   const items = rijen.map(naarLijstItem);
 
   const samenvatting = {
@@ -103,7 +137,9 @@ export function lijstOverzicht(weergave: Weergave, datum: string): OverzichtResu
     aantalAkkoord: items.filter((item) => item.status === 'akkoord').length,
   };
 
-  return { periode, items, groepen: weergave === 'jaar' ? groepeerPerMaand(items) : null, samenvatting };
+  // Maandgroepen alleen bij datumordening: op nummer zouden de maanden door elkaar lopen.
+  const groepen = weergave === 'jaar' && ordening === 'datum' ? groepeerPerMaand(items) : null;
+  return { periode, items, groepen, samenvatting };
 }
 
 /** Maandgroepen in lijstvolgorde (nieuwste maand eerst); lege maanden ontbreken (FE-015). */
@@ -130,14 +166,15 @@ export function escapeLike(tekst: string): string {
 }
 
 /** `overzicht:zoek`: treffers uit alle periodes op `zoektekst` (naam, bedrijf, plaats, nummer). */
-export function zoekOffertes(zoek: string): OfferteLijstItem[] {
+export function zoekOffertes(zoek: string, filter: LijstFilter = {}): OfferteLijstItem[] {
+  const status = statusVoorwaarde(filter.statussen);
   const rijen = database()
     .prepare(
       `SELECT ${lijstKolommen} FROM offertes o
-       WHERE o.verwijderd_op IS NULL AND o.zoektekst LIKE '%' || ? || '%' ESCAPE '\\'
-       ORDER BY ${LIJST_VOLGORDE}
+       WHERE o.verwijderd_op IS NULL AND o.zoektekst LIKE '%' || ? || '%' ESCAPE '\\' ${status.sql}
+       ORDER BY ${lijstVolgorde(filter.ordening)}
        LIMIT ${ZOEK_LIMIET}`,
     )
-    .all(escapeLike(zoek.toLowerCase())) as LijstRij[];
+    .all(escapeLike(zoek.toLowerCase()), ...status.params) as LijstRij[];
   return rijen.map(naarLijstItem);
 }
