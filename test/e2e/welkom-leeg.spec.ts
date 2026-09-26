@@ -82,16 +82,17 @@ test('welkomstscherm leeg doorlopen en daarna een offerte definitief maken', asy
   await expect(page.getByRole('heading', { name: d.concept, level: 1 })).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: d.maakDefinitief }).click();
   await expect(page.getByRole('button', { name: d.openPdf })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: '2026-001', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2026-09-25-001', level: 1 })).toBeVisible();
 
   // De PDF laat de lege bedrijfsregels weg.
   const map = join(mappen.docs, '2026');
   const pdfs = readdirSync(map).filter((n) => n.endsWith('.pdf'));
-  expect(pdfs).toEqual(['2026-001 Pietersen.pdf']);
+  expect(pdfs).toEqual(['2026-09-25-001 Pietersen.pdf']);
   const { text } = await extractText(new Uint8Array(readFileSync(join(map, pdfs[0] ?? ''))), {
     mergePages: true,
   });
-  const tekst = text.replace(/\s+/g, ' ');  expect(tekst).toContain('Offertenummer 2026-001');
+  const tekst = text.replace(/\s+/g, ' ');
+  expect(tekst).toContain('Offertenummer 2026-09-25-001');
   expect(tekst).toContain('Met vriendelijke groet,');
   expect(tekst).toMatch(/pagina 1 van \d/);
   expect(tekst).not.toMatch(/KvK|IBAN|btw NL|undefined|Dakdekkersbedrijf Voorbeeld/);
