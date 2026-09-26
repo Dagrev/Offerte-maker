@@ -7,6 +7,7 @@ export const queryKeys = {
   instellingen: () => ['instellingen'] as const,
   prijzen: () => ['prijzen'] as const,
   keuzelijsten: () => ['keuzelijsten'] as const,
+  werkzaamheden: () => ['werkzaamheden'] as const,
   voorbeelden: () => ['voorbeelden'] as const,
   claudeStatus: () => ['claudeStatus'] as const,
 };

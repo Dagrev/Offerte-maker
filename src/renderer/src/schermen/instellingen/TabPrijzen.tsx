@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { euroNaarCent } from '@shared/calc/bedragen';
 import type { Fout } from '@shared/fouten';
 import type { Eenheid, Prijspost } from '@shared/types';
+import { prijsGroep, type PrijsGroep } from '@shared/werkzaamheden';
 import { bewaarPrijspost, usePrijzen, verwijderPrijspost } from '../../api/prijzen';
 import { alsFout } from '../../api/roep';
 import { Bevestiging } from '../../componenten/Bevestiging';
@@ -15,6 +16,7 @@ import { nl } from '../../teksten/nl';
 import { useAutoBewaar } from './autoBewaar';
 
 const t = nl.instellingen.prijzen;
+const GROEPEN: PrijsGroep[] = ['werk', 'optie', 'mat'];
 const EENHEDEN: Eenheid[] = ['m²', 'm¹', 'stuk', 'post', 'uur', 'dag'];
 const TARIEVEN: Prijspost['btwTarief'][] = [21, 9, 0];
 const KOLOMMEN = 'grid grid-cols-[minmax(0,1fr)_8rem_11rem_7rem_3.5rem] items-center gap-3';
@@ -55,30 +57,30 @@ export function TabPrijzen() {
       </div>
       {fout && <Foutmelding fout={fout} />}
 
-      <div role="table" aria-label={nl.instellingen.tab.prijzen} className="flex flex-col">
-        <div role="row" className={`${KOLOMMEN} border-b-2 border-rand px-2 pb-2 font-semibold`}>
-          <span role="columnheader">{t.omschrijving}</span>
-          <span role="columnheader">{t.eenheid}</span>
-          <span role="columnheader" className="text-right">
-            {t.prijs}
-          </span>
-          <span role="columnheader">{t.btw}</span>
-          <span role="columnheader" />
-        </div>
-        {prijzen.data.map((post) => (
-          <PrijsRij
-            key={post.id}
-            post={post}
-            opBewaard={opBewaard}
-            opFout={setFout}
-            opVerwijder={() => setTeVerwijderen(post)}
-          />
-        ))}
-      </div>
+      <PrijsTabel
+        label={nl.instellingen.tab.prijzen}
+        posten={prijzen.data.filter((p) => prijsGroep(p.sleutel) === null)}
+        opBewaard={opBewaard}
+        opFout={setFout}
+        opVerwijder={setTeVerwijderen}
+      />
 
       <div>
         <Knop label={t.toevoegen} icoon={Plus} onClick={() => void voegToe()} />
       </div>
+
+      {/* OFM-043: posten van werkzaamheden, opties en materialen; naam en eenheid onder Werkzaamheden. */}
+      {GROEPEN.map((groep) => {
+        const posten = prijzen.data.filter((p) => prijsGroep(p.sleutel) === groep);
+        if (posten.length === 0) return null;
+        return (
+          <section key={groep} className="flex flex-col gap-3" aria-label={t.groep[groep]}>
+            <h2 className="text-2xl font-semibold">{t.groep[groep]}</h2>
+            <p className="text-tekst-zacht">{t.groepUitleg}</p>
+            <PrijsTabel label={t.groep[groep]} posten={posten} opBewaard={opBewaard} opFout={setFout} vast />
+          </section>
+        );
+      })}
 
       <Bevestiging
         open={teVerwijderen !== null}
@@ -99,13 +101,56 @@ export function TabPrijzen() {
   );
 }
 
+function PrijsTabel({
+  label,
+  posten,
+  opBewaard,
+  opFout,
+  opVerwijder,
+  vast = false,
+}: {
+  label: string;
+  posten: Prijspost[];
+  opBewaard: () => void;
+  opFout: (fout: Fout) => void;
+  opVerwijder?: (post: Prijspost) => void;
+  /** Posten van werkzaamheden, opties en materialen: alleen prijs en btw aanpasbaar (OFM-043). */
+  vast?: boolean;
+}) {
+  return (
+    <div role="table" aria-label={label} className="flex flex-col">
+      <div role="row" className={`${KOLOMMEN} border-b-2 border-rand px-2 pb-2 font-semibold`}>
+        <span role="columnheader">{t.omschrijving}</span>
+        <span role="columnheader">{t.eenheid}</span>
+        <span role="columnheader" className="text-right">
+          {t.prijs}
+        </span>
+        <span role="columnheader">{t.btw}</span>
+        <span role="columnheader" />
+      </div>
+      {posten.map((post) => (
+        <PrijsRij
+          key={post.id}
+          post={post}
+          vast={vast}
+          opBewaard={opBewaard}
+          opFout={opFout}
+          opVerwijder={() => opVerwijder?.(post)}
+        />
+      ))}
+    </div>
+  );
+}
+
 function PrijsRij({
   post,
+  vast,
   opBewaard,
   opFout,
   opVerwijder,
 }: {
   post: Prijspost;
+  vast: boolean;
   opBewaard: () => void;
   opFout: (fout: Fout) => void;
   opVerwijder: () => void;
@@ -130,31 +175,44 @@ function PrijsRij({
 
   return (
     <div role="row" className={`${KOLOMMEN} border-b border-rand px-2 py-2`}>
-      <span role="cell">
-        <input
-          className={invoer}
-          aria-label={t.rijLabel(naam, t.omschrijving)}
-          aria-invalid={rij.omschrijving.trim() === '' || undefined}
-          title={rij.omschrijving.trim() === '' ? t.omschrijvingFout : undefined}
-          value={rij.omschrijving}
-          onChange={(e) => wijzig({ omschrijving: e.target.value })}
-          onBlur={bewaren.bewaarNu}
-        />
-      </span>
-      <span role="cell">
-        <select
-          className={invoer}
-          aria-label={t.rijLabel(naam, t.eenheid)}
-          value={rij.eenheid}
-          onChange={(e) => wijzig({ eenheid: e.target.value as Eenheid }, true)}
-        >
-          {EENHEDEN.map((e) => (
-            <option key={e} value={e}>
-              {t.eenheden[e]}
-            </option>
-          ))}
-        </select>
-      </span>
+      {vast ? (
+        <>
+          <span role="cell" className="px-3">
+            {rij.omschrijving}
+          </span>
+          <span role="cell" className="px-3">
+            {t.eenheden[rij.eenheid]}
+          </span>
+        </>
+      ) : (
+        <>
+          <span role="cell">
+            <input
+              className={invoer}
+              aria-label={t.rijLabel(naam, t.omschrijving)}
+              aria-invalid={rij.omschrijving.trim() === '' || undefined}
+              title={rij.omschrijving.trim() === '' ? t.omschrijvingFout : undefined}
+              value={rij.omschrijving}
+              onChange={(e) => wijzig({ omschrijving: e.target.value })}
+              onBlur={bewaren.bewaarNu}
+            />
+          </span>
+          <span role="cell">
+            <select
+              className={invoer}
+              aria-label={t.rijLabel(naam, t.eenheid)}
+              value={rij.eenheid}
+              onChange={(e) => wijzig({ eenheid: e.target.value as Eenheid }, true)}
+            >
+              {EENHEDEN.map((e) => (
+                <option key={e} value={e}>
+                  {t.eenheden[e]}
+                </option>
+              ))}
+            </select>
+          </span>
+        </>
+      )}
       <span role="cell" className="flex items-center gap-2">
         <span aria-hidden="true" className="text-tekst-zacht">
           €
@@ -195,7 +253,7 @@ function PrijsRij({
         </select>
       </span>
       <span role="cell">
-        <Knop label={t.verwijder(naam)} alleenIcoon icoon={Trash2} onClick={opVerwijder} />
+        {!vast && <Knop label={t.verwijder(naam)} alleenIcoon icoon={Trash2} onClick={opVerwijder} />}
       </span>
     </div>
   );

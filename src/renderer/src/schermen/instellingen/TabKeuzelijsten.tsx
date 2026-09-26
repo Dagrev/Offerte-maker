@@ -59,14 +59,17 @@ export function TabKeuzelijsten() {
   );
 }
 
-function LijstBewerker({
+/** Bewerker van één keuzelijst; ook gebruikt in de tab Werkzaamheden (OFM-043, soort werk, kop h3). */
+export function LijstBewerker({
   lijst,
   opties,
   opHersteld,
+  Kop = 'h2',
 }: {
   lijst: KeuzeLijst;
   opties: Keuzeoptie[];
   opHersteld: () => void;
+  Kop?: 'h2' | 'h3';
 }) {
   const [rijen, setRijen] = useState<Keuzeoptie[]>(opties);
   const [nieuw, setNieuw] = useState('');
@@ -129,7 +132,7 @@ function LijstBewerker({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">{t.lijst[lijst]}</h2>
+        <Kop className="text-2xl font-semibold">{t.lijst[lijst]}</Kop>
         <BewaardIndicator signaal={bewaren.signaal} />
       </div>
       {lijst in t.lijstHint && (

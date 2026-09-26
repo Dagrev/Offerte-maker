@@ -19,6 +19,8 @@ async function naWijziging(): Promise<void> {
     queryClient.invalidateQueries({ queryKey: queryKeys.keuzelijsten() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.overzicht() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.prijzen() }),
+    // De soorten werk staan ook in `werkzaamheden:haal` (OFM-043).
+    queryClient.invalidateQueries({ queryKey: queryKeys.werkzaamheden() }),
   ]);
 }
 
