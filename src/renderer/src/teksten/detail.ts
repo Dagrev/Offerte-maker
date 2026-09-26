@@ -15,6 +15,11 @@ export const detail = {
 
   /** Gele balk (FE-051, V-05). */
   controleerEven: 'Controleer even:',
+  /** Inklapbare gele balk (OFM-036). */
+  aantalPunten: (aantal: number) => (aantal === 1 ? '1 punt' : `${aantal} punten`),
+  toonPunten: 'Toon punten',
+  verbergPunten: 'Verberg punten',
+  controlepunten: 'Controlepunten',
   geschattePrijs: (omschrijving: string, prijs: string, eenheid: Eenheid) =>
     `Geschatte prijs: ${omschrijving} (${prijs} per ${eenheid}).`,
 
