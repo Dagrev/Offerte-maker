@@ -10,6 +10,7 @@ import {
   sluitApp,
   startApp,
   vulDakIn,
+  vulWerkIn,
   vulKlantIn,
   type GestarteApp,
   type TestMappen,
@@ -71,6 +72,7 @@ test('verstuur per e-mail: terugval, concept met bijlage en status, geen mailpro
   await knop(page, w.volgende).click();
   await vulDakIn(page);
   await knop(page, w.volgende).click();
+  await vulWerkIn(page);
   await knop(page, w.volgende).click();
   await page.getByRole('button', { name: w.maakDeOfferte }).click();
   await expect(knop(page, d.maakDefinitief)).toBeVisible({ timeout: 15_000 });

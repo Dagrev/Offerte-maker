@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Check, Plus, RotateCcw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { bedragWerkzaamheidCent, euroNaarCent, totaalM2 } from '@shared/calc/bedragen';
 import { formatEuro } from '@shared/formatteer';
@@ -496,6 +496,7 @@ function EenmaligVelden({
   opSlaOp: () => void;
 }) {
   const leeg = label.trim() === '';
+  const eenheidId = useId();
   return (
     <div className="flex flex-col gap-4">
       <p className="text-tekst-zacht">{t.eenmaligUitleg}</p>
@@ -506,9 +507,12 @@ function EenmaligVelden({
           maxLength={80}
           opWijzig={(l) => opWijzig({ label: l })}
         />
-        <label className="flex flex-col gap-2">
-          <span className="font-semibold">{t.eenheid}</span>
+        <div className="flex flex-col gap-2">
+          <label htmlFor={eenheidId} className="font-semibold">
+            {t.eenheid}
+          </label>
           <select
+            id={eenheidId}
             className={selectKlasse}
             value={eenheid}
             onChange={(ev) => opWijzig({ eenheid: ev.target.value as Eenheid })}
@@ -519,7 +523,7 @@ function EenmaligVelden({
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">
         <Knop label={t.opslaanInInstellingen} icoon={Save} disabled={leeg} onClick={opSlaOp} />

@@ -9,6 +9,7 @@ import {
   REPO,
   sluitApp,
   vulDakIn,
+  vulWerkIn,
   vulKlantIn,
   startApp,
   type GestarteApp,
@@ -88,6 +89,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     await expect(page.getByRole('heading', { name: `${stap}. ${wz.stappen[stap - 1]}` })).toBeVisible();
     await controleerScherm(page, `Wizard ${stap} ${wz.stappen[stap - 1]}`, uitkomsten);
     if (stap === 2) await vulDakIn(page);
+    if (stap === 3) await vulWerkIn(page);
   }
 
   // Bezig (nep-CLI traag), dan Stoppen: stap 4 met melding en "Maak zonder Claude".

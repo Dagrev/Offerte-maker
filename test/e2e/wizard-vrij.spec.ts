@@ -12,6 +12,7 @@ import {
   sluitApp,
   startApp,
   vulDakIn,
+  vulWerkIn,
   type GestarteApp,
   type TestMappen,
 } from '../helpers/e2e';
@@ -52,10 +53,9 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
   await knop(page, nl.overzicht.nieuweOfferte).click();
   await expect(kop(page, 1)).toBeVisible();
 
-  // Lege stap 1: markeringen in de stappenbalk (1 punt in stap 1, 2 in stap 2).
+  // Lege stap 1: markeringen in de stappenbalk (1 punt in stap 1, 2 en 3: dakvlak en soort werk, OFM-044).
   const balk = page.getByRole('navigation', { name: nl.componenten.stappen });
-  await expect(balk.getByText(nl.componenten.stapPunten(1))).toBeVisible();
-  await expect(balk.getByText(nl.componenten.stapPunten(2))).toBeVisible();
+  await expect(balk.getByText(nl.componenten.stapPunten(1))).toHaveCount(3);
 
   // Stappenbalk: direct naar stap 4, zonder iets in te vullen; Volgende/Vorige blokkeren ook niet.
   await balk.getByRole('button', { name: new RegExp(w.stappen[3]) }).click();
@@ -71,8 +71,8 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
   await expect(samenvatting).toBeVisible();
   await expect(samenvatting.getByRole('listitem')).toHaveText([
     new RegExp(WIZARD_PUNT_TEKSTEN.achternaam),
-    new RegExp(WIZARD_PUNT_TEKSTEN.soortWerk),
     new RegExp(WIZARD_PUNT_TEKSTEN.dakvlak),
+    new RegExp(WIZARD_PUNT_TEKSTEN.soortWerk),
   ]);
   await expect(kop(page, 4)).toBeVisible();
   const uitkomsten: Schermuitkomst[] = [];
@@ -102,6 +102,10 @@ test('van stap 1 direct naar stap 4, samenvatting, terugspringen en daarna maken
     .click();
   await expect(kop(page, 2)).toBeVisible();
   await vulDakIn(page);
+  // OFM-044: soort werk staat in stap 3.
+  await balk.getByRole('button', { name: new RegExp(w.stappen[2]) }).click();
+  await expect(kop(page, 3)).toBeVisible();
+  await vulWerkIn(page);
   await expect(balk.getByText(/punten? nog niet in orde/)).toHaveCount(0);
 
   // Terug naar stap 4: de samenvatting is weg en de offerte wordt gemaakt.

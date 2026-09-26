@@ -136,7 +136,8 @@ test('wizardstap 1: ongeldig wordt gemeld (Volgende blokkeert niet meer, OFM-035
   await expect(page.getByText(VALIDATIE_FOUTEN.telefoon, { exact: true })).toHaveCount(0);
   await page.getByLabel(w.klant.telefoon, { exact: true }).press('Tab');
   await expect(page.getByText(VALIDATIE_FOUTEN.telefoon, { exact: true })).toBeVisible();
-  await expect(page.getByText(nl.componenten.stapPunten(1))).toHaveCount(1);
+  // Eén punt per stap: stap 1 (telefoon), stap 2 (dakvlak) en stap 3 (soort werk, OFM-044).
+  await expect(page.getByText(nl.componenten.stapPunten(1))).toHaveCount(3);
 
   const gevallen: Geval[] = [
     {

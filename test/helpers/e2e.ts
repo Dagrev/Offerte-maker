@@ -271,6 +271,7 @@ export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Pro
     await page.getByRole('button', { name: w.volgende, exact: true }).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${w.stappen[stap - 1]}` })).toBeVisible();
     if (stap === 2) await vulDakIn(page);
+    if (stap === 3) await vulWerkIn(page);
   }
   if (klant.overig !== undefined) {
     await page.getByLabel(w.overig.vraag, { exact: true }).fill(klant.overig);
@@ -278,12 +279,18 @@ export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Pro
   return offerteIdVan(page, klant.achternaam);
 }
 
-/** Stap 2: soort werk "Dak vervangen" en dakvlak 8 × 5 m (het minimum om te mogen maken, OFM-035). */
+/** Stap 2: dakvlak 8 × 5 m (samen met stap 3 het minimum om te mogen maken, OFM-035/044). */
 export async function vulDakIn(page: Page): Promise<void> {
-  const soortWerk = KEUZE_STARTSET.soortWerk.find((o) => o.sleutel === 'dak_vervangen')?.label ?? '';
-  await page.getByRole('button', { name: soortWerk, exact: true }).click();
   await page.getByLabel(nl.wizard.dak.lengte, { exact: true }).fill('8');
   await page.getByLabel(nl.wizard.dak.breedte, { exact: true }).fill('5');
+}
+
+/** Stap 3 (OFM-044): soort werk "Dak vervangen" en de werkzaamheid "Slopen" (40 m², het dak). */
+export async function vulWerkIn(page: Page): Promise<void> {
+  const soortWerk = KEUZE_STARTSET.soortWerk.find((o) => o.sleutel === 'dak_vervangen')?.label ?? '';
+  await page.getByRole('button', { name: soortWerk, exact: true }).click();
+  await page.getByRole('button', { name: 'Slopen', exact: true }).click();
+  await expect(page.getByLabel(nl.wizard.werk.aantalVan('Slopen'), { exact: true })).toBeVisible();
 }
 
 /** ID van de (enige) offerte met deze klantnaam, via `overzicht:zoek`. */
