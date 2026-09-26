@@ -140,7 +140,8 @@ function LijstBewerker({
 
       <ul aria-label={t.lijst[lijst]} className="flex flex-col">
         {rijen.map((optie, index) => {
-          const naam = optie.label.trim() || t.naam;
+          // Toegankelijke naam uit de bewaarde lijst: verandert niet tijdens het typen.
+          const naam = opties.find((o) => o.id === optie.id)?.label ?? (optie.label.trim() || t.naam);
           return (
             <li
               key={optie.id || `nieuw-${index}`}
