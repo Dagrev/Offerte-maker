@@ -8,13 +8,14 @@ import {
   normaliseerKlant,
   zoektekstVan,
 } from './nieuweOfferte';
-import { controleerKlant } from './wizardControle';
+import { ongeldigeKlantVelden } from './validatie';
 
 describe('fabrieken (§5, §6.2)', () => {
   it("lege klant en lege KlusInvoer volgen het ontwerp en passen op de schema's", () => {
     expect(legeKlant()).toEqual({
       aanhef: 'dhr',
-      naam: '',
+      voornaam: '',
+      achternaam: '',
       bedrijfsnaam: '',
       adres: { straatHuisnummer: '', postcode: '', plaats: '' },
       telefoon: '',
@@ -74,47 +75,46 @@ describe('fabrieken (§5, §6.2)', () => {
   });
 
   it('zoektekstVan (§8.2)', () => {
-    const k = { naam: 'P. Jansen', bedrijfsnaam: 'Bouw BV', adres: { plaats: 'Eindhoven' } };
-    expect(zoektekstVan(k, '2026-007')).toBe('p. jansen bouw bv eindhoven 2026-007');
-    expect(zoektekstVan(k, null)).toBe('p. jansen bouw bv eindhoven ');
+    const k = {
+      voornaam: 'Piet',
+      achternaam: 'Jansen',
+      bedrijfsnaam: 'Bouw BV',
+      adres: { plaats: 'Eindhoven' },
+    };
+    expect(zoektekstVan(k, '2026-007')).toBe('piet jansen bouw bv eindhoven 2026-007');
+    expect(zoektekstVan(k, null)).toBe('piet jansen bouw bv eindhoven ');
+    // OFM-038: "piet jansen" (beide namen samen) vindt de klant ook.
+    expect(zoektekstVan(k, null)).toContain('piet jansen');
   });
 });
 
-describe('controleerKlant (FE-024, V-16)', () => {
+describe('ongeldigeKlantVelden (OFM-030; lege velden meldt sinds OFM-038 `shared/verplicht.ts`)', () => {
   const geldig = {
     ...legeKlant(),
-    naam: 'Jansen',
+    achternaam: 'Jansen',
     adres: { straatHuisnummer: 'Kerkstraat 1', postcode: '5611 AB', plaats: 'Eindhoven' },
     email: 'a@b.nl',
   };
 
   it('geldige klant: geen fouten', () => {
-    expect(controleerKlant(geldig)).toEqual({ fouten: {}, ongeldig: {} });
-    expect(controleerKlant({ ...geldig, email: '', adres: { ...geldig.adres, postcode: '5611ab' } })).toEqual(
-      { fouten: {}, ongeldig: {} },
-    );
-  });
-
-  it('lege naam is een fout; plaats is sinds OFM-035 optioneel', () => {
-    const c = controleerKlant({ ...geldig, naam: ' ', adres: { ...geldig.adres, plaats: '' } });
-    expect(c.fouten).toEqual({ naam: 'leeg' });
+    expect(ongeldigeKlantVelden(geldig)).toEqual({});
+    expect(
+      ongeldigeKlantVelden({ ...geldig, email: '', adres: { ...geldig.adres, postcode: '5611ab' } }),
+    ).toEqual({});
   });
 
   it('postcode 12345 en een raar e-mailadres zijn ongeldig (OFM-030)', () => {
     const k = { ...geldig, email: 'jan@nl', adres: { ...geldig.adres, postcode: '12345' } };
-    expect(controleerKlant(k)).toEqual({
-      fouten: {},
-      ongeldig: { 'adres.postcode': 'postcode', email: 'email' },
-    });
-    expect(controleerKlant({ ...geldig, adres: { ...geldig.adres, postcode: '0611 AB' } }).ongeldig).toEqual({
+    expect(ongeldigeKlantVelden(k)).toEqual({ 'adres.postcode': 'postcode', email: 'email' });
+    expect(ongeldigeKlantVelden({ ...geldig, adres: { ...geldig.adres, postcode: '0611 AB' } })).toEqual({
       'adres.postcode': 'postcode',
     });
   });
 
   it('werkadrespostcode alleen gecontroleerd bij een werkadres', () => {
     const werkadres = { straatHuisnummer: '', postcode: '99', plaats: '' };
-    expect(controleerKlant({ ...geldig, werkadres }).ongeldig).toEqual({});
-    expect(controleerKlant({ ...geldig, heeftWerkadres: true, werkadres }).ongeldig).toEqual({
+    expect(ongeldigeKlantVelden({ ...geldig, werkadres })).toEqual({});
+    expect(ongeldigeKlantVelden({ ...geldig, heeftWerkadres: true, werkadres })).toEqual({
       'werkadres.postcode': 'postcode',
     });
   });

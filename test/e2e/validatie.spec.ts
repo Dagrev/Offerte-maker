@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { VALIDATIE_FOUTEN } from '../../src/shared/teksten/validatie';
+import { VERPLICHT_VELDEN, type Verplicht } from '../../src/shared/verplicht';
 import { nl } from '../../src/renderer/src/teksten/nl';
 import {
   apiData,
@@ -121,9 +122,13 @@ test('wizardstap 1: ongeldig wordt gemeld (Volgende blokkeert niet meer, OFM-035
   await overslaanWelkom(page);
   const w = nl.wizard;
   const a = nl.componenten.adres;
+  // OFM-038: geen verplichte velden in stap 1, zodat de markering alleen het ongeldige veld telt.
+  const niets = Object.fromEntries(VERPLICHT_VELDEN.map((v) => [v, false])) as Verplicht;
+  await apiData(page, 'instellingenBewaar', { sleutel: 'verplicht', waarde: niets });
+  await page.reload(); // de renderer heeft de instellingen al in zijn cache
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Jansen');
+  await page.getByLabel(w.klant.achternaam, { exact: true }).fill('Jansen');
   await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Eindhoven');
 
   // Ongeldig telefoonnummer: melding na het verlaten van het veld en een markering in de stappenbalk.

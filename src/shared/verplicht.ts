@@ -1,0 +1,157 @@
+import { m2VanDakvlak } from './calc/bedragen';
+import { VASTE_EXTRAS } from './keuzelijsten';
+import type { Klant, KlusInvoer } from './types';
+import { splitsStraatHuisnummer } from './validatie';
+
+// Instelbare verplichte velden van de wizard (OFM-038). Puur: gedeeld door de wizard (samenvatting en
+// stappenbalk), main (`offerte:maak`, `offerte:maakZonderClaude`) en de tab Instellingen › Verplichte
+// velden. Een nieuw veld (bijv. OFM-044 "minstens één werkzaamheid") = één entry in `VERPLICHT_VELDEN`
+// met een standaard in `STANDAARD_VERPLICHT`, een stap in `VELD_STAP`, een controle in `ONTBREEKT` en
+// teksten; oude opgeslagen instellingen krijgen voor dat veld vanzelf de standaard (schema-default).
+
+/** Velden waarvan de gebruiker kan instellen of ze verplicht zijn, in de volgorde van de wizard. */
+export const VERPLICHT_VELDEN = [
+  // stap 1: klant
+  'aanhef',
+  'voornaam',
+  'achternaam',
+  'bedrijfsnaam',
+  'postcode',
+  'huisnummer',
+  'straat',
+  'plaats',
+  'telefoon',
+  'email',
+  'werkPostcode',
+  'werkHuisnummer',
+  'werkStraat',
+  'werkPlaats',
+  // stap 2: het dak
+  'soortDak',
+  // stap 3: extra's
+  'hoogte',
+  'extra',
+] as const;
+
+export type VerplichtVeld = (typeof VERPLICHT_VELDEN)[number];
+
+/** Altijd verplicht, niet uit te zetten: de agent heeft ze nodig om een offerte te schrijven. */
+export const ALTIJD_VERPLICHT = ['soortWerk', 'dakvlak'] as const;
+export type AltijdVerplichtVeld = (typeof ALTIJD_VERPLICHT)[number];
+
+/** Elk veld dat in de wizard als "ontbreekt" gemeld kan worden. */
+export type WizardVeld = VerplichtVeld | AltijdVerplichtVeld;
+
+export type Verplicht = Record<VerplichtVeld, boolean>;
+
+/** De stap waarop het veld in de wizard staat (hoogte staat bij Extra's). */
+export const VELD_STAP: Record<WizardVeld, 1 | 2 | 3> = {
+  aanhef: 1,
+  voornaam: 1,
+  achternaam: 1,
+  bedrijfsnaam: 1,
+  postcode: 1,
+  huisnummer: 1,
+  straat: 1,
+  plaats: 1,
+  telefoon: 1,
+  email: 1,
+  werkPostcode: 1,
+  werkHuisnummer: 1,
+  werkStraat: 1,
+  werkPlaats: 1,
+  soortWerk: 2,
+  soortDak: 2,
+  dakvlak: 2,
+  hoogte: 3,
+  extra: 3,
+};
+
+/** Standaard: alles van stap 1 verplicht; in stap 2 alleen de altijd-verplichte velden; stap 3 niets. */
+export const STANDAARD_VERPLICHT: Verplicht = {
+  aanhef: true,
+  voornaam: true,
+  achternaam: true,
+  bedrijfsnaam: true,
+  postcode: true,
+  huisnummer: true,
+  straat: true,
+  plaats: true,
+  telefoon: true,
+  email: true,
+  werkPostcode: true,
+  werkHuisnummer: true,
+  werkStraat: true,
+  werkPlaats: true,
+  soortDak: false,
+  hoogte: false,
+  extra: false,
+};
+
+export function standaardVerplicht(): Verplicht {
+  return { ...STANDAARD_VERPLICHT };
+}
+
+const leeg = (tekst: string) => tekst.trim() === '';
+
+/**
+ * Straat en huisnummer staan samen in één veld (§5, OFM-031). Een huisnummer is er als het laatste deel
+ * een huisnummer is; de straat is er als er iets anders dan alleen een huisnummer staat.
+ */
+function adresDelen(straatHuisnummer: string): { straat: boolean; huisnummer: boolean } {
+  if (leeg(straatHuisnummer)) return { straat: false, huisnummer: false };
+  if (splitsStraatHuisnummer(straatHuisnummer)) return { straat: true, huisnummer: true };
+  return { straat: true, huisnummer: false };
+}
+
+type Bron = {
+  klant: Klant;
+  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak' | 'dakvlakken' | 'hoogte'> & ExtraBron;
+};
+type ExtraBron = Pick<KlusInvoer, (typeof VASTE_EXTRAS)[keyof typeof VASTE_EXTRAS] | 'extraAantallen'>;
+
+/** Per veld: `true` als het ontbreekt. Werkadres telt alleen als "Het werk is op een ander adres" aan staat. */
+const ONTBREEKT: Record<WizardVeld, (b: Bron) => boolean> = {
+  aanhef: ({ klant }) => leeg(klant.aanhef),
+  voornaam: ({ klant }) => leeg(klant.voornaam),
+  achternaam: ({ klant }) => leeg(klant.achternaam),
+  bedrijfsnaam: ({ klant }) => klant.aanhef === 'bedrijf' && leeg(klant.bedrijfsnaam),
+  postcode: ({ klant }) => leeg(klant.adres.postcode),
+  huisnummer: ({ klant }) => !adresDelen(klant.adres.straatHuisnummer).huisnummer,
+  straat: ({ klant }) => !adresDelen(klant.adres.straatHuisnummer).straat,
+  plaats: ({ klant }) => leeg(klant.adres.plaats),
+  telefoon: ({ klant }) => leeg(klant.telefoon),
+  email: ({ klant }) => leeg(klant.email),
+  werkPostcode: ({ klant }) => klant.heeftWerkadres && leeg(klant.werkadres.postcode),
+  werkHuisnummer: ({ klant }) =>
+    klant.heeftWerkadres && !adresDelen(klant.werkadres.straatHuisnummer).huisnummer,
+  werkStraat: ({ klant }) => klant.heeftWerkadres && !adresDelen(klant.werkadres.straatHuisnummer).straat,
+  werkPlaats: ({ klant }) => klant.heeftWerkadres && leeg(klant.werkadres.plaats),
+  soortWerk: ({ invoer }) => invoer.soortWerk === null,
+  soortDak: ({ invoer }) => invoer.soortDak === null,
+  dakvlak: ({ invoer }) => !invoer.dakvlakken.some((v) => m2VanDakvlak(v) > 0),
+  hoogte: ({ invoer }) => leeg(invoer.hoogte),
+  extra: ({ invoer }) => !heeftExtra(invoer),
+};
+
+/** Minstens één extra (vast of zelf toegevoegd) met een aantal > 0. */
+export function heeftExtra(invoer: ExtraBron): boolean {
+  const vast = Object.values(VASTE_EXTRAS).some((veld) => invoer[veld] > 0);
+  return vast || Object.values(invoer.extraAantallen).some((n) => n > 0);
+}
+
+/** Alle velden in wizardvolgorde (altijd-verplicht op hun plek in stap 2). */
+const ALLE_VELDEN: readonly WizardVeld[] = [
+  ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 1),
+  'soortWerk',
+  ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 2),
+  'dakvlak',
+  ...VERPLICHT_VELDEN.filter((v) => VELD_STAP[v] === 3),
+];
+
+/** De verplichte velden die leeg zijn, in wizardvolgorde. */
+export function ontbrekendeVelden(klant: Klant, invoer: Bron['invoer'], verplicht: Verplicht): WizardVeld[] {
+  const isVerplicht = (v: WizardVeld) =>
+    (ALTIJD_VERPLICHT as readonly string[]).includes(v) || verplicht[v as VerplichtVeld];
+  return ALLE_VELDEN.filter((v) => isVerplicht(v) && ONTBREEKT[v]({ klant, invoer }));
+}

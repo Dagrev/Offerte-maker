@@ -44,7 +44,8 @@ describe('domeinschema’s', () => {
     const leeg = { straatHuisnummer: '', postcode: '', plaats: '' };
     const klant = {
       aanhef: 'dhr',
-      naam: '',
+      voornaam: '',
+      achternaam: '',
       bedrijfsnaam: '',
       adres: leeg,
       telefoon: '',

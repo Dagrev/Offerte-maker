@@ -43,7 +43,7 @@ test('wizardstap 1: gevonden vult straat en plaats in, niet gevonden laat ze lee
   await overslaanWelkom(page);
   const w = nl.wizard;
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill('Jansen');
+  await page.getByLabel(w.klant.achternaam, { exact: true }).fill('Jansen');
   await page.getByLabel(w.klant.telefoon, { exact: true }).fill('0612345678');
 
   // Gevonden: binnen 2 s ingevuld.

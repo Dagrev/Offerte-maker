@@ -7,7 +7,8 @@ import { bouwKlusVoorAgent, gebruikersTekst } from './klusVoorAgent';
 import { bouwPiiSet } from './piiSet';
 
 const klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Best' },
   telefoon: '06-12345678',
   email: 'jansen@mail.nl',
@@ -34,17 +35,17 @@ describe('controleer (§11.3)', () => {
   });
 
   it('waarden korter dan 3 tekens worden niet gecontroleerd', () => {
-    const kort = bouwPiiSet(maakKlant({ naam: 'Li' }));
+    const kort = bouwPiiSet(maakKlant({ achternaam: 'Li' }));
     expect(controleer('Li belt', kort)).toEqual({ ok: true });
   });
 
   it('plaatshouders zelf blokkeren niet, ook niet bij een naam als "Klant"', () => {
-    const vreemd = bouwPiiSet(maakKlant({ naam: 'Klant' }));
+    const vreemd = bouwPiiSet(maakKlant({ achternaam: 'Klant' }));
     expect(controleer('[KLANT_NAAM] wil EPDM', vreemd)).toEqual({ ok: true });
   });
 
   it('achternaam Staal met ondergrond staal wordt niet geblokkeerd (vaste tekst telt niet)', () => {
-    const staal = maakKlant({ naam: 'Piet Staal' });
+    const staal = maakKlant({ achternaam: 'Piet Staal' });
     const klus = bouwKlusVoorAgent({
       invoer: maakInvoer({ ondergrond: 'staal', overig: 'Graag voor de winter' }),
       klant: staal,

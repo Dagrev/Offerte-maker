@@ -86,11 +86,11 @@ const ACHTERNAMEN = [
   'Maas',
   'Verhoeven',
 ];
-const VOORLETTERS = ['A.', 'B.', 'J.', 'M.', 'P.'];
+const VOORNAMEN = ['Anna', 'Bram', 'Jan', 'Maria', 'Pieter'];
 
-/** Vaste lijst van 200 namen (40 achternamen × 5 voorletters). */
-export const SEED_NAMEN: readonly string[] = ACHTERNAMEN.flatMap((achternaam) =>
-  VOORLETTERS.map((voorletter) => `${voorletter} ${achternaam}`),
+/** Vaste lijst van 200 namen (40 achternamen × 5 voornamen; OFM-038: voor- en achternaam apart). */
+export const SEED_NAMEN: readonly { voornaam: string; achternaam: string }[] = ACHTERNAMEN.flatMap(
+  (achternaam) => VOORNAMEN.map((voornaam) => ({ voornaam, achternaam })),
 );
 
 const PLAATSEN = [
@@ -223,7 +223,7 @@ function maakOfferte(random: () => number, n: number, status: Status): SeedOffer
   const klant: Klant = {
     ...legeKlant(),
     aanhef,
-    naam: kies(random, SEED_NAMEN),
+    ...kies(random, SEED_NAMEN),
     bedrijfsnaam: aanhef === 'bedrijf' ? `Bedrijf ${kies(random, ACHTERNAMEN)}` : '',
     adres: {
       straatHuisnummer: `${kies(random, STRATEN)} ${geheel(random, 1, 180)}`,
@@ -345,7 +345,11 @@ export function vulMetSeed(
       );
       versieSql.run(`${o.id}-v1`, o.id, inhoudJson, tijdstip);
       if (nr) {
-        const pad = join(documentenMap, String(nr.jaar), `${nr.nummer} ${o.klant.naam}.pdf`);
+        const pad = join(
+          documentenMap,
+          String(nr.jaar),
+          `${nr.nummer} ${o.klant.voornaam} ${o.klant.achternaam}.pdf`,
+        );
         pdfSql.run(`${o.id}-pdf`, o.id, pad, tijdstip);
       }
       perStatus[o.status] += 1;

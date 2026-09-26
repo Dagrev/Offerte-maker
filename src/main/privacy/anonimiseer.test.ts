@@ -34,7 +34,8 @@ describe('patronen (§11.2 letterlijk)', () => {
 describe('anonimiseer', () => {
   it('FE-032 letterlijk', () => {
     const klant = maakKlant({
-      naam: 'Jansen',
+      voornaam: '',
+      achternaam: 'Jansen',
       adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '', plaats: '' },
     });
     expect(
@@ -43,7 +44,7 @@ describe('anonimiseer', () => {
   });
 
   it('e-mail verdwijnt als geheel, niet als [KLANT_NAAM]@mail.nl', () => {
-    const set = bouwPiiSet(maakKlant({ naam: 'Jansen' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: 'Jansen' }));
     expect(anonimiseer('mail jansen@mail.nl', set)).toBe('mail [VERWIJDERD]');
   });
 
@@ -76,14 +77,14 @@ describe('anonimiseer', () => {
   });
 
   it('bestaande en net ingezette plaatshouders blijven heel, ook bij een naam als "Klant"', () => {
-    const set = bouwPiiSet(maakKlant({ naam: 'Klant Naam', bedrijfsnaam: 'Werk Plaats' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: 'Klant Naam', bedrijfsnaam: 'Werk Plaats' }));
     expect(anonimiseer('[KLANT_NAAM] en [WERK_PLAATS]: Klant Naam', set)).toBe(
       '[KLANT_NAAM] en [WERK_PLAATS]: [KLANT_NAAM]',
     );
   });
 
   it('veel vervangingen (meer dan 256 tokens) blijven correct', () => {
-    const set = bouwPiiSet(maakKlant({ naam: 'Jansen' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: 'Jansen' }));
     const tekst = Array.from({ length: 300 }, () => 'Jansen').join(' ');
     expect(anonimiseer(tekst, set)).toBe(Array.from({ length: 300 }, () => '[KLANT_NAAM]').join(' '));
   });

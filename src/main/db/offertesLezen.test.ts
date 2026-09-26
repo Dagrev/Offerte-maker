@@ -36,7 +36,8 @@ function voegToe(o: NepOfferte): void {
   const nummer = o.nummer ?? null;
   const klant = {
     aanhef: 'fam',
-    naam: 'Jansen',
+    voornaam: '',
+    achternaam: 'Jansen',
     bedrijfsnaam: '',
     adres: { straatHuisnummer: 'Dorpsstraat 1', postcode: '1234 AB', plaats: o.plaats ?? 'Veldhoven' },
     telefoon: '',
@@ -63,7 +64,7 @@ function voegToe(o: NepOfferte): void {
       o.totaal === undefined ? 100_00 : o.totaal,
       o.omschrijving ?? 'Dak vervangen · EPDM 1,1 mm · 34,8 m²',
       o.zoektekst ??
-        `${klant.naam} ${klant.bedrijfsnaam} ${klant.adres.plaats} ${nummer ?? ''}`.toLowerCase(),
+        `${[klant.voornaam, klant.achternaam].filter((d) => d !== '').join(' ')} ${klant.bedrijfsnaam} ${klant.adres.plaats} ${nummer ?? ''}`.toLowerCase(),
       o.verwijderd ? '2026-09-20T10:00:00.000Z' : null,
       o.aangemaakt ?? `${o.datum}T08:00:00.000Z`,
       o.aangemaakt ?? `${o.datum}T08:00:00.000Z`,
@@ -197,7 +198,7 @@ describe('lijstOverzicht (§8.2)', () => {
 describe('zoekOffertes (§8.2, FE-017)', () => {
   it('vindt hoofdletterongevoelig uit alle periodes', () => {
     voegToe({ id: 'oud', datum: '2024-04-01', nummer: '2024-003' });
-    voegToe({ id: 'ander', datum: '2026-09-01', klant: { naam: 'de Vries' }, plaats: 'Best' });
+    voegToe({ id: 'ander', datum: '2026-09-01', klant: { achternaam: 'de Vries' }, plaats: 'Best' });
     expect(ids(zoekOffertes('JANS'))).toEqual(['oud']);
     expect(ids(zoekOffertes('best'))).toEqual(['ander']);
   });

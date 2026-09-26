@@ -160,7 +160,8 @@ describe('privacylog-kanalen', () => {
     claude = gebruikNepClaude('ok');
     const id = nieuweOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 });
     const klant = maakKlant({
-      naam: 'Jansen',
+      voornaam: '',
+      achternaam: 'Jansen',
       adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
       telefoon: '06-12345678',
       email: 'jansen@mail.nl',

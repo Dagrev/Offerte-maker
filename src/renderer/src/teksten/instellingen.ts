@@ -15,6 +15,7 @@ export const instellingen = {
     teksten: 'Teksten',
     prijzen: 'Prijzen',
     keuzelijsten: 'Keuzelijsten',
+    verplicht: 'Verplichte velden',
     voorbeelden: 'Voorbeelden',
     claudeKoppeling: 'Claude-koppeling',
     privacylog: 'Wat is naar Claude gestuurd',

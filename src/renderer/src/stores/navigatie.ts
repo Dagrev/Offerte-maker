@@ -14,6 +14,7 @@ export type InstellingenTab =
   | 'teksten'
   | 'prijzen'
   | 'keuzelijsten'
+  | 'verplicht'
   | 'voorbeelden'
   | 'claudeKoppeling'
   | 'privacylog'

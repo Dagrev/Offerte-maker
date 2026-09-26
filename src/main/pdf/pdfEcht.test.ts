@@ -114,7 +114,8 @@ const inhoud: OfferteInhoud = {
 };
 
 const klant: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
 });
 

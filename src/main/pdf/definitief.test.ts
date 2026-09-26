@@ -87,7 +87,8 @@ const traagRenderer = (html: string) =>
   new Promise<Buffer>((klaar) => setTimeout(() => klaar(Buffer.from(`%PDF ${html.length}`)), 30));
 
 const jansen: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
 });
 
@@ -158,8 +159,8 @@ async function foutcode(belofte: Promise<unknown>): Promise<string> {
 describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
   it('FE-055 (OFM-033): 2026-09-25-001, -002, versies b en c, volgend jaar weer 001', async () => {
     const a = offerte();
-    const b = offerte(maakKlant({ naam: 'Pietersen' }));
-    const c = offerte(maakKlant({ naam: 'Klaassen' }), '2026-12-30');
+    const b = offerte(maakKlant({ achternaam: 'Pietersen' }));
+    const c = offerte(maakKlant({ achternaam: 'Klaassen' }), '2026-12-30');
 
     expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-09-25-001');
     zetVandaag('2026-09-26');
@@ -200,12 +201,12 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
   });
 
   it('OFM-033: na 2026-09-26-007 geeft 2027-01-03 het nummer 2027-01-03-001', async () => {
-    const zeven = offerte(maakKlant({ naam: 'Zeven' }));
+    const zeven = offerte(maakKlant({ achternaam: 'Zeven' }));
     db.db
       .prepare("UPDATE offertes SET jaar = 2026, volgnummer = 7, nummer = '2026-09-26-007' WHERE id = ?")
       .run(zeven);
     const a = offerte();
-    const b = offerte(maakKlant({ naam: 'Pietersen' }));
+    const b = offerte(maakKlant({ achternaam: 'Pietersen' }));
     zetVandaag('2026-12-31');
     expect((await maakDefinitief(a, nepRenderer)).nummer).toBe('2026-12-31-008');
     zetVandaag('2027-01-03');
@@ -228,7 +229,7 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
     expect(rij(a).nummer).toBe('2026-001');
     expect(zoekOffertes('2026-001').map((i) => i.nummer)).toEqual(['2026-001b']);
     // Een nieuwe offerte telt door na het oude volgnummer.
-    const b = offerte(maakKlant({ naam: 'Pietersen' }));
+    const b = offerte(maakKlant({ achternaam: 'Pietersen' }));
     expect((await maakDefinitief(b, nepRenderer)).nummer).toBe('2026-09-25-002');
   });
 
@@ -247,9 +248,9 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
   });
 
   it('bestandsnaam: vreemde tekens, bedrijfsnaam, bestaand bestand krijgt -2 (FE-056)', async () => {
-    const a = offerte(maakKlant({ naam: 'Jansen/de Vries' }));
-    const b = offerte(maakKlant({ aanhef: 'bedrijf', naam: 'Piet', bedrijfsnaam: 'Bouw B.V.' }));
-    const c = offerte(maakKlant({ naam: 'Oud' }));
+    const a = offerte(maakKlant({ achternaam: 'Jansen/de Vries' }));
+    const b = offerte(maakKlant({ aanhef: 'bedrijf', achternaam: 'Piet', bedrijfsnaam: 'Bouw B.V.' }));
+    const c = offerte(maakKlant({ achternaam: 'Oud' }));
     expect(basename((await maakDefinitief(a, nepRenderer)).pad)).toBe('2026-09-25-001 Jansen-de Vries.pdf');
     expect(basename((await maakDefinitief(b, nepRenderer)).pad)).toBe('2026-09-25-002 Bouw B.V.pdf');
     writeFileSync(join(nep.docs, '2026', '2026-09-25-003 Oud.pdf'), 'van de gebruiker');
@@ -286,7 +287,7 @@ describe('maakDefinitief (§8.1, §12.3, V-01)', () => {
 
   it('gelijktijdig: twee concepten krijgen na elkaar twee opeenvolgende nummers', async () => {
     const a = offerte();
-    const b = offerte(maakKlant({ naam: 'Pietersen' }));
+    const b = offerte(maakKlant({ achternaam: 'Pietersen' }));
     const [ra, rb] = await Promise.all([maakDefinitief(a, traagRenderer), maakDefinitief(b, traagRenderer)]);
     expect([ra.nummer, rb.nummer].sort()).toEqual(['2026-09-25-001', '2026-09-25-002']);
   });

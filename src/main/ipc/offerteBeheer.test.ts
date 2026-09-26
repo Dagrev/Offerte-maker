@@ -49,7 +49,8 @@ const haal = (id: string) => data<OfferteDetail>(h('offerte:haal')(evt, { id }))
 const nieuw = (invoer: unknown = {}) => data<{ id: string }>(h('offerte:nieuw')(evt, invoer));
 
 const klant: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   heeftWerkadres: true,
   werkadres: { straatHuisnummer: 'Kerkweg 3', postcode: '5611 CD', plaats: 'Eindhoven' },
@@ -188,7 +189,7 @@ describe('kopie via offerte:nieuw (FE-061, V-21)', () => {
       offertedatum: '2026-10-02',
       geldigTot: '2026-11-01',
     });
-    expect(k.klant.naam).toBe('');
+    expect(k.klant.achternaam).toBe('');
     expect(k.klant.heeftWerkadres).toBe(false);
     expect({ ...k.invoer, dakvlakken: [] }).toEqual({ ...b.invoer, dakvlakken: [] });
     expect(k.invoer.dakvlakken.map((v) => ({ ...v, id: '' }))).toEqual(

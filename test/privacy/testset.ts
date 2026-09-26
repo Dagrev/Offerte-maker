@@ -25,7 +25,8 @@ const leegAdres: Adres = { straatHuisnummer: '', postcode: '', plaats: '' };
 export function maakKlant(deel: Partial<Klant> = {}): Klant {
   return {
     aanhef: 'dhr',
-    naam: '',
+    voornaam: '',
+    achternaam: '',
     bedrijfsnaam: '',
     adres: leegAdres,
     telefoon: '',
@@ -78,7 +79,8 @@ const vlak = (naam: string) => ({
 /** Standaardklant: dhr. Jansen in Veldhoven. */
 const jansen = (deel: Partial<Klant> = {}): Klant =>
   maakKlant({
-    naam: 'Jansen',
+    voornaam: '',
+    achternaam: 'Jansen',
     adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
     telefoon: '06-12345678',
     email: 'jansen@mail.nl',
@@ -116,39 +118,57 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'volledige naam met voornaam, voornaam los genoemd',
-    klant: maakKlant({ naam: 'Piet de Groot' }),
+    klant: maakKlant({ voornaam: 'Piet', achternaam: 'de Groot' }),
     invoer: maakInvoer({ overig: 'Piet belt terug; de Groot is vaak niet thuis' }),
     verwacht: { nietInOpdracht: ['Piet', 'Groot'], welInOpdracht: ['[KLANT_NAAM] belt terug'] },
+  },
+  {
+    omschrijving: 'OFM-038: voor- en achternaam samen en elk los genoemd',
+    klant: maakKlant({ voornaam: 'Kees', achternaam: 'van Leeuwen' }),
+    invoer: maakInvoer({ overig: 'Kees van Leeuwen is thuis; kees tekent, Leeuwen betaalt' }),
+    verwacht: {
+      nietInOpdracht: ['Kees', 'Leeuwen'],
+      welInOpdracht: ['[KLANT_NAAM] is thuis; [KLANT_NAAM] tekent, [KLANT_NAAM] betaalt'],
+    },
+  },
+  {
+    omschrijving: 'OFM-038: voorletter met achternaam en alleen de voornaam',
+    klant: maakKlant({ aanhef: 'mevr', voornaam: 'Marieke', achternaam: 'Dekker' }),
+    invoer: maakInvoer({ gewensteUitvoering: 'Afspraak met M. Dekker of met Marieke zelf' }),
+    verwacht: {
+      nietInOpdracht: ['Dekker', 'Marieke'],
+      welInOpdracht: ['Afspraak met M. [KLANT_NAAM] of met [KLANT_NAAM] zelf'],
+    },
   },
 
   // --- tussenvoegsels ---
   {
     omschrijving: 'tussenvoegsel van der Berg',
-    klant: maakKlant({ naam: 'van der Berg' }),
+    klant: maakKlant({ achternaam: 'van der Berg' }),
     invoer: maakInvoer({ overig: 'Dhr. Van der Berg wil ook de goot vervangen. Berg is de eigenaar.' }),
     verwacht: { nietInOpdracht: ['van der Berg', 'Berg'], welInOpdracht: ['de goot vervangen'] },
   },
   {
     omschrijving: 'tussenvoegsel de Vries, "de" elders blijft staan',
-    klant: maakKlant({ aanhef: 'mevr', naam: 'de Vries' }),
+    klant: maakKlant({ aanhef: 'mevr', achternaam: 'de Vries' }),
     invoer: maakInvoer({ overig: 'Mevrouw de Vries is thuis, de sleutel ligt bij de buren' }),
     verwacht: { nietInOpdracht: ['Vries'], welInOpdracht: ['de sleutel ligt bij de buren'] },
   },
   {
     omschrijving: 'tussenvoegsel van den Heuvel',
-    klant: maakKlant({ naam: 'van den Heuvel' }),
+    klant: maakKlant({ achternaam: 'van den Heuvel' }),
     invoer: maakInvoer({ gewensteUitvoering: 'Heuvel wil in het voorjaar' }),
     verwacht: { nietInOpdracht: ['Heuvel'], welInOpdracht: ['wil in het voorjaar'] },
   },
   {
     omschrijving: "tussenvoegsel 't Hart",
-    klant: maakKlant({ aanhef: 'fam', naam: "'t Hart" }),
+    klant: maakKlant({ aanhef: 'fam', achternaam: "'t Hart" }),
     invoer: maakInvoer({ overig: "Familie 't Hart heeft een hond; Hart vraagt om voorzichtigheid" }),
     verwacht: { nietInOpdracht: ['Hart'], welInOpdracht: ['heeft een hond'] },
   },
   {
     omschrijving: 'tussenvoegsel ter Horst',
-    klant: maakKlant({ naam: 'ter Horst' }),
+    klant: maakKlant({ achternaam: 'ter Horst' }),
     invoer: maakInvoer({ overig: 'horst is bereikbaar na vijf uur' }),
     verwacht: { nietInOpdracht: ['Horst'], welInOpdracht: ['bereikbaar na vijf uur'] },
   },
@@ -156,13 +176,13 @@ export const testset: Privacygeval[] = [
   // --- dubbele achternamen ---
   {
     omschrijving: 'dubbele achternaam met koppelteken',
-    klant: maakKlant({ naam: 'Jansen-de Vries' }),
+    klant: maakKlant({ achternaam: 'Jansen-de Vries' }),
     invoer: maakInvoer({ overig: 'Jansen-de Vries wil EPDM; mevrouw Vries belt nog' }),
     verwacht: { nietInOpdracht: ['Jansen', 'Vries'], welInOpdracht: ['wil EPDM'] },
   },
   {
     omschrijving: 'dubbele achternaam zonder koppelteken, los genoemd',
-    klant: maakKlant({ naam: 'Bakker Smit' }),
+    klant: maakKlant({ achternaam: 'Bakker Smit' }),
     invoer: maakInvoer({ overig: 'smit is de contactpersoon, bakker de eigenaar' }),
     verwacht: { nietInOpdracht: ['Smit', 'Bakker'], welInOpdracht: ['is de contactpersoon'] },
   },
@@ -170,31 +190,31 @@ export const testset: Privacygeval[] = [
   // --- naam die ook een gewoon woord is ---
   {
     omschrijving: 'naam Visser',
-    klant: maakKlant({ naam: 'Visser' }),
+    klant: maakKlant({ achternaam: 'Visser' }),
     invoer: maakInvoer({ overig: 'Visser wil sedum op het dak' }),
     verwacht: { nietInOpdracht: ['Visser'], welInOpdracht: ['wil sedum op het dak'] },
   },
   {
     omschrijving: 'naam Bakker in een dakvlaknaam',
-    klant: maakKlant({ naam: 'Bakker' }),
+    klant: maakKlant({ achternaam: 'Bakker' }),
     invoer: maakInvoer({ dakvlakken: [vlak('Dak Bakker'), vlak('Garage')] }),
     verwacht: { nietInOpdracht: ['Bakker'], welInOpdracht: ['Dak [KLANT_NAAM]', 'Garage'] },
   },
   {
     omschrijving: 'naam Smit in kleine letters',
-    klant: maakKlant({ naam: 'Smit' }),
+    klant: maakKlant({ achternaam: 'Smit' }),
     invoer: maakInvoer({ overig: 'Graag eerst bellen met smit' }),
     verwacht: { nietInOpdracht: ['Smit'], welInOpdracht: ['Graag eerst bellen met [KLANT_NAAM]'] },
   },
   {
     omschrijving: 'naam Staal met ondergrond staal (label blijft staan)',
-    klant: maakKlant({ naam: 'Piet Staal' }),
+    klant: maakKlant({ achternaam: 'Piet Staal' }),
     invoer: maakInvoer({ ondergrond: 'staal', overig: 'Piet Staal is er de hele dag' }),
     verwacht: { nietInOpdracht: ['Piet Staal', 'Piet'], welInOpdracht: ['"ondergrond": "Staal"'] },
   },
   {
     omschrijving: 'naam Hout met ondergrond hout',
-    klant: maakKlant({ aanhef: 'mevr', naam: 'Anna Hout' }),
+    klant: maakKlant({ aanhef: 'mevr', achternaam: 'Anna Hout' }),
     invoer: maakInvoer({ ondergrond: 'hout', gewensteUitvoering: 'Mevrouw Hout wil geen lawaai voor 8 uur' }),
     verwacht: {
       nietInOpdracht: ['Mevrouw Hout'],
@@ -203,19 +223,19 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'naam met accent',
-    klant: maakKlant({ naam: 'Müller' }),
+    klant: maakKlant({ achternaam: 'Müller' }),
     invoer: maakInvoer({ overig: 'müller heeft de tekening gestuurd' }),
     verwacht: { nietInOpdracht: ['Müller'], welInOpdracht: ['heeft de tekening gestuurd'] },
   },
   {
     omschrijving: 'naam met niet-Nederlandse tekens',
-    klant: maakKlant({ naam: 'Ömer Yılmaz' }),
+    klant: maakKlant({ voornaam: 'Ömer', achternaam: 'Yılmaz' }),
     invoer: maakInvoer({ overig: 'Yılmaz is de huurder, Ömer de zoon' }),
     verwacht: { nietInOpdracht: ['Yılmaz', 'Ömer'], welInOpdracht: ['is de huurder'] },
   },
   {
     omschrijving: 'naam als deel van een langer woord blijft staan',
-    klant: maakKlant({ naam: 'Berg' }),
+    klant: maakKlant({ achternaam: 'Berg' }),
     invoer: maakInvoer({ overig: 'Materiaal in de berging opslaan' }),
     verwacht: { nietInOpdracht: [], welInOpdracht: ['berging'] },
   },
@@ -223,7 +243,7 @@ export const testset: Privacygeval[] = [
   // --- bedrijven ---
   {
     omschrijving: 'bedrijfsnaam met B.V.',
-    klant: maakKlant({ aanhef: 'bedrijf', naam: 'Hendriks', bedrijfsnaam: 'Dakwerken Hendriks B.V.' }),
+    klant: maakKlant({ aanhef: 'bedrijf', achternaam: 'Hendriks', bedrijfsnaam: 'Dakwerken Hendriks B.V.' }),
     invoer: maakInvoer({ overig: 'Factuur naar Dakwerken Hendriks B.V., t.a.v. Hendriks' }),
     verwacht: {
       nietInOpdracht: ['Dakwerken Hendriks', 'Hendriks', 'Dakwerken'],
@@ -232,7 +252,7 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'bedrijfsnaam met BV zonder punten, alleen kernwoord genoemd',
-    klant: maakKlant({ aanhef: 'bedrijf', naam: 'Kok', bedrijfsnaam: 'Installatiebedrijf Kok BV' }),
+    klant: maakKlant({ aanhef: 'bedrijf', achternaam: 'Kok', bedrijfsnaam: 'Installatiebedrijf Kok BV' }),
     invoer: maakInvoer({ overig: 'Het installatiebedrijf regelt de doorvoeren' }),
     verwacht: { nietInOpdracht: ['Installatiebedrijf'], welInOpdracht: ['regelt de doorvoeren'] },
   },
@@ -240,7 +260,8 @@ export const testset: Privacygeval[] = [
     omschrijving: 'bedrijfsnaam met algemene woorden (bouw, en, beheer, groep)',
     klant: maakKlant({
       aanhef: 'bedrijf',
-      naam: 'Pietersen',
+      voornaam: '',
+      achternaam: 'Pietersen',
       bedrijfsnaam: 'Bouw en Beheer Groep Pietersen BV',
     }),
     invoer: maakInvoer({ overig: 'Bouw en beheer van het pand ligt bij Pietersen' }),
@@ -248,13 +269,13 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'bedrijfsnaam met v.o.f. en tussenvoegsel',
-    klant: maakKlant({ aanhef: 'bedrijf', naam: 'van Dijk', bedrijfsnaam: 'Van Dijk v.o.f.' }),
+    klant: maakKlant({ aanhef: 'bedrijf', achternaam: 'van Dijk', bedrijfsnaam: 'Van Dijk v.o.f.' }),
     invoer: maakInvoer({ overig: 'contact via van dijk vof' }),
     verwacht: { nietInOpdracht: ['Dijk'], welInOpdracht: ['contact via'] },
   },
   {
     omschrijving: 'bedrijf zonder bedrijfsnaam',
-    klant: maakKlant({ aanhef: 'bedrijf', naam: 'Timmermans' }),
+    klant: maakKlant({ aanhef: 'bedrijf', achternaam: 'Timmermans' }),
     invoer: maakInvoer({ overig: 'Timmermans komt kijken' }),
     verwacht: { nietInOpdracht: ['Timmermans'], welInOpdracht: ['"bedrijf": null', '"isBedrijf": true'] },
   },
@@ -394,7 +415,7 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'deel van het e-mailadres vóór de @ los genoemd',
-    klant: maakKlant({ naam: 'Willems', email: 'dakliefhebber77@gmail.com' }),
+    klant: maakKlant({ achternaam: 'Willems', email: 'dakliefhebber77@gmail.com' }),
     invoer: maakInvoer({ overig: 'Zijn gebruikersnaam is dakliefhebber77' }),
     verwacht: { nietInOpdracht: ['dakliefhebber77'], welInOpdracht: ['gebruikersnaam is [VERWIJDERD]'] },
   },
@@ -411,7 +432,7 @@ export const testset: Privacygeval[] = [
   // --- plaatsnamen die een woord zijn (hoofdlettergevoelig, A-12) ---
   {
     omschrijving: 'plaats Best en het woord best',
-    klant: maakKlant({ naam: 'Claes', adres: adres('Hoofdstraat 1', '5683 AA', 'Best') }),
+    klant: maakKlant({ achternaam: 'Claes', adres: adres('Hoofdstraat 1', '5683 AA', 'Best') }),
     invoer: maakInvoer({ overig: 'Zo snel als het best kan, de klant woont in Best' }),
     verwacht: {
       nietInOpdracht: ['Best'],
@@ -420,19 +441,19 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'plaats Son en het woord zon',
-    klant: maakKlant({ naam: 'Claes', adres: adres('', '', 'Son') }),
+    klant: maakKlant({ achternaam: 'Claes', adres: adres('', '', 'Son') }),
     invoer: maakInvoer({ overig: 'Werk in Son, veel zon op het dak' }),
     verwacht: { nietInOpdracht: ['Son'], welInOpdracht: ['Werk in [KLANT_PLAATS]', 'veel zon op het dak'] },
   },
   {
     omschrijving: 'plaats Mierlo',
-    klant: maakKlant({ naam: 'Claes', adres: adres('', '', 'Mierlo') }),
+    klant: maakKlant({ achternaam: 'Claes', adres: adres('', '', 'Mierlo') }),
     invoer: maakInvoer({ gewensteUitvoering: 'Materiaal vanuit Mierlo aanvoeren' }),
     verwacht: { nietInOpdracht: ['Mierlo'], welInOpdracht: ['vanuit [KLANT_PLAATS] aanvoeren'] },
   },
   {
     omschrijving: 'plaats van twee woorden',
-    klant: maakKlant({ naam: 'Claes', adres: adres('', '', 'Den Bosch') }),
+    klant: maakKlant({ achternaam: 'Claes', adres: adres('', '', 'Den Bosch') }),
     invoer: maakInvoer({ overig: 'Klus in Den  Bosch' }),
     verwacht: { nietInOpdracht: ['Den Bosch'], welInOpdracht: ['Klus in [KLANT_PLAATS]'] },
   },
@@ -446,7 +467,7 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'naam in kleine letters in een dakvlaknaam',
-    klant: maakKlant({ naam: 'de Vries' }),
+    klant: maakKlant({ achternaam: 'de Vries' }),
     invoer: maakInvoer({ dakvlakken: [vlak('schuur vries')] }),
     verwacht: { nietInOpdracht: ['vries'], welInOpdracht: ['schuur [KLANT_NAAM]'] },
   },
@@ -541,7 +562,7 @@ export const testset: Privacygeval[] = [
   // --- lege optionele velden ---
   {
     omschrijving: 'alleen een naam ingevuld',
-    klant: maakKlant({ naam: 'Claes' }),
+    klant: maakKlant({ achternaam: 'Claes' }),
     invoer: maakInvoer({ overig: 'Claes wil de oude bitumen eraf', gewensteUitvoering: 'Na de bouwvak' }),
     verwacht: { nietInOpdracht: ['Claes'], welInOpdracht: ['wil de oude bitumen eraf', 'Na de bouwvak'] },
   },
@@ -559,7 +580,7 @@ export const testset: Privacygeval[] = [
   },
   {
     omschrijving: 'korte naam (2 tekens) volledig vervangen',
-    klant: maakKlant({ naam: 'Li' }),
+    klant: maakKlant({ achternaam: 'Li' }),
     invoer: maakInvoer({ overig: 'Li wil een lichtkoepel' }),
     verwacht: { nietInOpdracht: ['Li'], welInOpdracht: ['[KLANT_NAAM] wil een lichtkoepel'] },
   },

@@ -1,3 +1,4 @@
+import { volledigeNaam } from './labels';
 import type { Adres, Dakvlak, Klant, KlusInvoer } from './types';
 
 // Fabrieken voor een nieuwe offerte (TDO §5 laatste alinea, §6.2 "Gedrag `offerte:nieuw`") en de
@@ -18,7 +19,8 @@ export function leegAdres(): Adres {
 export function legeKlant(): Klant {
   return {
     aanhef: 'dhr',
-    naam: '',
+    voornaam: '',
+    achternaam: '',
     bedrijfsnaam: '',
     adres: leegAdres(),
     telefoon: '',
@@ -72,10 +74,14 @@ export function normaliseerKlant(klant: Klant): Klant {
   return klant.heeftWerkadres ? klant : { ...klant, werkadres: leegAdres() };
 }
 
-/** `lower(naam + ' ' + bedrijfsnaam + ' ' + plaats + ' ' + nummer)` (§8.2). */
+/**
+ * `lower(naam + ' ' + bedrijfsnaam + ' ' + plaats + ' ' + nummer)` (§8.2), met naam = voor- en
+ * achternaam (OFM-038). Zo vindt "jan", "jansen" en "jan jansen" de klant; zonder voornaam (oude
+ * offertes na migratie 003) is de zoektekst precies als vroeger.
+ */
 export function zoektekstVan(
-  klant: Pick<Klant, 'naam' | 'bedrijfsnaam'> & { adres: Pick<Adres, 'plaats'> },
+  klant: Pick<Klant, 'voornaam' | 'achternaam' | 'bedrijfsnaam'> & { adres: Pick<Adres, 'plaats'> },
   nummer: string | null,
 ): string {
-  return [klant.naam, klant.bedrijfsnaam, klant.adres.plaats, nummer ?? ''].join(' ').toLowerCase();
+  return [volledigeNaam(klant), klant.bedrijfsnaam, klant.adres.plaats, nummer ?? ''].join(' ').toLowerCase();
 }

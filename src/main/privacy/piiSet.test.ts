@@ -7,12 +7,14 @@ const waarden = (set: PiiWaarde[], plaatshouder: string) =>
 
 describe('bouwPiiSet (§11.1)', () => {
   it('naam: volledig en elk woord ≥ 3 dat geen tussenvoegsel is', () => {
-    const set = bouwPiiSet(maakKlant({ naam: ' Piet van der Berg ' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: ' Piet van der Berg ' }));
     expect(waarden(set, '[KLANT_NAAM]').sort()).toEqual(['Berg', 'Piet', 'Piet van der Berg']);
   });
 
   it('naam: alle tussenvoegsels vallen af', () => {
-    const set = bouwPiiSet(maakKlant({ naam: "van de der den het ten ter te op in 't von le la du Aal" }));
+    const set = bouwPiiSet(
+      maakKlant({ achternaam: "van de der den het ten ter te op in 't von le la du Aal" }),
+    );
     expect(waarden(set, '[KLANT_NAAM]')).toEqual([
       "van de der den het ten ter te op in 't von le la du Aal",
       'Aal',
@@ -20,16 +22,16 @@ describe('bouwPiiSet (§11.1)', () => {
   });
 
   it('naam: volledige naam vanaf 2 tekens, woorden pas vanaf 3', () => {
-    expect(waarden(bouwPiiSet(maakKlant({ naam: 'Li' })), '[KLANT_NAAM]')).toEqual(['Li']);
-    expect(waarden(bouwPiiSet(maakKlant({ naam: 'X' })), '[KLANT_NAAM]')).toEqual([]);
-    expect(waarden(bouwPiiSet(maakKlant({ naam: 'Li Wu Kok' })), '[KLANT_NAAM]')).toEqual([
+    expect(waarden(bouwPiiSet(maakKlant({ achternaam: 'Li' })), '[KLANT_NAAM]')).toEqual(['Li']);
+    expect(waarden(bouwPiiSet(maakKlant({ achternaam: 'X' })), '[KLANT_NAAM]')).toEqual([]);
+    expect(waarden(bouwPiiSet(maakKlant({ achternaam: 'Li Wu Kok' })), '[KLANT_NAAM]')).toEqual([
       'Li Wu Kok',
       'Kok',
     ]);
   });
 
   it('naam: koppeltekens splitsen dubbele achternamen', () => {
-    const set = bouwPiiSet(maakKlant({ naam: 'Jansen-de Vries' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: 'Jansen-de Vries' }));
     expect(waarden(set, '[KLANT_NAAM]').sort()).toEqual(['Jansen', 'Jansen-de Vries', 'Vries']);
   });
 
@@ -129,7 +131,7 @@ describe('bouwPiiSet (§11.1)', () => {
   });
 
   it('dezelfde waarde één keer (de eerste plaatshouder wint)', () => {
-    const set = bouwPiiSet(maakKlant({ naam: 'Jansen', email: 'jansen@mail.nl' }));
+    const set = bouwPiiSet(maakKlant({ achternaam: 'Jansen', email: 'jansen@mail.nl' }));
     expect(set.filter((p) => p.waarde.toLowerCase() === 'jansen')).toHaveLength(1);
     expect(set.find((p) => p.waarde === 'Jansen')?.plaatshouder).toBe('[KLANT_NAAM]');
   });
@@ -138,7 +140,8 @@ describe('bouwPiiSet (§11.1)', () => {
     expect(bouwPiiSet(maakKlant())).toEqual([]);
     const set = bouwPiiSet(
       maakKlant({
-        naam: 'Piet Jansen',
+        voornaam: '',
+        achternaam: 'Piet Jansen',
         adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '', plaats: 'Son' },
       }),
     );

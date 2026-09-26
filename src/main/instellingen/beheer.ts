@@ -51,6 +51,7 @@ export function haalInstellingen(): Instellingen {
       apiSleutelIngevuld: claude.apiSleutelVersleuteld !== null,
     },
     app: { welkomVoltooid: haalInstelling('app').welkomVoltooid },
+    verplicht: haalInstelling('verplicht'),
   };
 }
 
@@ -80,6 +81,10 @@ export async function bewaarInstellingen(invoer: KanaalInvoer<'instellingen:bewa
     case 'claude':
       wijzigInstelling('claude', invoer.waarde);
       legeStatusCache();
+      break;
+    case 'verplicht':
+      // OFM-038: Instellingen › Verplichte velden.
+      bewaarInstelling('verplicht', invoer.waarde);
       break;
   }
   return null;

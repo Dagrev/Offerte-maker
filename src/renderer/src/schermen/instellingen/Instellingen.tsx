@@ -16,11 +16,12 @@ import { TabKeuzelijsten } from './TabKeuzelijsten';
 import { TabOpmaak } from './TabOpmaak';
 import { TabPrijzen } from './TabPrijzen';
 import { TabTeksten } from './TabTeksten';
+import { TabVerplicht } from './TabVerplicht';
 import { TabVoorbeelden } from './TabVoorbeelden';
 
 // Container met álle tabs (FO S5, TDO §13.4, V-03). Eigenaar: OFM-018. Latere tickets vullen alleen
 // hun eigen tabbestand; deze container en de tabnamen (`InstellingenTab`) veranderen niet meer
-// (uitzondering: OFM-034 voegt de tab Keuzelijsten toe).
+// (uitzondering: OFM-034 voegt de tab Keuzelijsten toe, OFM-038 de tab Verplichte velden).
 // Elk tabcomponent krijgt `{ instellingen }` (de uitkomst van `instellingen:haal`) en mag die negeren.
 
 type TabProps = { instellingen: InstellingenData };
@@ -31,6 +32,7 @@ const TABS: Record<InstellingenTab, (props: TabProps) => ReactNode> = {
   teksten: TabTeksten,
   prijzen: TabPrijzen,
   keuzelijsten: TabKeuzelijsten,
+  verplicht: TabVerplicht,
   voorbeelden: TabVoorbeelden,
   claudeKoppeling: ClaudeKoppeling,
   privacylog: Privacylog,
@@ -44,6 +46,7 @@ const HOOFDTABS: InstellingenTab[] = [
   'teksten',
   'prijzen',
   'keuzelijsten',
+  'verplicht',
   'voorbeelden',
 ];
 const GEAVANCEERD: InstellingenTab[] = ['claudeKoppeling', 'privacylog', 'backups', 'over'];

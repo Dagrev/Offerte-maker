@@ -69,7 +69,8 @@ const bewaar = async (id: string, inhoud: OfferteInhoud) => data(await bewaarIpc
 const schatting = (o: string, p: string, e: string) => `Geschatte prijs: ${o} (${p} per ${e}).`;
 
 const jansen: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: '',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
   email: 'jansen@mail.nl',

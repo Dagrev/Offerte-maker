@@ -5,7 +5,8 @@ import { bouwKlusVoorAgent, gebruikersTekst } from './klusVoorAgent';
 
 const klant = maakKlant({
   aanhef: 'mevr',
-  naam: 'de Vries',
+  voornaam: '',
+  achternaam: 'de Vries',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
   email: 'devries@mail.nl',
@@ -158,7 +159,8 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
   it('klantobject: alleen plaatshouders en vlaggen', () => {
     const bedrijf = maakKlant({
       aanhef: 'bedrijf',
-      naam: 'Hendriks',
+      voornaam: '',
+      achternaam: 'Hendriks',
       bedrijfsnaam: 'Hendriks BV',
       heeftWerkadres: true,
       werkadres: { straatHuisnummer: 'Industrieweg 5', postcode: '', plaats: 'Eindhoven' },

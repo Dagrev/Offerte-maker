@@ -35,7 +35,8 @@ function rij(id: string) {
 const klant: Klant = {
   ...legeKlant(),
   aanhef: 'bedrijf',
-  naam: 'P. Jansen',
+  voornaam: '',
+  achternaam: 'P. Jansen',
   bedrijfsnaam: 'Jansen Bouw B.V.',
   adres: { straatHuisnummer: 'Kerkstraat 1', postcode: '5611 AB', plaats: 'Eindhoven' },
   telefoon: '+31401234567', // al genormaliseerd (OFM-030)
@@ -158,7 +159,7 @@ describe('haalOfferte (offerte:haal)', () => {
 
   it('met inhoud: plaatshouders ingevuld (OFM-006) en totalen berekend', () => {
     const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
-    bewaarInvoer({ id, klant: { ...klant, aanhef: 'fam', naam: 'De Vries' } }, 30, NU);
+    bewaarInvoer({ id, klant: { ...klant, aanhef: 'fam', achternaam: 'De Vries' } }, 30, NU);
     const inhoud: OfferteInhoud = {
       titel: 'Offerte voor [KLANT_NAAM]',
       inleiding: 'Beste familie [KLANT_NAAM],',
@@ -276,8 +277,8 @@ describe('bewaarInvoer (offerte:bewaarInvoer)', () => {
     // Oude offerte (van vóór OFM-030) met een ongeldige waarde: blijft te bewerken.
     const oud = { ...klant, telefoon: 'bel via kantoor' };
     t.db.prepare('UPDATE offertes SET klant_json = ? WHERE id = ?').run(JSON.stringify(oud), id);
-    bewaarInvoer({ id, klant: { ...oud, naam: 'Anders' } }, 30, NU);
-    expect(haalOfferte(id).klant).toMatchObject({ naam: 'Anders', telefoon: 'bel via kantoor' });
+    bewaarInvoer({ id, klant: { ...oud, achternaam: 'Anders' } }, 30, NU);
+    expect(haalOfferte(id).klant).toMatchObject({ achternaam: 'Anders', telefoon: 'bel via kantoor' });
     expect(() => bewaarInvoer({ id, klant: { ...oud, telefoon: 'bel mij' } }, 30, NU)).toThrow(
       /Telefoon van de klant/,
     );

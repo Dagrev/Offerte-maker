@@ -8,7 +8,7 @@ import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/datab
 vi.mock('electron', () => ({ app: { getPath: () => 'C:\\nergens', isPackaged: false } }));
 vi.mock('../log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-const { laadMigraties, migreer } = await import('./migraties');
+const { laadMigraties, migreer, SCHEMA_VERSIE } = await import('./migraties');
 const { maakBackup } = await import('../backup/backup');
 const { database, openDatabase, sluitDatabase, gebruikDatabase } = await import('./verbinding');
 
@@ -43,20 +43,24 @@ describe('verbinding', () => {
 });
 
 describe('migratiebestanden', () => {
-  it.each(['001_basis.sql', '002_keuzelijsten.sql'])('%s bevat geen INSERTs (V-13)', (naam) => {
-    const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
-    expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
-  });
+  it.each(['001_basis.sql', '002_keuzelijsten.sql', '003_naam.sql'])(
+    '%s bevat geen INSERTs (V-13)',
+    (naam) => {
+      const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
+      expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
+    },
+  );
 });
 
 describe('migreer', () => {
-  it('lege database: schema, startsets, user_version 2, géén back-up (V-12)', async () => {
+  it('lege database: schema, startsets, user_version = hoogste migratie, géén back-up (V-12)', async () => {
+    expect(SCHEMA_VERSIE).toBeGreaterThanOrEqual(3);
     t = await maakTestDatabase({ migreren: false });
     const backup = vi.fn(() => Promise.resolve());
     const uitkomst = await migreer(t.db, { backup });
-    expect(uitkomst).toEqual({ van: 0, naar: 2, backupGemaakt: false });
+    expect(uitkomst).toEqual({ van: 0, naar: SCHEMA_VERSIE, backupGemaakt: false });
     expect(backup).not.toHaveBeenCalled();
-    expect(t.db.pragma('user_version', { simple: true })).toBe(2);
+    expect(t.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     expect(tabellen(t.db)).toEqual(
       expect.arrayContaining([
         'offertes',
@@ -121,6 +125,7 @@ describe('migreer', () => {
       import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
     );
     await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 1), backup: () => Promise.resolve() });
+    const tot2 = alle.filter((mig) => mig.nr <= 2);
     const invoer = (garantie: unknown) => JSON.stringify({ garantieJaren: garantie, isolatie: 'geen' });
     const zet = t.db.prepare(
       `INSERT INTO offertes (id, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
@@ -129,7 +134,11 @@ describe('migreer', () => {
     zet.run('tien', invoer(10));
     zet.run('twintig', invoer(20));
     const backup = vi.fn(() => Promise.resolve());
-    expect(await migreer(t.db, { backup })).toEqual({ van: 1, naar: 2, backupGemaakt: true });
+    expect(await migreer(t.db, { migraties: tot2, backup })).toEqual({
+      van: 1,
+      naar: 2,
+      backupGemaakt: true,
+    });
     expect(backup).toHaveBeenCalledWith('voor-migratie');
     const garantie = (id: string) =>
       (
@@ -143,29 +152,63 @@ describe('migreer', () => {
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
   });
 
+  it('003: naam wordt achternaam, voornaam leeg, voor elke offerte (OFM-038)', async () => {
+    t = await maakTestDatabase({ migreren: false });
+    const alle = laadMigraties(
+      import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
+    );
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr <= 2), backup: () => Promise.resolve() });
+    const zet = t.db.prepare(
+      `INSERT INTO offertes (id, status, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
+       VALUES (?, ?, '2026-09-01', '2026-10-01', ?, '{}', 'x', 'x')`,
+    );
+    zet.run('concept', 'concept', JSON.stringify({ aanhef: 'dhr', naam: 'Piet Jansen', bedrijfsnaam: '' }));
+    zet.run('klaar', 'klaar', JSON.stringify({ aanhef: 'fam', naam: 'de Vries', bedrijfsnaam: '' }));
+    zet.run('al-nieuw', 'concept', JSON.stringify({ aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Bos' }));
+    zet.run('kapot', 'concept', 'geen json');
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 3), backup: () => Promise.resolve() });
+    const klant = (id: string) =>
+      (t!.db.prepare('SELECT klant_json FROM offertes WHERE id = ?').get(id) as { klant_json: string })
+        .klant_json;
+    expect(JSON.parse(klant('concept'))).toEqual({
+      aanhef: 'dhr',
+      voornaam: '',
+      achternaam: 'Piet Jansen',
+      bedrijfsnaam: '',
+    });
+    expect(JSON.parse(klant('klaar'))).toMatchObject({ voornaam: '', achternaam: 'de Vries' });
+    expect(JSON.parse(klant('klaar'))).not.toHaveProperty('naam');
+    expect(JSON.parse(klant('al-nieuw'))).toEqual({ aanhef: 'dhr', voornaam: 'Jan', achternaam: 'Bos' });
+    expect(klant('kapot')).toBe('geen json');
+  });
+
   it('niets te doen: geen back-up, versie blijft', async () => {
     t = await maakTestDatabase();
     const backup = vi.fn(() => Promise.resolve());
-    expect(await migreer(t.db, { backup })).toEqual({ van: 2, naar: 2, backupGemaakt: false });
+    expect(await migreer(t.db, { backup })).toEqual({
+      van: SCHEMA_VERSIE,
+      naar: SCHEMA_VERSIE,
+      backupGemaakt: false,
+    });
     expect(backup).not.toHaveBeenCalled();
   });
 
-  it('database met data + migratie 003: data blijft, versie 3, back-up voor-migratie', async () => {
+  it('database met data + een nieuwe migratie: data blijft, versie + 1, back-up voor-migratie', async () => {
     t = await maakTestDatabase();
     t.db.prepare("INSERT INTO instellingen (sleutel, waarde_json) VALUES ('opmaak', '{}')").run();
     const backupMap = join(t.map, 'Back-ups');
     mkdirSync(backupMap);
+    const volgende = String(SCHEMA_VERSIE + 1).padStart(3, '0');
     const migraties = laadMigraties({
       './migraties/001_basis.sql': 'SELECT 1;',
-      './migraties/002_keuzelijsten.sql': 'SELECT 1;',
-      './migraties/003_test.sql': 'ALTER TABLE offertes ADD COLUMN test_kolom TEXT;',
+      [`./migraties/${volgende}_test.sql`]: 'ALTER TABLE offertes ADD COLUMN test_kolom TEXT;',
     });
     const uitkomst = await migreer(t.db, {
       migraties,
       backup: (reden) => maakBackup(reden, { db: t!.db, backupMap }),
     });
-    expect(uitkomst).toEqual({ van: 2, naar: 3, backupGemaakt: true });
-    expect(t.db.pragma('user_version', { simple: true })).toBe(3);
+    expect(uitkomst).toEqual({ van: SCHEMA_VERSIE, naar: SCHEMA_VERSIE + 1, backupGemaakt: true });
+    expect(t.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE + 1);
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM instellingen').get()).toEqual({ n: 1 });
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM prijsposten').get()).toEqual({ n: 22 });
     const bestanden = readdirSync(backupMap);
@@ -176,10 +219,11 @@ describe('migreer', () => {
   it('een mislukte migratie wordt teruggedraaid', async () => {
     t = await maakTestDatabase();
     const migraties = laadMigraties({
-      './migraties/003_kapot.sql': 'CREATE TABLE tijdelijk (a TEXT); DIT IS GEEN SQL;',
+      [`./migraties/${String(SCHEMA_VERSIE + 1).padStart(3, '0')}_kapot.sql`]:
+        'CREATE TABLE tijdelijk (a TEXT); DIT IS GEEN SQL;',
     });
     await expect(migreer(t.db, { migraties, backup: () => Promise.resolve() })).rejects.toThrow();
-    expect(t.db.pragma('user_version', { simple: true })).toBe(2);
+    expect(t.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     expect(tabellen(t.db)).not.toContain('tijdelijk');
   });
 
@@ -191,7 +235,7 @@ describe('migreer', () => {
     t = await maakTestDatabase();
     t.db.close();
     const opnieuw = openDatabase(t.pad);
-    expect(opnieuw.pragma('user_version', { simple: true })).toBe(2);
+    expect(opnieuw.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     opnieuw.close();
     expect(existsSync(t.pad)).toBe(true);
   });

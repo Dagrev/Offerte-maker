@@ -3,8 +3,8 @@ import { Building2, Lock, User, UserRound, Users } from 'lucide-react';
 import { leegAdres } from '@shared/nieuweOfferte';
 import type { Aanhef, Adres, Klant } from '@shared/types';
 import { VALIDATIE_FOUTEN } from '@shared/teksten/validatie';
-import { controleerEmail, controleerTelefoon, type Controle } from '@shared/validatie';
-import { controleerKlant } from '@shared/wizardControle';
+import { controleerEmail, controleerTelefoon, ongeldigeKlantVelden, type Controle } from '@shared/validatie';
+import type { WizardVeld } from '@shared/verplicht';
 import { AdresVelden } from '../../componenten/AdresVelden';
 import { Kaart } from '../../componenten/Kaart';
 import { TegelKeuze, type TegelOptie } from '../../componenten/TegelKeuze';
@@ -26,6 +26,8 @@ export interface StapKlantProps {
   opWijzig: (klant: Klant) => void;
   /** Na een poging tot **Maak de offerte**: verplichte en ongeldige velden als fout tonen (FE-024, OFM-035). */
   toonFouten: boolean;
+  /** Verplichte velden van deze stap die leeg zijn (OFM-038, instelling `verplicht`). */
+  ontbrekend: ReadonlySet<WizardVeld>;
 }
 
 /**
@@ -38,16 +40,19 @@ const CONTROLES: Record<ContactVeld, (invoer: string) => Controle> = {
   email: controleerEmail,
 };
 
-/** Stap 1 (FE-021): klantgegevens; blijven lokaal. */
-export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
-  const { fouten, ongeldig } = controleerKlant(klant);
+/** Stap 1 (FE-021): klantgegevens; blijven lokaal. Sinds OFM-038 voor- en achternaam apart. */
+export function StapKlant({ klant, opWijzig, toonFouten, ontbrekend }: StapKlantProps) {
+  const ongeldig = ongeldigeKlantVelden(klant);
   // OFM-030: een ongeldige waarde pas melden na het verlaten van het veld (of na **Volgende**), zodat
   // een oude offerte met een oude waarde zonder melding opent.
   const [aangeraakt, setAangeraakt] = useState<ReadonlySet<ContactVeld>>(new Set());
   const zet = (deel: Partial<Klant>) => opWijzig({ ...klant, ...deel });
   const zetAdres = (deel: Partial<Adres>) => zet({ adres: { ...klant.adres, ...deel } });
   const zetWerkadres = (deel: Partial<Adres>) => zet({ werkadres: { ...klant.werkadres, ...deel } });
+  const isBedrijf = klant.aanhef === 'bedrijf';
 
+  /** OFM-038: een leeg verplicht veld pas na een poging tot maken als fout tonen. */
+  const leegFout = (veld: WizardVeld) => (toonFouten && ontbrekend.has(veld) ? t.veldLeeg : undefined);
   /** Fout onder een gecontroleerd veld: de melding als het ongeldig is en al aangeraakt. */
   const ongeldigFout = (veld: ContactVeld) => {
     const soort = ongeldig[veld];
@@ -74,25 +79,41 @@ export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
           waarde={klant.aanhef}
           opKies={(aanhef) => zet({ aanhef })}
         />
-        <Veld
-          label={t.naam}
-          waarde={klant.naam}
-          opWijzig={(naam) => zet({ naam })}
-          fout={toonFouten && fouten.naam ? t.naamLeeg : undefined}
-          autoComplete="off"
-        />
-        {klant.aanhef === 'bedrijf' && (
+        {isBedrijf && (
           <Veld
             label={t.bedrijfsnaam}
             waarde={klant.bedrijfsnaam}
             opWijzig={(bedrijfsnaam) => zet({ bedrijfsnaam })}
+            fout={leegFout('bedrijfsnaam')}
             autoComplete="off"
           />
         )}
+        {isBedrijf && <p className="text-lg font-semibold">{t.contactpersoon}</p>}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Veld
+            label={t.voornaam}
+            waarde={klant.voornaam}
+            opWijzig={(voornaam) => zet({ voornaam })}
+            fout={leegFout('voornaam')}
+            autoComplete="off"
+          />
+          <Veld
+            label={t.achternaam}
+            waarde={klant.achternaam}
+            opWijzig={(achternaam) => zet({ achternaam })}
+            fout={leegFout('achternaam')}
+            autoComplete="off"
+          />
+        </div>
       </Kaart>
 
       <Kaart>
-        <AdresVelden waarde={klant.adres} opWijzig={zetAdres} toonFouten={toonFouten} />
+        <AdresVelden
+          waarde={klant.adres}
+          opWijzig={zetAdres}
+          toonFouten={toonFouten}
+          plaatsFout={leegFout('plaats')}
+        />
         <div className="grid gap-6 md:grid-cols-2">
           <Veld
             label={t.telefoon}
@@ -100,7 +121,7 @@ export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
             waarde={klant.telefoon}
             opWijzig={(telefoon) => zet({ telefoon })}
             onBlur={() => verlaat('telefoon', klant.telefoon, (telefoon) => zet({ telefoon }))}
-            fout={ongeldigFout('telefoon')}
+            fout={ongeldigFout('telefoon') ?? leegFout('telefoon')}
             autoComplete="off"
           />
           <Veld
@@ -109,7 +130,7 @@ export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
             waarde={klant.email}
             opWijzig={(email) => zet({ email })}
             onBlur={() => verlaat('email', klant.email, (email) => zet({ email }))}
-            fout={ongeldigFout('email')}
+            fout={ongeldigFout('email') ?? leegFout('email')}
             autoComplete="off"
           />
         </div>
@@ -125,7 +146,12 @@ export function StapKlant({ klant, opWijzig, toonFouten }: StapKlantProps) {
         {klant.heeftWerkadres && (
           <fieldset className="flex flex-col gap-6">
             <legend className="mb-4 text-lg font-semibold">{t.werkadres}</legend>
-            <AdresVelden waarde={klant.werkadres} opWijzig={zetWerkadres} toonFouten={toonFouten} />
+            <AdresVelden
+              waarde={klant.werkadres}
+              opWijzig={zetWerkadres}
+              toonFouten={toonFouten}
+              plaatsFout={leegFout('werkPlaats')}
+            />
           </fieldset>
         )}
       </Kaart>

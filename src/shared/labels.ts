@@ -25,9 +25,35 @@ export function labelIsolatie(
   return isolatieAndersMm === null ? '' : `${isolatieAndersMm} mm`;
 }
 
-/** Aanhefregel boven de brief (§9.2); de app zet die, niet de agent. */
-export function aanhefRegel(klant: Pick<Klant, 'aanhef' | 'naam'>): string {
-  const naam = klant.naam.trim();
+type Naam = Pick<Klant, 'voornaam' | 'achternaam'>;
+
+/** Voor- en achternaam samen (`Jan de Vries`); een leeg deel valt weg (OFM-038). */
+export function volledigeNaam(klant: Naam): string {
+  return [klant.voornaam.trim(), klant.achternaam.trim()].filter((d) => d !== '').join(' ');
+}
+
+/** Voorletters van de voornaam: `Jan` → `J.`, `Jan-Willem Piet` → `J.W.P.` (OFM-038). */
+export function voorletters(voornaam: string): string {
+  return voornaam
+    .split(/[\s-]+/)
+    .filter((d) => d !== '')
+    .map((d) => `${d.charAt(0).toUpperCase()}.`)
+    .join('');
+}
+
+/** Voorletters en achternaam (`J. Jansen`); zonder achternaam de voornaam voluit (OFM-038). */
+export function naamMetVoorletters(klant: Naam): string {
+  const achternaam = klant.achternaam.trim();
+  if (achternaam === '') return klant.voornaam.trim();
+  return [voorletters(klant.voornaam), achternaam].filter((d) => d !== '').join(' ');
+}
+
+/**
+ * Aanhefregel boven de brief (§9.2); de app zet die, niet de agent. Met de achternaam ("Geachte heer
+ * Jansen,"); zonder achternaam de voornaam (OFM-038).
+ */
+export function aanhefRegel(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam'>): string {
+  const naam = klant.achternaam.trim() || klant.voornaam.trim();
   const regels: Record<Aanhef, string> = {
     dhr: `Geachte heer ${naam},`,
     mevr: `Geachte mevrouw ${naam},`,
@@ -37,16 +63,21 @@ export function aanhefRegel(klant: Pick<Klant, 'aanhef' | 'naam'>): string {
   return regels[klant.aanhef];
 }
 
-/** Klantnaam in lijsten (§8.2): `Dhr. Jansen`, of bij `bedrijf` de bedrijfsnaam (de naam als die leeg is). */
-export function klantWeergave(klant: Pick<Klant, 'aanhef' | 'naam' | 'bedrijfsnaam'>): string {
-  const naam = klant.naam.trim();
+/**
+ * Klantnaam in lijsten en op de PDF (§8.2, OFM-038): `Dhr. J. Jansen`, `Fam. Jansen` (zonder
+ * voorletters), of bij `bedrijf` de bedrijfsnaam (de contactpersoon als die leeg is).
+ */
+export function klantWeergave(
+  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'bedrijfsnaam'>,
+): string {
+  const naam = naamMetVoorletters(klant);
   switch (klant.aanhef) {
     case 'dhr':
       return `Dhr. ${naam}`;
     case 'mevr':
       return `Mevr. ${naam}`;
     case 'fam':
-      return `Fam. ${naam}`;
+      return `Fam. ${klant.achternaam.trim() || klant.voornaam.trim()}`;
     case 'bedrijf':
       return klant.bedrijfsnaam.trim() || naam;
   }

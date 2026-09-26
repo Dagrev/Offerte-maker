@@ -204,22 +204,52 @@ export function nepClaudeAanroepen(
 }
 
 export interface KlantInvoer {
-  naam: string;
+  achternaam: string;
   plaats: string;
   overig?: string;
+  /** Standaard ingevuld: alles van stap 1 is standaard verplicht (OFM-038). Leeg laten met `''`. */
+  voornaam?: string;
+  telefoon?: string;
+  email?: string;
+}
+
+/** Vaste, verzonnen invulling van de overige verplichte klantvelden (OFM-038). */
+export const E2E_KLANT = {
+  voornaam: 'Jan',
+  postcode: '5611 AB',
+  huisnummer: '7',
+  straat: 'Teststraat',
+  telefoon: '0612345678',
+  email: 'klant@voorbeeld.nl',
+} as const;
+
+/**
+ * Stap 1 helemaal invullen (OFM-038: standaard allemaal verplicht). Postcode en huisnummer eerst; met
+ * de standaard `GEEN_PDOK` vindt het opzoeken niets en blijven straat en plaats zoals ingevuld.
+ */
+export async function vulKlantIn(page: Page, klant: KlantInvoer): Promise<void> {
+  const w = nl.wizard.klant;
+  const a = nl.componenten.adres;
+  await page.getByLabel(w.voornaam, { exact: true }).fill(klant.voornaam ?? E2E_KLANT.voornaam);
+  await page.getByLabel(w.achternaam, { exact: true }).fill(klant.achternaam);
+  await page.getByLabel(a.postcode, { exact: true }).fill(E2E_KLANT.postcode);
+  await page.getByLabel(a.huisnummer, { exact: true }).fill(E2E_KLANT.huisnummer);
+  await page.getByLabel(a.straat, { exact: true }).fill(E2E_KLANT.straat);
+  await page.getByLabel(a.plaats, { exact: true }).fill(klant.plaats);
+  await page.getByLabel(w.telefoon, { exact: true }).fill(klant.telefoon ?? E2E_KLANT.telefoon);
+  await page.getByLabel(w.email, { exact: true }).fill(klant.email ?? E2E_KLANT.email);
 }
 
 /**
- * Hoofdscherm → Maak nieuwe offerte → stap 1 (naam, plaats) → stap 2 (soort werk en een dakvlak, want
- * die zijn sinds OFM-035 nodig om te maken) → stap 4 (optioneel Overig).
+ * Hoofdscherm → Maak nieuwe offerte → stap 1 (alle klantvelden) → stap 2 (soort werk en een dakvlak,
+ * want die zijn sinds OFM-035 nodig om te maken) → stap 4 (optioneel Overig).
  * Geeft het offerte-ID terug.
  */
 export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Promise<string> {
   const w = nl.wizard;
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
-  await page.getByLabel(w.klant.naam, { exact: true }).fill(klant.naam);
-  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill(klant.plaats);
+  await vulKlantIn(page, klant);
   for (let stap = 2; stap <= 4; stap++) {
     await page.getByRole('button', { name: w.volgende, exact: true }).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${w.stappen[stap - 1]}` })).toBeVisible();
@@ -228,7 +258,7 @@ export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Pro
   if (klant.overig !== undefined) {
     await page.getByLabel(w.overig.vraag, { exact: true }).fill(klant.overig);
   }
-  return offerteIdVan(page, klant.naam);
+  return offerteIdVan(page, klant.achternaam);
 }
 
 /** Stap 2: soort werk "Dak vervangen" en dakvlak 8 × 5 m (het minimum om te mogen maken, OFM-035). */

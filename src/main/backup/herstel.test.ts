@@ -173,7 +173,10 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     await zetTerug(bestand, { herstart: vi.fn() });
     const db = openDatabase(t.pad);
     try {
-      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({ van: 1, naar: 2 });
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 1,
+        naar: SCHEMA_VERSIE,
+      });
       const invoer = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
         invoer_json: string;
       };

@@ -76,7 +76,7 @@ test('welkomstscherm leeg doorlopen en daarna een offerte definitief maken', asy
   expect(html).toContain('Dakdekkersbedrijf Voorbeeld');
 
   // Offerte maken (nep-CLI) en definitief maken.
-  await nieuweOfferteTotStap4(page, { naam: 'Pietersen', plaats: 'Tilburg' });
+  await nieuweOfferteTotStap4(page, { achternaam: 'Pietersen', plaats: 'Tilburg' });
   await page.getByRole('button', { name: nl.wizard.maakDeOfferte }).click();
   const d = nl.detail;
   await expect(page.getByRole('heading', { name: d.concept, level: 1 })).toBeVisible({ timeout: 15_000 });
@@ -87,7 +87,7 @@ test('welkomstscherm leeg doorlopen en daarna een offerte definitief maken', asy
   // De PDF laat de lege bedrijfsregels weg.
   const map = join(mappen.docs, '2026');
   const pdfs = readdirSync(map).filter((n) => n.endsWith('.pdf'));
-  expect(pdfs).toEqual(['2026-09-25-001 Pietersen.pdf']);
+  expect(pdfs).toEqual(['2026-09-25-001 Jan Pietersen.pdf']); // voor- en achternaam (OFM-038)
   const { text } = await extractText(new Uint8Array(readFileSync(join(map, pdfs[0] ?? ''))), {
     mergePages: true,
   });

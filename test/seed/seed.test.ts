@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -62,13 +62,14 @@ describe('vulMetSeed', () => {
       inhoud_json: string;
       totaal_incl_cent: number;
     }[];
-    const namen = new Set(SEED_NAMEN);
+    const namen = new Set(SEED_NAMEN.map((n) => `${n.voornaam} ${n.achternaam}`));
     expect(namen.size).toBe(200);
     for (const r of rijen) {
       const regels = (JSON.parse(r.inhoud_json) as { regels: unknown[] }).regels.length;
       expect(regels).toBeGreaterThanOrEqual(1);
       expect(regels).toBeLessThanOrEqual(8);
-      expect(namen.has((JSON.parse(r.klant_json) as { naam: string }).naam)).toBe(true);
+      const k = JSON.parse(r.klant_json) as { voornaam: string; achternaam: string };
+      expect(namen.has(`${k.voornaam} ${k.achternaam}`)).toBe(true);
       expect(r.nummer === null).toBe(r.status === 'concept');
       expect(r.totaal_incl_cent).toBeGreaterThan(0);
     }
@@ -89,6 +90,10 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    expect(a.pragma('user_version', { simple: true })).toBe(2);
+    // Zoveel als er migratiebestanden zijn (003 sinds OFM-038).
+    const migraties = readdirSync(join(import.meta.dirname, '..', '..', 'src', 'main', 'db', 'migraties'));
+    expect(a.pragma('user_version', { simple: true })).toBe(
+      migraties.filter((n) => n.endsWith('.sql')).length,
+    );
   });
 });

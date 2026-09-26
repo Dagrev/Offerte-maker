@@ -10,7 +10,8 @@ import type { PdfModel } from './render';
 
 export const VOORBEELD_KLANT: Klant = {
   aanhef: 'fam',
-  naam: 'De Vries',
+  voornaam: 'Anna',
+  achternaam: 'De Vries',
   bedrijfsnaam: '',
   adres: { straatHuisnummer: 'Lindelaan 12', postcode: '5611 AB', plaats: 'Eindhoven' },
   telefoon: '',

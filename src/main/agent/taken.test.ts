@@ -46,7 +46,8 @@ afterEach(() => {
 });
 
 const jansen: Klant = maakKlant({
-  naam: 'Jansen',
+  voornaam: 'Piet',
+  achternaam: 'Jansen',
   adres: { straatHuisnummer: 'Dorpsstraat 12', postcode: '5501 AB', plaats: 'Veldhoven' },
   telefoon: '06-12345678',
   email: 'jansen@mail.nl',
@@ -194,7 +195,7 @@ describe('maakOfferte (§10.7)', { timeout: 30_000 }, () => {
   it('§11.3: achternaam Hout met ondergrond Hout wordt niet geblokkeerd', async () => {
     claude = gebruikNepClaude('ok');
     const id = offerteMet(
-      maakKlant({ aanhef: 'mevr', naam: 'Anna Hout' }),
+      maakKlant({ aanhef: 'mevr', achternaam: 'Anna Hout' }),
       maakInvoer({ ondergrond: 'hout' }),
     );
     await maakOfferte(id);
@@ -310,7 +311,7 @@ describe('ipc offerte:maak en offerte:stop', { timeout: 30_000 }, () => {
     const handler = maakIpcHandler('offerte:maak', offerteAgentHandlers['offerte:maak']);
     const uit = await handler({ sender: { isDestroyed: () => false, send: vi.fn() } } as never, { id });
     expect(uit).toMatchObject({ ok: false, fout: { code: 'VALIDATIE' } });
-    expect(uit.ok ? '' : uit.fout.melding).toContain('Naam van de klant ontbreekt');
+    expect(uit.ok ? '' : uit.fout.melding).toContain('Achternaam ontbreekt');
     expect(claude.aanroepen().filter((a) => a.args.includes('-p'))).toEqual([]);
   });
 
