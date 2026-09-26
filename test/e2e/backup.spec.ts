@@ -1,7 +1,10 @@
 import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { nl } from '../../src/renderer/src/teksten/nl';
 import {
+  FIXTURE_SCHEMA3,
   apiData,
   maakTestMappen,
   overslaanWelkom,
@@ -102,5 +105,44 @@ test('terugzetten: bevestigen, herstart, en de oude stand is terug', async () =>
   expect(await aantalOffertes(page)).toBe(2);
   const backups = await apiData(page, 'backupLijst');
   expect(backups.some((x) => x.bestand.endsWith('-voor-herstel.sqlite'))).toBe(true);
+  expect(gestart.paginaFouten).toEqual([]);
+});
+
+test('OFM-045: back-up met schemaversie 3 terugzetten; na de herstart draaien 004 en 005', async () => {
+  test.skip(process.platform !== 'win32', 'zoekt de herstarte app op met Windows-hulpmiddelen');
+  test.setTimeout(120_000);
+  // Een handmatige back-up van vóór OFM-044 (de fixture) in de back-upmap.
+  const backupMap = join(mappen.docs, 'Back-ups');
+  mkdirSync(backupMap, { recursive: true });
+  copyFileSync(FIXTURE_SCHEMA3, join(backupMap, 'offerte-maker-2026-09-20-120000-handmatig.sqlite'));
+
+  gestart = await startApp(mappen);
+  let page = gestart.page;
+  await overslaanWelkom(page);
+  const b = nl.backups;
+  await page.getByRole('button', { name: nl.overzicht.instellingen, exact: true }).click();
+  await page.getByRole('button', { name: nl.instellingen.geavanceerd, exact: true }).click();
+  await page.getByRole('button', { name: nl.instellingen.tab.backups, exact: true }).click();
+  const rij = page.getByRole('row').filter({ hasText: b.soort['handmatig'] ?? 'Handmatig' });
+  await expect(rij).toHaveCount(1);
+  await rij.getByRole('button').click();
+  const dicht = gestart.app.waitForEvent('close', { timeout: 30_000 });
+  await page.getByRole('dialog').getByRole('button', { name: b.bevestigKnop }).click();
+  await dicht;
+  gestart = undefined;
+  await expect.poll(() => herstarteApps(mappen).length, { timeout: 20_000 }).toBeGreaterThan(0);
+  stopHerstarteApp(mappen);
+  await expect.poll(() => herstarteApps(mappen).length, { timeout: 10_000 }).toBe(0);
+
+  gestart = await startApp(mappen);
+  page = gestart.page;
+  await expect(page.getByRole('button', { name: nl.overzicht.nieuweOfferte })).toBeVisible();
+  const a = await apiData(page, 'offerteHaal', { id: 'fixture-a' });
+  expect(a.invoer).not.toHaveProperty('isolatie');
+  expect(a.invoer.werkzaamheden.map((w) => w.sleutel ?? w.eenmalig?.label)).toContain('isoleren');
+  const werk = await apiData(page, 'werkzaamhedenHaal');
+  expect(werk.werkzaamheden.length).toBeGreaterThan(0);
+  const lijsten = await apiData(page, 'keuzelijstenHaal');
+  expect(Object.keys(lijsten)).not.toContain('bedekking');
   expect(gestart.paginaFouten).toEqual([]);
 });

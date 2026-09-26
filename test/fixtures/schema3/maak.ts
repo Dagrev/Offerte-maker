@@ -255,6 +255,10 @@ export function maakFixture(pad: string = FIXTURE_SCHEMA3): void {
     db.prepare(
       "INSERT INTO offerte_versies (id, offerte_id, versie_nr, bron, inhoud_json, aangemaakt_op) VALUES ('fixture-a-v1', 'fixture-a', 1, 'zonder_claude', ?, ?)",
     ).run(JSON.stringify(INHOUD_A), TIJD);
+    // Het PDF-bestand zelf bestaat niet; de rij zorgt dat een nieuwe versie de letter b krijgt.
+    db.prepare(
+      "INSERT INTO pdf_bestanden (id, offerte_id, versieletter, pad, aangemaakt_op) VALUES ('fixture-a-pdf', 'fixture-a', '', 'Offertes/2026/2026-001 Jan Jansen.pdf', ?)",
+    ).run(TIJD);
     offerte.run(
       'fixture-b',
       'concept',

@@ -18,6 +18,8 @@ export const NEP_CLAUDE = join(REPO, 'test', 'fake-claude', 'fake-claude.mjs');
 /** Nep-MAPI-hulpscript (OFM-041): vervangt `resources/mail/mapi.ps1`. */
 export const NEP_MAIL = join(REPO, 'test', 'fake-mail', 'fake-mail.mjs');
 export const TEST_VANDAAG = '2026-09-25';
+/** Database met schemaversie 3 en oude offertes (OFM-045, `test/fixtures/schema3/maak.ts`). */
+export const FIXTURE_SCHEMA3 = join(REPO, 'test', 'fixtures', 'schema3', 'offerte-maker-schema3.sqlite');
 
 export interface TestMappen {
   root: string;
