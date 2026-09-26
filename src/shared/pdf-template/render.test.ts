@@ -219,6 +219,13 @@ describe('renderOfferteHtml', () => {
       'Lindelaan 12',
       '5611 AB Eindhoven',
     ]);
+    // OFM-046: tussenvoegsel klein na de voorletters, met hoofdletter na "Fam.".
+    const berg = { voornaam: 'Jan', tussenvoegsel: 'van der', achternaam: 'Berg' };
+    expect(klantRegels(klant({ ...berg, aanhef: 'dhr' }))[0]).toBe('Dhr. J. van der Berg');
+    expect(klantRegels(klant({ ...berg, aanhef: 'fam' }))[0]).toBe('Fam. Van der Berg');
+    expect(klantRegels(klant({ ...berg, aanhef: 'bedrijf', bedrijfsnaam: 'Berg B.V.' }))[1]).toBe(
+      't.a.v. J. van der Berg',
+    );
     // Randgevallen: bedrijf zonder bedrijfsnaam, bedrijf zonder contactnaam.
     expect(
       klantRegels(klant({ aanhef: 'bedrijf', voornaam: 'Piet', achternaam: 'Jansen', bedrijfsnaam: ' ' }))[0],

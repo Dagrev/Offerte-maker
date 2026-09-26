@@ -4,6 +4,7 @@ import type Database from 'better-sqlite3';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
 import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
+import { volledigeNaam } from '../src/shared/labels';
 import { legeKlant, legeKlusInvoer, zoektekstVan } from '../src/shared/nieuweOfferte';
 import { formatNummer } from '../src/shared/nummering';
 import { omschrijvingKort } from '../src/shared/omschrijvingKort';
@@ -100,10 +101,15 @@ const ACHTERNAMEN = [
 ];
 const VOORNAMEN = ['Anna', 'Bram', 'Jan', 'Maria', 'Pieter'];
 
-/** Vaste lijst van 200 namen (40 achternamen × 5 voornamen; OFM-038: voor- en achternaam apart). */
-export const SEED_NAMEN: readonly { voornaam: string; achternaam: string }[] = ACHTERNAMEN.flatMap(
-  (achternaam) => VOORNAMEN.map((voornaam) => ({ voornaam, achternaam })),
-);
+/**
+ * Vaste lijst van 200 namen (40 achternamen × 5 voornamen; OFM-038: voor- en achternaam apart). Sinds
+ * OFM-046 staat het tussenvoegsel (de kleine woorden vooraan, "van den") in een eigen veld.
+ */
+export const SEED_NAMEN: readonly { voornaam: string; tussenvoegsel: string; achternaam: string }[] =
+  ACHTERNAMEN.flatMap((volledig) => {
+    const [, tussenvoegsel = '', achternaam = volledig] = /^((?:[a-z']+ )*)(.+)$/.exec(volledig) ?? [];
+    return VOORNAMEN.map((voornaam) => ({ voornaam, tussenvoegsel: tussenvoegsel.trim(), achternaam }));
+  });
 
 const PLAATSEN = [
   'Eindhoven',
@@ -464,7 +470,7 @@ export function vulMetSeed(
         const pad = join(
           documentenMap,
           String(nr.jaar),
-          `${nr.nummer} ${o.klant.voornaam} ${o.klant.achternaam}.pdf`,
+          `${nr.nummer} ${volledigeNaam(o.klant)}.pdf`,
         );
         pdfSql.run(`${o.id}-pdf`, o.id, pad, tijdstip);
       }

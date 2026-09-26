@@ -21,6 +21,11 @@ describe('standaard', () => {
     expect(VELD_STAP.hoogte).toBe(2);
     expect(ALTIJD_VERPLICHT).toEqual(['soortWerk', 'dakvlak']);
     expect(VERPLICHT_VELDEN).not.toContain('soortWerk');
+    // OFM-046: het tussenvoegsel is nooit verplicht en staat dus niet in de tab Verplichte velden.
+    expect(VERPLICHT_VELDEN as readonly string[]).not.toContain('tussenvoegsel');
+    expect(ontbrekendeVelden(legeKlant(), legeKlusInvoer(), standaardVerplicht())).not.toContain(
+      'tussenvoegsel',
+    );
   });
 
   it('schema: ontbrekend = standaard, ook voor een later toegevoegd veld', () => {

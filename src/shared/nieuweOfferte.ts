@@ -20,6 +20,7 @@ export function legeKlant(): Klant {
   return {
     aanhef: 'dhr',
     voornaam: '',
+    tussenvoegsel: '',
     achternaam: '',
     bedrijfsnaam: '',
     adres: leegAdres(),
@@ -68,7 +69,7 @@ export function normaliseerKlant(klant: Klant): Klant {
  * offertes na migratie 003) is de zoektekst precies als vroeger.
  */
 export function zoektekstVan(
-  klant: Pick<Klant, 'voornaam' | 'achternaam' | 'bedrijfsnaam'> & { adres: Pick<Adres, 'plaats'> },
+  klant: Pick<Klant, 'voornaam' | 'tussenvoegsel' | 'achternaam' | 'bedrijfsnaam'> & { adres: Pick<Adres, 'plaats'> },
   nummer: string | null,
 ): string {
   return [volledigeNaam(klant), klant.bedrijfsnaam, klant.adres.plaats, nummer ?? ''].join(' ').toLowerCase();

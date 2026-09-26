@@ -3,7 +3,7 @@ import { STANDAARD_EMAILTEKST, standaardInstelling } from '@shared/schemas';
 import { achternaamVan, mailAanhef, maakMailConcept, vulPlaatshouders } from './concept';
 
 const bron = {
-  klant: { aanhef: 'dhr' as const, voornaam: 'Jan', achternaam: 'Jansen', email: ' jan@voorbeeld.nl ' },
+  klant: { aanhef: 'dhr' as const, voornaam: 'Jan', tussenvoegsel: '', achternaam: 'Jansen', email: ' jan@voorbeeld.nl ' },
   nummer: '2026-09-26-001b',
   geldigTot: '2026-10-26',
   bedrijfsnaam: 'Dakwerken Test ',
@@ -50,16 +50,25 @@ describe('mailconcept (OFM-041)', () => {
   });
 
   it('aanhef volgt de PDF; zonder naam de neutrale vorm', () => {
-    expect(mailAanhef({ aanhef: 'mevr', voornaam: 'Anna', achternaam: ' de Vries ' })).toBe(
+    expect(mailAanhef({ aanhef: 'mevr', voornaam: 'Anna', tussenvoegsel: '', achternaam: ' de Vries ' })).toBe(
       'Geachte mevrouw de Vries,',
     );
-    expect(mailAanhef({ aanhef: 'fam', voornaam: '', achternaam: 'Bakker' })).toBe('Geachte familie Bakker,');
-    expect(mailAanhef({ aanhef: 'bedrijf', voornaam: 'Jan', achternaam: 'Jansen' })).toBe(
+    expect(mailAanhef({ aanhef: 'fam', voornaam: '', tussenvoegsel: '', achternaam: 'Bakker' })).toBe('Geachte familie Bakker,');
+    expect(mailAanhef({ aanhef: 'bedrijf', voornaam: 'Jan', tussenvoegsel: '', achternaam: 'Jansen' })).toBe(
       'Geachte heer, mevrouw,',
     );
-    expect(mailAanhef({ aanhef: 'dhr', voornaam: '', achternaam: '  ' })).toBe('Geachte heer, mevrouw,');
+    expect(mailAanhef({ aanhef: 'dhr', voornaam: '', tussenvoegsel: '', achternaam: '  ' })).toBe('Geachte heer, mevrouw,');
     // OFM-038: zonder achternaam de voornaam, zoals op de PDF.
-    expect(mailAanhef({ aanhef: 'dhr', voornaam: 'Jan', achternaam: '' })).toBe('Geachte heer Jan,');
-    expect(achternaamVan({ achternaam: ' Jansen ' })).toBe('Jansen');
+    expect(mailAanhef({ aanhef: 'dhr', voornaam: 'Jan', tussenvoegsel: '', achternaam: '' })).toBe('Geachte heer Jan,');
+    expect(achternaamVan({ tussenvoegsel: '', achternaam: ' Jansen ' })).toBe('Jansen');
+  });
+
+  it('OFM-046: {achternaam} en de aanhef met het tussenvoegsel vooraan met hoofdletter', () => {
+    const klant = { ...bron.klant, tussenvoegsel: 'van der', achternaam: 'Berg' };
+    expect(achternaamVan(klant)).toBe('Van der Berg');
+    expect(mailAanhef(klant)).toBe('Geachte heer Van der Berg,');
+    expect(maakMailConcept({ ...bron, klant, emailTekst: 'Beste {achternaam}' }).tekst).toBe(
+      'Beste Van der Berg',
+    );
   });
 });

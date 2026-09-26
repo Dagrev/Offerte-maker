@@ -1,5 +1,6 @@
 import { formatDatumLang } from '@shared/formatteer';
 import { aanhefRegel } from '@shared/labels';
+import { naamVan } from '@shared/naam';
 import type { Klant } from '@shared/types';
 
 // Het mailconcept bij Verstuur per e-mail (OFM-041): ontvanger, onderwerp en tekst. Puur; de tekst komt
@@ -17,7 +18,7 @@ export interface MailConcept {
 }
 
 export interface ConceptBron {
-  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'email'>;
+  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'tussenvoegsel' | 'achternaam' | 'email'>;
   /** Weergavenummer met versieletter, bijvoorbeeld `2026-09-26-001b`. */
   nummer: string;
   /** `YYYY-MM-DD`. */
@@ -26,16 +27,19 @@ export interface ConceptBron {
   emailTekst: string;
 }
 
-/** Achternaam voor `{achternaam}` (OFM-038: het eigen veld `klant.achternaam`). */
-export function achternaamVan(klant: Pick<Klant, 'achternaam'>): string {
-  return klant.achternaam.trim();
+/**
+ * Achternaam voor `{achternaam}` (OFM-038: het eigen veld `klant.achternaam`), sinds OFM-046 met het
+ * tussenvoegsel vooraan met hoofdletter ("Van der Berg"): de plaatshouder staat meestal na "Geachte …".
+ */
+export function achternaamVan(klant: Pick<Klant, 'tussenvoegsel' | 'achternaam'>): string {
+  return naamVan({ voornaam: '', ...klant }, 'achternaamVooraan');
 }
 
 /**
  * Aanhefregel als op de PDF (§9.2: achternaam, zonder achternaam de voornaam); zonder enige naam de
  * neutrale vorm in plaats van "Geachte heer ,".
  */
-export function mailAanhef(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam'>): string {
+export function mailAanhef(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'tussenvoegsel' | 'achternaam'>): string {
   const geenNaam = achternaamVan(klant) === '' && klant.voornaam.trim() === '';
   if (klant.aanhef !== 'bedrijf' && geenNaam) return 'Geachte heer, mevrouw,';
   return aanhefRegel(klant);

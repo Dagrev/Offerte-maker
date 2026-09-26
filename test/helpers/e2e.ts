@@ -249,6 +249,8 @@ export interface KlantInvoer {
   overig?: string;
   /** Standaard ingevuld: alles van stap 1 is standaard verplicht (OFM-038). Leeg laten met `''`. */
   voornaam?: string;
+  /** OFM-046: alleen ingevuld als het is opgegeven (nooit verplicht). */
+  tussenvoegsel?: string;
   telefoon?: string;
   email?: string;
 }
@@ -271,6 +273,9 @@ export async function vulKlantIn(page: Page, klant: KlantInvoer): Promise<void> 
   const w = nl.wizard.klant;
   const a = nl.componenten.adres;
   await page.getByLabel(w.voornaam, { exact: true }).fill(klant.voornaam ?? E2E_KLANT.voornaam);
+  if (klant.tussenvoegsel !== undefined) {
+    await page.getByLabel(w.tussenvoegsel, { exact: true }).fill(klant.tussenvoegsel);
+  }
   await page.getByLabel(w.achternaam, { exact: true }).fill(klant.achternaam);
   await page.getByLabel(a.postcode, { exact: true }).fill(E2E_KLANT.postcode);
   await page.getByLabel(a.huisnummer, { exact: true }).fill(E2E_KLANT.huisnummer);

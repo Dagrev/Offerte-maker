@@ -40,11 +40,13 @@ export const adresSchema = z.object({
 /**
  * Tekstvelden mogen leeg zijn: een half ingevuld concept wordt ook bewaard (FE-025). Sinds OFM-038
  * voor- en achternaam apart (migratie 003 zette de oude `naam` in `achternaam`); bij aanhef `bedrijf`
- * zijn ze de contactpersoon.
+ * zijn ze de contactpersoon. Het tussenvoegsel (OFM-046) is optioneel en nooit verplicht; een offerte
+ * van vóór OFM-046 heeft het veld niet en krijgt bij lezen `''` (geen migratie).
  */
 export const klantSchema = z.object({
   aanhef: aanhefSchema,
   voornaam: z.string(),
+  tussenvoegsel: z.string().default(''),
   achternaam: z.string(),
   bedrijfsnaam: z.string(),
   adres: adresSchema,

@@ -1,4 +1,5 @@
 import type { Aanhef, Klant } from './types';
+import { naamVan, type Naamdelen } from './naam';
 
 // Labels (TDO §9.1). De labels van de keuzelijsten komen sinds OFM-034 uit de database
 // (`keuzeopties`), doorgegeven als `Keuzes`; de startwaarden staan in `keuzelijsten.ts`. Hier staan de
@@ -6,35 +7,25 @@ import type { Aanhef, Klant } from './types';
 // vervielen met OFM-045. Gebruikt door main, shared (PDF) en
 // renderer (V-16).
 
-type Naam = Pick<Klant, 'voornaam' | 'achternaam'>;
+// De naamvormen zelf staan sinds OFM-046 (tussenvoegsel) in `naam.ts`.
+export { voorletters } from './naam';
 
-/** Voor- en achternaam samen (`Jan de Vries`); een leeg deel valt weg (OFM-038). */
-export function volledigeNaam(klant: Naam): string {
-  return [klant.voornaam.trim(), klant.achternaam.trim()].filter((d) => d !== '').join(' ');
+/** Voornaam, tussenvoegsel en achternaam samen (`Jan van der Berg`); een leeg deel valt weg. */
+export function volledigeNaam(klant: Naamdelen): string {
+  return naamVan(klant, 'volledig');
 }
 
-/** Voorletters van de voornaam: `Jan` → `J.`, `Jan-Willem Piet` → `J.W.P.` (OFM-038). */
-export function voorletters(voornaam: string): string {
-  return voornaam
-    .split(/[\s-]+/)
-    .filter((d) => d !== '')
-    .map((d) => `${d.charAt(0).toUpperCase()}.`)
-    .join('');
-}
-
-/** Voorletters en achternaam (`J. Jansen`); zonder achternaam de voornaam voluit (OFM-038). */
-export function naamMetVoorletters(klant: Naam): string {
-  const achternaam = klant.achternaam.trim();
-  if (achternaam === '') return klant.voornaam.trim();
-  return [voorletters(klant.voornaam), achternaam].filter((d) => d !== '').join(' ');
+/** Voorletters en achternaam (`J. van der Berg`); zonder achternaam de voornaam voluit (OFM-038/046). */
+export function naamMetVoorletters(klant: Naamdelen): string {
+  return naamVan(klant, 'voorletters');
 }
 
 /**
  * Aanhefregel boven de brief (§9.2); de app zet die, niet de agent. Met de achternaam ("Geachte heer
- * Jansen,"); zonder achternaam de voornaam (OFM-038).
+ * Jansen,", met tussenvoegsel "Geachte heer Van der Berg,"); zonder achternaam de voornaam (OFM-038/046).
  */
-export function aanhefRegel(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam'>): string {
-  const naam = klant.achternaam.trim() || klant.voornaam.trim();
+export function aanhefRegel(klant: Pick<Klant, 'aanhef'> & Naamdelen): string {
+  const naam = naamVan(klant, 'achternaamVooraan') || klant.voornaam.trim();
   const regels: Record<Aanhef, string> = {
     dhr: `Geachte heer ${naam},`,
     mevr: `Geachte mevrouw ${naam},`,
@@ -45,12 +36,11 @@ export function aanhefRegel(klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achterna
 }
 
 /**
- * Klantnaam in lijsten en op de PDF (§8.2, OFM-038): `Dhr. J. Jansen`, `Fam. Jansen` (zonder
- * voorletters), of bij `bedrijf` de bedrijfsnaam (de contactpersoon als die leeg is).
+ * Klantnaam in lijsten en op de PDF (§8.2, OFM-038/046): `Dhr. J. van der Berg`, `Fam. Van der Berg`
+ * (zonder voorletters, tussenvoegsel vooraan met hoofdletter), of bij `bedrijf` de bedrijfsnaam (de
+ * contactpersoon als die leeg is).
  */
-export function klantWeergave(
-  klant: Pick<Klant, 'aanhef' | 'voornaam' | 'achternaam' | 'bedrijfsnaam'>,
-): string {
+export function klantWeergave(klant: Pick<Klant, 'aanhef' | 'bedrijfsnaam'> & Naamdelen): string {
   const naam = naamMetVoorletters(klant);
   switch (klant.aanhef) {
     case 'dhr':
@@ -58,7 +48,7 @@ export function klantWeergave(
     case 'mevr':
       return `Mevr. ${naam}`;
     case 'fam':
-      return `Fam. ${klant.achternaam.trim() || klant.voornaam.trim()}`;
+      return `Fam. ${naamVan(klant, 'achternaamVooraan') || klant.voornaam.trim()}`;
     case 'bedrijf':
       return klant.bedrijfsnaam.trim() || naam;
   }

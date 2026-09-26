@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SEED_NAMEN, vulMetSeed } from '../../scripts/seedGegevens';
-import { klusInvoerSchema } from '../../src/shared/schemas';
+import { volledigeNaam } from '../../src/shared/labels';
+import { klantSchema, klusInvoerSchema } from '../../src/shared/schemas';
 
 // Seed-script (OFM-027, TDO §15.4): 5.000 offertes, random-seed 42, 10 % concept, 1–8 regels,
 // namen uit een vaste lijst van 200, 2022–2026, en twee runs geven dezelfde gegevens.
@@ -64,7 +65,7 @@ describe('vulMetSeed', () => {
       inhoud_json: string;
       totaal_incl_cent: number;
     }[];
-    const namen = new Set(SEED_NAMEN.map((n) => `${n.voornaam} ${n.achternaam}`));
+    const namen = new Set(SEED_NAMEN.map((n) => volledigeNaam(n)));
     expect(namen.size).toBe(200);
     const soorten = new Set<string>();
     for (const r of rijen) {
@@ -77,8 +78,8 @@ describe('vulMetSeed', () => {
       expect(invoer.werkzaamheden.length).toBeLessThanOrEqual(4);
       expect(JSON.parse(r.invoer_json)).not.toHaveProperty('bedekking');
       soorten.add(invoer.soortWerk ?? '');
-      const k = JSON.parse(r.klant_json) as { voornaam: string; achternaam: string };
-      expect(namen.has(`${k.voornaam} ${k.achternaam}`)).toBe(true);
+      const k = klantSchema.parse(JSON.parse(r.klant_json));
+      expect(namen.has(volledigeNaam(k))).toBe(true);
       expect(r.nummer === null).toBe(r.status === 'concept');
       expect(r.totaal_incl_cent).toBeGreaterThan(0);
     }

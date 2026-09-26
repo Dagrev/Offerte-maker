@@ -30,6 +30,8 @@ export default defineConfig({
         'src/shared/validatie.ts': { branches: 100 },
         // OFM-045: de omzetting van oude offertes (migratie 005).
         'src/shared/omzetting.ts': { branches: 100 },
+        // OFM-046: alle vormen van de klantnaam.
+        'src/shared/naam.ts': { branches: 100 },
       },
     },
   },
