@@ -56,6 +56,7 @@ test('bedrijfsgegevens: ongeldig wordt gemeld en niet bewaard, geldig wordt geno
   await overslaanWelkom(page);
   await page.getByRole('button', { name: nl.overzicht.instellingen }).click();
   const b = nl.instellingen.bedrijf;
+  const a = nl.componenten.adres;
   await expect(page.getByLabel(b.naam, { exact: true })).toBeVisible();
 
   // Ongeldig e-mailadres: melding pas na verlaten, en niet bewaard; de andere velden wel.
@@ -63,21 +64,21 @@ test('bedrijfsgegevens: ongeldig wordt gemeld en niet bewaard, geldig wordt geno
   await expect(page.getByText(VALIDATIE_FOUTEN.email, { exact: true })).toHaveCount(0);
   await page.getByLabel(b.email, { exact: true }).press('Tab');
   await expect(page.getByText(VALIDATIE_FOUTEN.email, { exact: true })).toBeVisible();
-  await page.getByLabel(b.plaats, { exact: true }).fill('Eindhoven');
-  await page.getByLabel(b.plaats, { exact: true }).press('Tab');
+  await page.getByLabel(a.plaats, { exact: true }).fill('Eindhoven');
+  await page.getByLabel(a.plaats, { exact: true }).press('Tab');
   await expect.poll(async () => (await apiData(page, 'instellingenHaal')).bedrijf.plaats).toBe('Eindhoven');
   expect((await apiData(page, 'instellingenHaal')).bedrijf.email).toBe('');
 
   const gevallen: Geval[] = [
     {
-      label: b.adres,
-      fout: VALIDATIE_FOUTEN.straatHuisnummer,
-      ongeldig: 'Industrieweg',
-      geldig: 'Industrieweg  1',
-      genormaliseerd: 'Industrieweg 1',
+      label: a.huisnummer,
+      fout: VALIDATIE_FOUTEN.huisnummer,
+      ongeldig: 'een',
+      geldig: ' 1 ',
+      genormaliseerd: '1',
     },
     {
-      label: b.postcode,
+      label: a.postcode,
       fout: VALIDATIE_FOUTEN.postcode,
       ongeldig: '1234 SA',
       geldig: '5600aa',
@@ -99,6 +100,8 @@ test('bedrijfsgegevens: ongeldig wordt gemeld en niet bewaard, geldig wordt geno
     },
   ];
   for (const g of gevallen) await controleerVeld(page, g);
+  await page.getByLabel(a.straat, { exact: true }).fill('Industrieweg');
+  await page.getByLabel(a.straat, { exact: true }).press('Tab');
 
   await expect
     .poll(async () => (await apiData(page, 'instellingenHaal')).bedrijf)
@@ -117,10 +120,11 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
   const { page } = gestart;
   await overslaanWelkom(page);
   const w = nl.wizard;
+  const a = nl.componenten.adres;
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
   await page.getByLabel(w.klant.naam, { exact: true }).fill('Jansen');
-  await page.getByLabel(w.klant.plaats, { exact: true }).fill('Eindhoven');
+  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Eindhoven');
 
   // Ongeldig telefoonnummer blokkeert Volgende.
   await page.getByLabel(w.klant.telefoon, { exact: true }).fill('06 1234');
@@ -131,14 +135,14 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
 
   const gevallen: Geval[] = [
     {
-      label: w.klant.straatHuisnummer,
-      fout: VALIDATIE_FOUTEN.straatHuisnummer,
-      ongeldig: 'Dorpsstraat',
-      geldig: 'Dorpsstraat 12a',
-      genormaliseerd: 'Dorpsstraat 12a',
+      label: a.huisnummer,
+      fout: VALIDATIE_FOUTEN.huisnummer,
+      ongeldig: '12 abcde',
+      geldig: '12a',
+      genormaliseerd: '12A',
     },
     {
-      label: w.klant.postcode,
+      label: a.postcode,
       fout: VALIDATIE_FOUTEN.postcode,
       ongeldig: '12345',
       geldig: '5611ab',
@@ -160,6 +164,10 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
     },
   ];
   for (const g of gevallen) await controleerVeld(page, g);
+  // Huisnummer zonder straat (OFM-031): melding onder Straat tot die is ingevuld.
+  await expect(page.getByText(a.straatLeeg, { exact: true })).toBeVisible();
+  await page.getByLabel(a.straat, { exact: true }).fill('Dorpsstraat');
+  await expect(page.getByText(a.straatLeeg, { exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
@@ -167,7 +175,7 @@ test('wizardstap 1: ongeldig blokkeert Volgende, geldig wordt genormaliseerd bew
   await expect
     .poll(async () => (await apiData(page, 'offerteHaal', { id })).klant)
     .toMatchObject({
-      adres: { straatHuisnummer: 'Dorpsstraat 12a', postcode: '5611 AB', plaats: 'Eindhoven' },
+      adres: { straatHuisnummer: 'Dorpsstraat 12A', postcode: '5611 AB', plaats: 'Eindhoven' },
       telefoon: '+32470123456',
       email: 'jan@voorbeeld.nl',
     });

@@ -5,6 +5,18 @@ import type { Status } from '@shared/types';
 export const componenten = {
   bewaard: 'Bewaard ✓',
 
+  /** `AdresVelden` (OFM-031): postcode en huisnummer vooraan, straat en plaats worden opgezocht. */
+  adres: {
+    postcode: 'Postcode',
+    huisnummer: 'Huisnummer',
+    straat: 'Straat',
+    plaats: 'Plaats',
+    zoeken: 'Adres opzoeken…',
+    nietGevonden: 'Niet gevonden, vul zelf in',
+    straatLeeg: 'Vul ook de straat in',
+    huisnummerLeeg: 'Vul ook het huisnummer in',
+  },
+
   /** Knoplabels bij een foutmelding (§15.1); de melding zelf komt uit main. */
   foutActie: {
     naarClaudeKoppeling: 'Naar Claude-koppeling',

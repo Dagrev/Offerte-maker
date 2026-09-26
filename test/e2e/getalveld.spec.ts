@@ -32,7 +32,7 @@ test('getalveld: overschrijven bij focus, leegmaken en plakken', async () => {
 
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await page.getByLabel(w.klant.naam, { exact: true }).fill('Getal');
-  await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
+  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Veldhoven');
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   const platLabel = KEUZE_STARTSET.soortDak[0]?.label ?? '';

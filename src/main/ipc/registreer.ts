@@ -6,6 +6,7 @@ import { invoerSchemas } from '@shared/schemas';
 import { FOUTMELDINGEN, VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { KanaalInvoer, KanaalUitvoer } from '@shared/types';
 import { log } from '../log';
+import { adresHandlers } from './adres';
 import { appHandlers } from './app';
 import { backupHandlers } from './backup';
 import { claudeHandlers } from './claude';
@@ -47,6 +48,7 @@ export const alleHandlers: AlleHandlers = {
   ...offerteBeheerHandlers,
   ...instellingenHandlers,
   ...keuzelijstenHandlers,
+  ...adresHandlers,
   ...prijzenHandlers,
   ...voorbeeldenHandlers,
   ...claudeHandlers,

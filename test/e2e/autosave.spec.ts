@@ -36,7 +36,7 @@ test('invoer overleeft een harde kill en het concept opent op stap 2', async () 
 
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await page.getByLabel(w.klant.naam, { exact: true }).fill('Bakker');
-  await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
+  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Veldhoven');
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
   const platLabel = KEUZE_STARTSET.soortDak[0]?.label ?? '';

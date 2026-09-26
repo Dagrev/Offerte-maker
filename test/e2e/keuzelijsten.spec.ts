@@ -84,7 +84,7 @@ test('toevoegen, hernoemen en verbergen: zichtbaar in wizard, lijst en PDF', asy
   await knop(page, nl.instellingen.terug).click();
   await knop(page, nl.overzicht.nieuweOfferte).click();
   await page.getByLabel(w.klant.naam, { exact: true }).fill('Bakker');
-  await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
+  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill('Veldhoven');
   await knop(page, w.volgende).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
   await expect(knop(page, 'Leien')).toBeVisible();

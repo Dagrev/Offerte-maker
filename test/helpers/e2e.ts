@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron, expect, type ElectronApplication, type Page } from '@playwright/test';
@@ -34,6 +36,45 @@ export function maakTestMappen(): TestMappen {
   };
 }
 
+/** Poort 9 (discard) op de eigen pc: de verbinding wordt meteen geweigerd. */
+export const GEEN_PDOK = 'http://127.0.0.1:9/pdok';
+
+export interface NepPdok {
+  url: string;
+  /** Ontvangen zoekopdrachten (alleen de `fq`-parameters). */
+  verzoeken: string[][];
+  stop: () => Promise<void>;
+}
+
+/**
+ * Nep-PDOK voor E2E (OFM-031): een lokale HTTP-server die antwoordt als de Locatieserver. `adressen`
+ * gaat van `postcode:1234AB huisnummer:12` naar straat en plaats; al het andere is "geen treffer".
+ */
+export async function startNepPdok(
+  adressen: Record<string, { straat: string; plaats: string }>,
+): Promise<NepPdok> {
+  const verzoeken: string[][] = [];
+  const server = createServer((req, res) => {
+    const fq = new URL(req.url ?? '/', 'http://x').searchParams.getAll('fq');
+    verzoeken.push(fq);
+    const gevonden = adressen[fq.filter((f) => f !== 'type:adres').join(' ')];
+    const docs = gevonden ? [{ straatnaam: gevonden.straat, woonplaatsnaam: gevonden.plaats }] : [];
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ response: { numFound: docs.length, docs } }));
+  });
+  await new Promise<void>((klaar) => server.listen(0, '127.0.0.1', klaar));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/bzk/locatieserver/search/v3/free`,
+    verzoeken,
+    stop: () =>
+      new Promise<void>((klaar) => {
+        server.closeAllConnections();
+        server.close(() => klaar());
+      }),
+  };
+}
+
 export interface StartOpties {
   /** FAKE_CLAUDE_MODE (standaard `ok`). */
   modus?: string;
@@ -41,6 +82,11 @@ export interface StartOpties {
   haken?: string[];
   /** Overschrijft OFFERTE_MAKER_CLAUDE_CMD, bijvoorbeeld met een niet-bestaand bestand. */
   claudeCmd?: string;
+  /**
+   * OFFERTE_MAKER_PDOK_URL (OFM-031). Standaard een lokaal adres waar niets luistert: geen enkele
+   * E2E-test zoekt echt bij PDOK, adressen zijn dan "niet gevonden". Zie `startNepPdok`.
+   */
+  pdokUrl?: string;
 }
 
 export interface GestarteApp {
@@ -61,6 +107,7 @@ export function appOmgeving(mappen: TestMappen, opties: StartOpties = {}): Recor
     OFFERTE_MAKER_CLAUDE_CMD: opties.claudeCmd ?? NEP_CLAUDE,
     FAKE_CLAUDE_MODE: opties.modus ?? 'ok',
     FAKE_CLAUDE_LOG: mappen.claudeLog,
+    OFFERTE_MAKER_PDOK_URL: opties.pdokUrl ?? GEEN_PDOK,
     OFFERTE_MAKER_TESTHAAK: (opties.haken ?? [`vandaag=${TEST_VANDAAG}`]).join(','),
   };
 }
@@ -170,7 +217,7 @@ export async function nieuweOfferteTotStap4(page: Page, klant: KlantInvoer): Pro
   await page.getByRole('button', { name: nl.overzicht.nieuweOfferte }).click();
   await expect(page.getByRole('heading', { name: `1. ${w.stappen[0]}` })).toBeVisible();
   await page.getByLabel(w.klant.naam, { exact: true }).fill(klant.naam);
-  await page.getByLabel(w.klant.plaats, { exact: true }).fill(klant.plaats);
+  await page.getByLabel(nl.componenten.adres.plaats, { exact: true }).fill(klant.plaats);
   for (let stap = 2; stap <= 4; stap++) {
     await page.getByRole('button', { name: w.volgende, exact: true }).click();
     await expect(page.getByRole('heading', { name: `${stap}. ${w.stappen[stap - 1]}` })).toBeVisible();

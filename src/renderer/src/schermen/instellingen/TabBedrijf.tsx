@@ -5,15 +5,13 @@ import type { Instellingen } from '@shared/types';
 import {
   bewaarbaarBedrijf,
   controleerEmail,
-  controleerPostcode,
-  controleerStraatHuisnummer,
   controleerTelefoon,
   ongeldigeBedrijfVelden,
-  type BedrijfVeld,
   type Controle,
 } from '@shared/validatie';
 import { bewaarInstelling, useLogo } from '../../api/instellingen';
 import { alsFout } from '../../api/roep';
+import { AdresVelden, type AdresWaarde } from '../../componenten/AdresVelden';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Kaart } from '../../componenten/Kaart';
@@ -27,14 +25,16 @@ type Sleutel = keyof BedrijfForm;
 
 const t = nl.instellingen.bedrijf;
 
-// Volgorde en breedte van de velden (FE-070, §4.3).
-const VELDEN: { sleutel: Sleutel; breed?: boolean; type?: string; autoComplete?: string }[] = [
+type VeldDef = { sleutel: Sleutel; breed?: boolean; type?: string; autoComplete?: string };
+
+// Volgorde en breedte van de velden (FE-070, §4.3). Adres, postcode en plaats staan ertussen in
+// `AdresVelden` (OFM-031: postcode en huisnummer vooraan, straat en plaats worden opgezocht).
+const VELDEN_VOOR: VeldDef[] = [
   { sleutel: 'naam', breed: true, autoComplete: 'organization' },
   { sleutel: 'contactpersoon', autoComplete: 'name' },
   { sleutel: 'telefoon', type: 'tel', autoComplete: 'tel' },
-  { sleutel: 'adres', breed: true, autoComplete: 'street-address' },
-  { sleutel: 'postcode', autoComplete: 'postal-code' },
-  { sleutel: 'plaats', autoComplete: 'address-level2' },
+];
+const VELDEN_NA: VeldDef[] = [
   { sleutel: 'email', type: 'email', autoComplete: 'email' },
   { sleutel: 'website', type: 'url', autoComplete: 'url' },
   { sleutel: 'kvk' },
@@ -42,14 +42,13 @@ const VELDEN: { sleutel: Sleutel; breed?: boolean; type?: string; autoComplete?:
   { sleutel: 'iban', breed: true },
 ];
 
-/** Gecontroleerde velden (OFM-030) met de controle die ook de genormaliseerde waarde geeft. */
-const CONTROLES: Record<BedrijfVeld, (invoer: string) => Controle> = {
-  adres: controleerStraatHuisnummer,
-  postcode: controleerPostcode,
+/** Telefoon en e-mail (OFM-030) met de controle die ook de genormaliseerde waarde geeft. */
+type ContactVeld = 'telefoon' | 'email';
+const CONTROLES: Record<ContactVeld, (invoer: string) => Controle> = {
   telefoon: controleerTelefoon,
   email: controleerEmail,
 };
-const isGecontroleerd = (sleutel: Sleutel): sleutel is BedrijfVeld => sleutel in CONTROLES;
+const isGecontroleerd = (sleutel: Sleutel): sleutel is ContactVeld => sleutel in CONTROLES;
 
 function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
   const { logoBestandId: _id, logoDataUri: _logo, ...rest } = b;
@@ -65,6 +64,7 @@ function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
  * OFM-030: adres, postcode, telefoon en e-mail worden gecontroleerd. Een ongeldig veld krijgt na het
  * verlaten een rode melding en wordt niet bewaard (de laatst bewaarde waarde gaat mee); de andere
  * velden wel. Een geldige waarde wordt bij het verlaten netjes gezet (`1234 AB`, `+31612345678`).
+ * Het adres (straat en huisnummer, postcode, plaats) staat in `AdresVelden` (OFM-031).
  */
 export function TabBedrijf({
   instellingen,
@@ -79,8 +79,9 @@ export function TabBedrijf({
   const [aangeraakt, setAangeraakt] = useState<ReadonlySet<Sleutel>>(new Set());
   const ongeldig = ongeldigeBedrijfVelden(form);
 
-  const wijzig = (sleutel: Sleutel, waarde: string) => {
-    const nieuw = { ...form, [sleutel]: waarde };
+  const wijzig = (sleutel: Sleutel, waarde: string) => wijzigVelden({ [sleutel]: waarde });
+  const wijzigVelden = (deel: Partial<BedrijfForm>) => {
+    const nieuw = { ...form, ...deel };
     setForm(nieuw);
     bewaardRef.current = bewaarbaarBedrijf(nieuw, bewaardRef.current);
     bewaren.wijzig(bewaardRef.current);
@@ -95,6 +96,28 @@ export function TabBedrijf({
     }
     bewaren.bewaarNu();
   };
+
+  const wijzigAdres = (deel: Partial<AdresWaarde>) =>
+    wijzigVelden({
+      ...(deel.straatHuisnummer !== undefined && { adres: deel.straatHuisnummer }),
+      ...(deel.postcode !== undefined && { postcode: deel.postcode }),
+      ...(deel.plaats !== undefined && { plaats: deel.plaats }),
+    });
+
+  const veld = ({ sleutel, breed, type, autoComplete }: VeldDef) => (
+    <div key={sleutel} className={breed ? 'col-span-2' : ''}>
+      <Veld
+        label={t[sleutel]}
+        waarde={form[sleutel]}
+        opWijzig={(w) => wijzig(sleutel, w)}
+        onBlur={() => verlaat(sleutel)}
+        fout={foutVan(sleutel)}
+        type={type}
+        autoComplete={autoComplete}
+        spellCheck={false}
+      />
+    </div>
+  );
 
   const foutVan = (sleutel: Sleutel) => {
     if (!isGecontroleerd(sleutel) || !aangeraakt.has(sleutel)) return undefined;
@@ -112,20 +135,15 @@ export function TabBedrijf({
 
       <Kaart>
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-          {VELDEN.map(({ sleutel, breed, type, autoComplete }) => (
-            <div key={sleutel} className={breed ? 'col-span-2' : ''}>
-              <Veld
-                label={t[sleutel]}
-                waarde={form[sleutel]}
-                opWijzig={(w) => wijzig(sleutel, w)}
-                onBlur={() => verlaat(sleutel)}
-                fout={foutVan(sleutel)}
-                type={type}
-                autoComplete={autoComplete}
-                spellCheck={false}
-              />
-            </div>
-          ))}
+          {VELDEN_VOOR.map(veld)}
+          <div className="col-span-2">
+            <AdresVelden
+              waarde={{ straatHuisnummer: form.adres, postcode: form.postcode, plaats: form.plaats }}
+              opWijzig={wijzigAdres}
+              opVerlaat={bewaren.bewaarNu}
+            />
+          </div>
+          {VELDEN_NA.map(veld)}
         </div>
       </Kaart>
 

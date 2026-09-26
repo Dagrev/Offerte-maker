@@ -106,6 +106,8 @@ export interface KanaalUitvoer {
   'keuzelijsten:haal': Keuzelijsten;
   'keuzelijsten:bewaar': Keuzeoptie[];
   'keuzelijsten:herstel': null;
+  /** OFM-031: `null` = niet gevonden, geen internet of time-out (geen foutmelding). */
+  'adres:zoek': { straat: string; plaats: string } | null;
   'prijzen:lijst': Prijspost[];
   'prijzen:bewaar': { id: string };
   'prijzen:verwijder': null;

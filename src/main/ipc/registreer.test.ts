@@ -23,6 +23,7 @@ const domeinen = await Promise.all(
     './offerteBeheer',
     './instellingen',
     './keuzelijsten',
+    './adres',
     './prijzen',
     './voorbeelden',
     './claude',

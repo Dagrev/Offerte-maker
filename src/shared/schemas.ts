@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { FOUT_CODES } from './fouten';
 import { KEUZE_LIJSTEN, KEUZE_SLEUTEL_PATROON } from './keuzelijsten';
 import type { Kanaal } from './ipcKanalen';
+import { controleerPostcode, ontleedHuisnummer } from './validatie';
 
 // Zod-schema's: de bron voor alle domeintypes (TDO §5, §6.3, §4.3, V-15) en de invoer van elk
 // IPC-kanaal (§6.2, V-03). Types staan in types.ts en worden hier met z.infer van afgeleid.
@@ -451,6 +452,21 @@ export const invoerSchemas = {
       .max(100),
   }),
   'keuzelijsten:herstel': z.object({ lijst: keuzeLijstSchema }),
+
+  /** OFM-031: alleen een geldige postcode en een geldig huisnummer gaan naar PDOK (A-29). */
+  'adres:zoek': z.object({
+    postcode: z
+      .string()
+      .max(10)
+      .refine((p) => {
+        const c = controleerPostcode(p);
+        return c.geldig && c.waarde !== '';
+      }),
+    huisnummer: z
+      .string()
+      .max(20)
+      .refine((h) => ontleedHuisnummer(h) !== null),
+  }),
 
   'prijzen:lijst': geenInvoer,
   'prijzen:bewaar': prijspostSchema,
