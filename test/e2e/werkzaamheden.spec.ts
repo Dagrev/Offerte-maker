@@ -17,10 +17,11 @@ import {
 } from '../helpers/e2e';
 import { controleerScherm } from '../helpers/toegankelijkheid';
 
-// OFM-048 (was OFM-043): Instellingen › Werkzaamheden en prijzen. Een materiaal en een werkzaamheid met
-// een optie toevoegen, prijs per eenheid en per uur invullen, koppelen aan een soort werk en een
-// materiaal; na herladen terugzien. Daarna in de wizard die werkzaamheid per uur rekenen, zonder
-// Claude maken en de regel met eenheid "uur" op de PDF terugzien. Axe 0 op de tab.
+// OFM-048 (was OFM-043), sinds OFM-056 in twee tabs: Instellingen › Materialen en prijzen (alfabetisch,
+// zoekbalk, Overige prijzen) en › Werkzaamheden (inklapbare kaarten, Alles openen/sluiten). Een materiaal
+// en een werkzaamheid met een optie toevoegen, prijs per eenheid en per uur invullen, koppelen aan een
+// soort werk en een materiaal; na herladen terugzien. Daarna in de wizard die werkzaamheid per uur
+// rekenen, zonder Claude maken en de regel met eenheid "uur" op de PDF terugzien. Axe 0 op beide tabs.
 
 let mappen: TestMappen;
 let gestart: GestarteApp | undefined;
@@ -41,11 +42,30 @@ const knop = (page: Page, naam: string) => page.getByRole('button', { name: naam
 const WERK = 'Dakkapel bekleden';
 const OPTIE = 'Steiger huren';
 
-async function naarTab(page: Page): Promise<void> {
-  await knop(page, nl.overzicht.instellingen).click();
-  await knop(page, nl.instellingen.tab.werkzaamheden).click();
-  await expect(page.getByRole('heading', { name: t.werkzaamheden, level: 2 })).toBeVisible();
+async function naarTab(page: Page, tab: 'materialen' | 'werkzaamheden'): Promise<void> {
+  const tabKnop = knop(page, nl.instellingen.tab[tab]);
+  if ((await tabKnop.count()) === 0) await knop(page, nl.overzicht.instellingen).click();
+  await tabKnop.click();
+  const kop = tab === 'materialen' ? t.materialen : t.werkzaamheden;
+  await expect(page.getByRole('heading', { name: kop, level: 2, exact: true })).toBeVisible();
 }
+
+/** De namen in een lijst van naamvelden, in schermvolgorde. */
+async function namen(page: Page, lijst: string): Promise<string[]> {
+  const velden = await page
+    .getByRole('list', { name: lijst, exact: true })
+    .getByRole('textbox', { name: /^Naam van/ })
+    .all();
+  return Promise.all(velden.map((v) => v.inputValue()));
+}
+
+/** De namen (aria-label) van de kaarten in een lijst, in schermvolgorde. */
+async function kaartNamenVan(page: Page, lijst: string): Promise<string[]> {
+  const kaarten = await page.getByRole('list', { name: lijst, exact: true }).locator(':scope > li').all();
+  return Promise.all(kaarten.map(async (k) => (await k.getAttribute('aria-label')) ?? ''));
+}
+const abc = (lijst: string[]) =>
+  [...lijst].sort((a, b) => a.localeCompare(b, 'nl', { sensitivity: 'base', numeric: true }));
 
 async function vul(page: Page, label: string, waarde: string): Promise<void> {
   const veld = page.getByLabel(label, { exact: true });
@@ -53,32 +73,77 @@ async function vul(page: Page, label: string, waarde: string): Promise<void> {
   await veld.blur();
 }
 
-test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in de wizard en op de PDF', async () => {
+test('materiaal en werkzaamheid met optie en uurprijs in twee tabs; per uur in de wizard en op de PDF', async () => {
   // Statusfout (niet ingelogd): dan kan Maak zonder Claude in stap 4.
   gestart = await startApp(mappen, { modus: 'niet-ingelogd' });
   const { page } = gestart;
   await overslaanWelkom(page);
-  await naarTab(page);
+  await naarTab(page, 'materialen');
 
-  // Eén tab: Prijzen bestaat niet meer; drie secties.
+  // Tab Materialen en prijzen: materialen en overige prijzen, geen werkzaamheden; oude tabs bestaan niet.
   await expect(page.getByRole('button', { name: 'Prijzen', exact: true })).toHaveCount(0);
-  for (const kop of [t.materialen, t.werkzaamheden, t.overig]) {
+  await expect(page.getByRole('button', { name: 'Werkzaamheden en prijzen', exact: true })).toHaveCount(0);
+  for (const kop of [t.materialen, t.overig]) {
     await expect(page.getByRole('heading', { name: kop, level: 2, exact: true })).toBeVisible();
   }
-  await controleerScherm(page, 'Instellingen Werkzaamheden en prijzen', []);
+  await expect(page.getByRole('heading', { name: t.werkzaamheden, level: 2, exact: true })).toHaveCount(0);
+  await controleerScherm(page, 'Instellingen Materialen en prijzen', []);
 
-  // 1. Materiaal toevoegen met prijs en btw.
+  // 1. Materialen alfabetisch; een nieuw materiaal komt op zijn plek en krijgt de focus.
+  const voor = await namen(page, t.materialen);
+  expect(voor.length).toBeGreaterThan(2);
+  expect(voor).toEqual(abc(voor));
   await page.getByLabel(t.nieuwMateriaal, { exact: true }).fill('Zink');
   await knop(page, t.materiaalToevoegen).click();
   await expect(page.getByLabel(t.materiaalNaam('Zink'), { exact: true })).toHaveValue('Zink');
+  await expect(page.getByLabel(t.materiaalNaam('Zink'), { exact: true })).toBeFocused();
+  await page.getByLabel(t.nieuwMateriaal, { exact: true }).fill('Afdekkap');
+  await knop(page, t.materiaalToevoegen).click();
+  await expect(page.getByLabel(t.materiaalNaam('Afdekkap'), { exact: true })).toBeFocused();
+  const na = await namen(page, t.materialen);
+  expect(na).toEqual(abc([...voor, 'Zink', 'Afdekkap']));
+  expect(na[0]).toBe('Afdekkap');
   await vul(page, t.materiaalPrijs('Zink'), '12,50');
   await page.getByLabel(t.materiaalBtw('Zink'), { exact: true }).selectOption('9');
 
-  // 2. Werkzaamheid toevoegen: eenheid, prijs per eenheid en per uur, hoort bij, materiaal, optie.
+  // Zoeken: deel van het woord, zonder hoofdletters; niets gevonden; leeg = alles.
+  await page.getByLabel(t.nieuwMateriaal, { exact: true }).fill('Houtschroef 5 x 50');
+  await knop(page, t.materiaalToevoegen).click();
+  await expect(page.getByLabel(t.materiaalNaam('Houtschroef 5 x 50'), { exact: true })).toBeFocused();
+  const zoek = page.getByRole('searchbox', { name: t.zoekMateriaal });
+  await zoek.fill('SCHROEF');
+  expect(await namen(page, t.materialen)).toEqual(['Houtschroef 5 x 50']);
+  await zoek.fill('xyz');
+  await expect(page.getByText(t.geenMaterialenGevonden)).toBeVisible();
+  await controleerScherm(page, 'Materialen en prijzen zonder zoekresultaat', []);
+  await zoek.fill('');
+  expect(await namen(page, t.materialen)).toHaveLength(na.length + 1);
+
+  // Overige prijzen: voorrijkosten.
+  await vul(page, t.postPrijs('Voorrijkosten'), '45');
+  await expect(page.getByText(nl.componenten.bewaard).first()).toBeVisible();
+
+  // 2. Tab Werkzaamheden: alle kaarten dicht en alfabetisch.
+  await naarTab(page, 'werkzaamheden');
+  await expect(page.getByRole('heading', { name: t.materialen, level: 2, exact: true })).toHaveCount(0);
+  const kaartNamen = await kaartNamenVan(page, t.werkzaamheden);
+  expect(kaartNamen.length).toBeGreaterThan(2);
+  expect(kaartNamen).toEqual(abc(kaartNamen));
+  const open = page.locator('button[aria-expanded="true"]');
+  await expect(page.locator('button[aria-expanded="false"]')).toHaveCount(kaartNamen.length);
+  await expect(open).toHaveCount(0);
+  await controleerScherm(page, 'Instellingen Werkzaamheden dicht', []);
+
+  // Werkzaamheid toevoegen: komt open op zijn plek, focus op het naamveld; eenheid, prijzen, hoort bij,
+  // materiaal, optie.
   await page.getByLabel(t.nieuwWerk, { exact: true }).fill(WERK);
   await knop(page, t.werkToevoegen).click();
   await expect(page.getByLabel(t.werkNaam(WERK), { exact: true })).toHaveValue(WERK);
+  await expect(page.getByLabel(t.werkNaam(WERK), { exact: true })).toBeFocused();
   const kaart = page.getByRole('listitem', { name: WERK, exact: true });
+  const kaartKnop = kaart.getByRole('button', { name: WERK, exact: true });
+  await expect(kaartKnop).toHaveAttribute('aria-expanded', 'true');
+  expect(await kaartNamenVan(page, t.werkzaamheden)).toEqual(abc([...kaartNamen, WERK]));
   await expect(kaart.getByText(t.hoortBijNiets)).toBeVisible();
   await page.getByLabel(t.werkEenheid(WERK), { exact: true }).selectOption('m¹');
   await vul(page, t.werkPrijs(WERK), '85');
@@ -96,9 +161,28 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
   await kaart.getByRole('button', { name: t.optieToevoegen, exact: true }).click();
   await vul(page, t.optiePrijs(OPTIE, WERK), '150');
 
-  // 3. Overige prijzen: voorrijkosten.
-  await vul(page, t.postPrijs('Voorrijkosten'), '45');
   await expect(page.getByText(nl.componenten.bewaard).first()).toBeVisible();
+
+  // Kaart sluiten en openen; de stand blijft bij een wissel van tab.
+  await kaartKnop.click();
+  await expect(kaartKnop).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByLabel(t.werkNaam(WERK), { exact: true })).toHaveCount(0);
+  await expect(kaart).toContainText('€ 85,00 per eenheid');
+  await expect(kaart).toContainText('€ 55,00 per uur');
+  await expect(kaart).toContainText('1 optie');
+  await expect(kaart).toContainText('1 materiaal');
+  await kaartKnop.click();
+  await expect(page.getByLabel(t.werkNaam(WERK), { exact: true })).toBeVisible();
+  await naarTab(page, 'materialen');
+  await naarTab(page, 'werkzaamheden');
+  await expect(kaartKnop).toHaveAttribute('aria-expanded', 'true');
+  await expect(open).toHaveCount(1);
+  // Alles openen en sluiten.
+  await knop(page, t.allesOpenen).click();
+  await expect(open).toHaveCount(kaartNamen.length + 1);
+  await controleerScherm(page, 'Instellingen Werkzaamheden open', []);
+  await knop(page, t.allesSluiten).click();
+  await expect(open).toHaveCount(0);
 
   // Bewaard in main (de laatste bewaaractie kan nog onderweg zijn).
   await expect
@@ -143,10 +227,15 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
 
   // Herladen: alles staat er nog.
   await page.reload();
-  await naarTab(page);
+  await naarTab(page, 'materialen');
+  await expect(page.getByLabel(t.materiaalBtw('Zink'), { exact: true })).toHaveValue('9');
+  await naarTab(page, 'werkzaamheden');
+  await page
+    .getByRole('listitem', { name: WERK, exact: true })
+    .getByRole('button', { name: WERK, exact: true })
+    .click();
   await expect(page.getByLabel(t.werkUurprijs(WERK), { exact: true })).toHaveValue('55');
   await expect(page.getByLabel(t.werkPrijs(WERK), { exact: true })).toHaveValue('85');
-  await expect(page.getByLabel(t.materiaalBtw('Zink'), { exact: true })).toHaveValue('9');
   await expect(page.getByLabel(t.optieNaam(OPTIE, WERK), { exact: true })).toHaveValue(OPTIE);
   await expect(
     page
@@ -154,7 +243,7 @@ test('materiaal en werkzaamheid met optie en uurprijs in één tab; per uur in d
       .getByRole('group', { name: t.hoortBij(WERK) })
       .getByLabel('Dak vervangen', { exact: true }),
   ).toBeChecked();
-  await controleerScherm(page, 'Instellingen Werkzaamheden en prijzen ingevuld', []);
+  await controleerScherm(page, 'Instellingen Werkzaamheden ingevuld', []);
 
   // 4. Wizard: de werkzaamheid per uur.
   await knop(page, nl.instellingen.terug).click();

@@ -15,8 +15,8 @@ import {
 import { controleerScherm } from '../helpers/toegankelijkheid';
 
 // OFM-055 (vervangt daksysteem.spec.ts van OFM-051): materiaaltags en materiaal per daksituatie. In de
-// tab Werkzaamheden en prijzen krijgen Houtschroeven alleen de tag Hout en de EPDM-ontluchter alleen de
-// tag EPDM; bij Nieuwe bedekking (vinkje Materiaal per daksituatie staat al aan in de startset) worden bij
+// tab Materialen en prijzen (OFM-056) krijgen Houtschroeven alleen de tag Hout en de EPDM-ontluchter alleen de
+// tag EPDM; in de tab Werkzaamheden worden bij Nieuwe bedekking (vinkje Materiaal per daksituatie staat al aan in de startset) worden bij
 // Hout × EPDM EPDM, de ontluchter en de houtschroeven aangevinkt. In de wizard staan ze bij hout + EPDM
 // alle drie aangevinkt; na beton geeft de hint met Gebruik de set van beton × EPDM, en bij beton + bitumen
 // is alleen bitumen voorgeselecteerd en zijn de ontluchter en de houtschroeven niet kiesbaar.
@@ -51,7 +51,7 @@ test('tags en materiaal per daksituatie: hout × EPDM drie materialen, beton × 
   const { page } = gestart;
   await overslaanWelkom(page);
   await knop(page, nl.overzicht.instellingen).click();
-  await knop(page, nl.instellingen.tab.werkzaamheden).click();
+  await knop(page, nl.instellingen.tab.materialen).click();
 
   // Beschikbare tags bovenaan de materialen: ondergronden zonder "Weet ik niet" en de bedekkingen.
   const tags = page.getByRole('region', { name: t.tags.titel });
@@ -78,8 +78,12 @@ test('tags en materiaal per daksituatie: hout × EPDM drie materialen, beton × 
   await tag('PVC', ONTL).click();
   await expect(tag('EPDM', ONTL)).toHaveAttribute('aria-pressed', 'true');
 
-  // Nieuwe bedekking: beide kiesbaar, vinkje staat aan, situatie Hout × EPDM.
+  await controleerScherm(page, 'Materialen en prijzen met tags', []);
+
+  // Tab Werkzaamheden, kaart Nieuwe bedekking openen: beide kiesbaar, vinkje staat aan, Hout × EPDM.
+  await knop(page, nl.instellingen.tab.werkzaamheden).click();
   const kaart = page.getByRole('listitem', { name: BED, exact: true });
+  await kaart.getByRole('button', { name: BED, exact: true }).click();
   const kiesbaar = kaart.getByRole('group', { name: t.kiesbareMaterialen(BED) });
   await kiesbaar.getByLabel(HOUT, { exact: true }).check();
   await kiesbaar.getByLabel(ONTL, { exact: true }).check();
@@ -103,7 +107,7 @@ test('tags en materiaal per daksituatie: hout × EPDM drie materialen, beton × 
   const betonEpdm = kaart.getByRole('group', { name: t.situatie.materialen('Beton × EPDM', BED) });
   await expect(betonEpdm.getByLabel(ONTL, { exact: true })).not.toBeChecked();
   await expect(betonEpdm.getByLabel(HOUT, { exact: true })).toHaveCount(0);
-  await controleerScherm(page, 'Werkzaamheden en prijzen met tags en daksituaties', []);
+  await controleerScherm(page, 'Werkzaamheden met daksituaties', []);
 
   await expect
     .poll(async () => {

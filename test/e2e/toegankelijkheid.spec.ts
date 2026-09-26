@@ -140,6 +140,7 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     'opmaak',
     'teksten',
     'keuzelijsten',
+    'materialen',
     'werkzaamheden',
     'verplicht',
     'voorbeelden',
@@ -149,6 +150,12 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     await expect(knop(page, ti.tab[tab])).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('status').filter({ hasText: nl.algemeen.laden })).toHaveCount(0);
     await controleerScherm(page, `Instellingen ${ti.tab[tab]}`, uitkomsten);
+    if (tab === 'werkzaamheden') {
+      // OFM-056: ook met alle kaarten open.
+      await knop(page, nl.werkzaamheden.allesOpenen).click();
+      await controleerScherm(page, 'Instellingen Werkzaamheden open', uitkomsten);
+      await knop(page, nl.werkzaamheden.allesSluiten).click();
+    }
   }
   await knop(page, ti.geavanceerd).click();
   const subtabs: InstellingenTab[] = ['claudeKoppeling', 'privacylog', 'backups', 'over'];

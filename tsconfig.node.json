@@ -26,6 +26,7 @@
     "src/renderer/src/stores/**/*.ts",
     "src/renderer/src/componenten/**/*.ts",
     "src/renderer/src/teksten/**/*.ts",
+    "src/renderer/src/schermen/instellingen/werkzaamhedenGedeeld.ts",
     "scripts/**/*",
     "test/**/*",
     "electron.vite.config.ts",

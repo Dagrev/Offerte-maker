@@ -1,12 +1,15 @@
-// Interfacetekst van Instellingen › Werkzaamheden en prijzen (OFM-043, OFM-048, NFE-006, V-11).
+// Interfacetekst van Instellingen › Materialen en prijzen en › Werkzaamheden (OFM-043, OFM-048, OFM-056,
+// NFE-006, V-11).
 export const werkzaamheden = {
-  uitleg:
-    'Hier stel je in waaruit een offerte wordt opgebouwd en wat het kost: materialen, werkzaamheden met hun opties, en de overige prijzen. Alle prijzen zijn exclusief btw. Een prijs mag leeg blijven: Claude schat die dan, en de offerte vraagt je om te controleren.',
+  uitlegMaterialen:
+    'Hier stel je de materialen en de overige prijzen in. Alle prijzen zijn exclusief btw. Een prijs mag leeg blijven: Claude schat die dan, en de offerte vraagt je om te controleren.',
+  uitlegWerkzaamheden:
+    'Hier stel je in uit welke werkzaamheden een offerte wordt opgebouwd, met hun prijzen, materialen en opties. Alle prijzen zijn exclusief btw. Klik op een werkzaamheid om hem te openen.',
 
   // Sectie Materialen
   materialen: 'Materialen',
   materialenUitleg:
-    'Welke materialen bij een werkzaamheid kiesbaar zijn, vink je hieronder aan bij die werkzaamheid.',
+    'Op alfabetische volgorde. Welke materialen bij een werkzaamheid kiesbaar zijn, vink je aan bij die werkzaamheid in de tab Werkzaamheden.',
   geenMaterialenLijst: 'Er zijn nog geen materialen.',
   materiaalNaam: (label: string) => `Naam van materiaal ${label}`,
   materiaalEenheid: (label: string) => `Eenheid van materiaal ${label}`,
@@ -15,6 +18,8 @@ export const werkzaamheden = {
   nieuwMateriaal: 'Nieuw materiaal',
   nieuwMateriaalHint: 'Bijvoorbeeld: Zink.',
   materiaalToevoegen: 'Materiaal toevoegen',
+  zoekMateriaal: 'Zoek een materiaal',
+  geenMaterialenGevonden: 'Geen materialen gevonden.',
 
   // Sectie Werkzaamheden
   werkzaamheden: 'Werkzaamheden',
@@ -35,6 +40,13 @@ export const werkzaamheden = {
   nieuwWerk: 'Nieuwe werkzaamheid',
   nieuwWerkHint: 'Bijvoorbeeld: Dakkapel bekleden.',
   werkToevoegen: 'Werkzaamheid toevoegen',
+  allesOpenen: 'Alles openen',
+  allesSluiten: 'Alles sluiten',
+  geenPrijs: 'geen prijs',
+  kopPrijs: (prijs: string) => `${prijs} per eenheid`,
+  kopUurprijs: (prijs: string) => `${prijs} per uur`,
+  aantalOpties: (n: number) => (n === 1 ? '1 optie' : `${n} opties`),
+  aantalMaterialen: (n: number) => (n === 1 ? '1 materiaal' : `${n} materialen`),
   opties: (werk: string) => `Opties bij ${werk}`,
   optiesUitleg: 'Iets wat je bij deze werkzaamheid kunt aanvinken, zoals een afvalcontainer.',
   geenOpties: 'Nog geen opties.',
@@ -99,8 +111,6 @@ export const werkzaamheden = {
   btw: 'Btw',
   btwTarief: (tarief: number) => `${tarief}%`,
   toevoegen: 'Toevoegen',
-  omhoog: (label: string) => `${label} omhoog`,
-  omlaag: (label: string) => `${label} omlaag`,
   verberg: (label: string) => `${label} verbergen`,
   toon: (label: string) => `${label} weer tonen`,
   verwijder: (label: string) => `${label} verwijderen`,
@@ -117,6 +127,8 @@ export const werkzaamheden = {
   sluiten: 'Sluiten',
 
   herstel: 'Herstel startset',
+  herstelUitleg:
+    'Herstel startset zet de standaardwerkzaamheden én de standaardmaterialen (tab Materialen en prijzen) terug zoals ze bij de installatie waren. Je eigen werkzaamheden, materialen en alle prijzen blijven.',
   herstelTitel: 'Startset herstellen?',
   herstelTekst:
     'De standaardwerkzaamheden en -materialen krijgen hun oorspronkelijke naam, volgorde en koppelingen terug en worden weer getoond. Prijzen en je eigen onderdelen blijven. Ook de tags van de standaardmaterialen en het materiaal per daksituatie van de standaardwerkzaamheden gaan terug naar de startset.',

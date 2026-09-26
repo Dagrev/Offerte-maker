@@ -13,6 +13,7 @@ export type InstellingenTab =
   | 'opmaak'
   | 'teksten'
   | 'keuzelijsten'
+  | 'materialen'
   | 'werkzaamheden'
   | 'verplicht'
   | 'voorbeelden'

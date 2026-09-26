@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
 import { queryClient } from './queryClient';
@@ -60,11 +61,50 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
   };
 }
 
+// OFM-056: twee tabs (Materialen en prijzen, Werkzaamheden) bewaren elk de hele set. Bij het wisselen van
+// tab gaat een wachtende wijziging van de oude tab pas weg als de nieuwe al opent; die mag dan niet met de
+// set van vóór die wijziging beginnen. `useWerkzaamhedenBezig` telt de wachtende wijzigingen (nog niet
+// bewaard, `meldWachtend`) en de lopende bewaaracties (tot en met het verversen van de query), zodat een
+// tab pas begint als de set vers is.
+let lopend = 0;
+const wachtend = new Set<symbol>();
+const luisteraars = new Set<() => void>();
+const meld = () => {
+  for (const l of luisteraars) l();
+};
+function zetLopend(delta: number): void {
+  lopend += delta;
+  meld();
+}
+/** Een bewerker heeft een wijziging die nog niet bewaard is (`aan`), of niet meer. */
+export function meldWachtend(bewerker: symbol, aan: boolean): void {
+  if (aan === wachtend.has(bewerker)) return;
+  if (aan) wachtend.add(bewerker);
+  else wachtend.delete(bewerker);
+  meld();
+}
+const abonneer = (l: () => void) => {
+  luisteraars.add(l);
+  return () => {
+    luisteraars.delete(l);
+  };
+};
+
+/** Aantal wachtende wijzigingen en lopende bewaaracties van de set (inclusief het verversen van de query). */
+export function useWerkzaamhedenBezig(): number {
+  return useSyncExternalStore(abonneer, () => lopend + wachtend.size);
+}
+
 /** De hele set in de nieuwe volgorde; een onbekende id is nieuw, ontbrekende items worden verwijderd. */
 export async function bewaarWerkzaamheden(set: WerkzaamhedenBewaar): Promise<WerkzaamhedenSet> {
-  const uit = await roep(window.api.werkzaamhedenBewaar(set));
-  await naWijziging();
-  return uit;
+  zetLopend(1);
+  try {
+    const uit = await roep(window.api.werkzaamhedenBewaar(set));
+    await naWijziging();
+    return uit;
+  } finally {
+    zetLopend(-1);
+  }
 }
 
 export async function herstelWerkzaamheden(): Promise<void> {

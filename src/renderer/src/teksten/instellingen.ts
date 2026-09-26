@@ -2,7 +2,8 @@ import type { Eenheid } from '@shared/types';
 import type { InstellingenTab } from '../stores/navigatie';
 
 // Interfacetekst (NFE-006, V-11). Eigenaar: OFM-018 (container en tabs Bedrijf, Opmaak, Teksten).
-// Sinds OFM-048 staan de prijzen in de tab Werkzaamheden en prijzen (tekst in `werkzaamheden.ts`).
+// Sinds OFM-048 staan de prijzen bij de werkzaamheden en materialen; sinds OFM-056 in de tabs Materialen en
+// prijzen en Werkzaamheden (tekst in `werkzaamheden.ts`).
 // De inhoud van Voorbeelden en de Geavanceerd-subtabs staat in hun eigen modules (OFM-019 t/m 022).
 export const instellingen = {
   titel: 'Instellingen',
@@ -15,7 +16,8 @@ export const instellingen = {
     opmaak: 'Opmaak',
     teksten: 'Teksten',
     keuzelijsten: 'Keuzelijsten',
-    werkzaamheden: 'Werkzaamheden en prijzen',
+    materialen: 'Materialen en prijzen',
+    werkzaamheden: 'Werkzaamheden',
     verplicht: 'Verplichte velden',
     voorbeelden: 'Voorbeelden',
     claudeKoppeling: 'Claude-koppeling',

@@ -48,6 +48,6 @@ export const PRIJS_STARTSET: readonly StartPost[] = [
 /**
  * Posten die de app zelf gebruikt voor "Maak zonder Claude" (§9.5, `planRegels`). Sinds OFM-048
  * (migratie 006) zijn dit de enige losse posten: de rest van de prijslijst hoort bij een werkzaamheid,
- * optie of materiaal. Hun prijs staat in Instellingen › Werkzaamheden en prijzen onder "Overige prijzen".
+ * optie of materiaal. Hun prijs staat in Instellingen › Materialen en prijzen onder "Overige prijzen".
  */
 export const VASTE_POSTEN = ['steiger', 'verzekerde_garantie', 'voorrijkosten'] as const;

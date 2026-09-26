@@ -67,8 +67,8 @@ export const keuzelijsten = {
   /** OFM-051/055 */
   verwijderAfwijkingen: (aantal: number) =>
     aantal === 1
-      ? 'Ook de standaardmaterialen bij de daksituatie met deze keuze (Werkzaamheden en prijzen) verdwijnen.'
-      : `Ook de standaardmaterialen bij ${aantal} daksituaties met deze keuze (Werkzaamheden en prijzen) verdwijnen.`,
+      ? 'Ook de standaardmaterialen bij de daksituatie met deze keuze (tab Werkzaamheden) verdwijnen.'
+      : `Ook de standaardmaterialen bij ${aantal} daksituaties met deze keuze (tab Werkzaamheden) verdwijnen.`,
   verwijderJa: 'Verwijderen',
   verwijderNee: 'Annuleren',
   herstel: 'Herstel standaardlijst',

@@ -36,7 +36,7 @@ import {
 // Prijzen staan alleen in `prijsposten` (V-13) onder `werk:<s>`, `optie:<werkzaamheid>:<s>` en
 // `mat:<s>`, en sinds OFM-048 de uurprijs onder `werk:<s>:uur`; deze module houdt omschrijving en
 // eenheid van die posten gelijk aan het item. Sinds OFM-048 bewaart `werkzaamheden:bewaar` ook de btw
-// (de tab Werkzaamheden en prijzen is de enige plek waar deze prijzen worden ingevuld).
+// (de tabs Materialen en prijzen en Werkzaamheden zijn de enige plek waar deze prijzen worden ingevuld).
 
 const ongeldig = (melding: string) => new AppFout('VALIDATIE', melding);
 

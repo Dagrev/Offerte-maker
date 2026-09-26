@@ -132,7 +132,7 @@ export const wizard = {
     kiesSoortEerst: 'Kies eerst een soort werk; daarna verschijnen de werkzaamheden die erbij horen.',
     werkzaamheden: 'Werkzaamheden',
     geenGekoppeld:
-      'Bij deze soort werk horen nog geen werkzaamheden. Voeg er een toe met Andere werkzaamheid, of stel ze in onder Instellingen › Werkzaamheden en prijzen.',
+      'Bij deze soort werk horen nog geen werkzaamheden. Voeg er een toe met Andere werkzaamheid, of stel ze in onder Instellingen › Werkzaamheden.',
     nietBijSoort: 'hoort niet bij deze soort werk',
     aantal: 'Aantal',
     prijs: 'Prijs per eenheid (excl. btw)',
