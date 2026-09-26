@@ -1,7 +1,7 @@
 // Alle IPC-kanalen (TDO §6.2, V-03, V-17, V-27). Deze lijst is de enige bron: de preload maakt er
 // één functie per kanaal van, `ipc/registreer.ts` eist voor elk kanaal een handler en een schema.
 // Latere tickets wijzigen deze lijst niet (uitzonderingen: OFM-034 voegt de keuzelijsten toe, OFM-031
-// `adres:zoek`).
+// `adres:zoek`, OFM-043 de werkzaamheden).
 
 export const IPC_KANALEN = [
   // app.ts
@@ -45,6 +45,10 @@ export const IPC_KANALEN = [
   'keuzelijsten:haal',
   'keuzelijsten:bewaar',
   'keuzelijsten:herstel',
+  // werkzaamheden.ts (OFM-043)
+  'werkzaamheden:haal',
+  'werkzaamheden:bewaar',
+  'werkzaamheden:herstel',
   // adres.ts (OFM-031)
   'adres:zoek',
   // prijzen.ts

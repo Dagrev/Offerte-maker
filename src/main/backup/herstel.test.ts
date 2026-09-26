@@ -35,6 +35,18 @@ beforeEach(async () => {
 });
 afterEach(() => t.opruimen());
 
+/** Maakt van een kopie van de huidige database een database van vóór OFM-043 (zonder migratie 004). */
+function maakVersie2(db: Database.Database): void {
+  db.exec(`
+    DROP TABLE werkzaamheid_materiaal;
+    DROP TABLE werkzaamheid_soortwerk;
+    DROP TABLE werkzaamheid_opties;
+    DROP TABLE materialen;
+    DROP TABLE werkzaamheden;
+    DELETE FROM prijsposten WHERE sleutel LIKE '%:%';
+  `);
+}
+
 function nepBackup(dag: number, reden = 'dagelijks'): string {
   const naam = `offerte-maker-2026-08-${String(dag).padStart(2, '0')}-120000-${reden}.sqlite`;
   writeFileSync(join(map, naam), 'x');
@@ -160,6 +172,7 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     });
     // Maak er een back-up van vóór OFM-034 van: zonder keuzeopties, garantie als getal, versie 1.
     const kopie = new Database(join(map, bestand));
+    maakVersie2(kopie);
     kopie.exec('DROP TABLE keuzeopties');
     kopie
       .prepare(
@@ -173,12 +186,43 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     await zetTerug(bestand, { herstart: vi.fn() });
     const db = openDatabase(t.pad);
     try {
-      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({ van: 1, naar: 2 });
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 1,
+        naar: SCHEMA_VERSIE,
+      });
       const invoer = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
         invoer_json: string;
       };
       expect(JSON.parse(invoer.invoer_json)).toEqual({ garantieJaren: '20', isolatie: 'geen' });
       expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('OFM-043: back-up met schemaversie 2 wordt teruggezet; bij de herstart draait migratie 004 opnieuw', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 2, 9, 0, 0),
+    });
+    const kopie = new Database(join(map, bestand));
+    maakVersie2(kopie);
+    kopie.pragma('user_version = 2');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 2,
+        naar: SCHEMA_VERSIE,
+      });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM werkzaamheden').get()).toEqual({ n: 8 });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM materialen').get()).toEqual({ n: 9 });
+      expect(db.prepare("SELECT COUNT(*) AS n FROM prijsposten WHERE sleutel LIKE 'werk:%'").get()).toEqual({
+        n: 8,
+      });
     } finally {
       db.close();
     }

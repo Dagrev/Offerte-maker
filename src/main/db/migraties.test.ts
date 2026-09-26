@@ -8,7 +8,7 @@ import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/datab
 vi.mock('electron', () => ({ app: { getPath: () => 'C:\\nergens', isPackaged: false } }));
 vi.mock('../log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-const { laadMigraties, migreer } = await import('./migraties');
+const { SCHEMA_VERSIE, laadMigraties, migreer } = await import('./migraties');
 const { maakBackup } = await import('../backup/backup');
 const { database, openDatabase, sluitDatabase, gebruikDatabase } = await import('./verbinding');
 
@@ -43,20 +43,23 @@ describe('verbinding', () => {
 });
 
 describe('migratiebestanden', () => {
-  it.each(['001_basis.sql', '002_keuzelijsten.sql'])('%s bevat geen INSERTs (V-13)', (naam) => {
-    const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
-    expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
-  });
+  it.each(['001_basis.sql', '002_keuzelijsten.sql', '004_werkzaamheden.sql'])(
+    '%s bevat geen INSERTs (V-13)',
+    (naam) => {
+      const sql = readFileSync(join(import.meta.dirname, 'migraties', naam), 'utf8');
+      expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
+    },
+  );
 });
 
 describe('migreer', () => {
-  it('lege database: schema, startsets, user_version 2, géén back-up (V-12)', async () => {
+  it('lege database: schema, startsets, hoogste user_version, géén back-up (V-12)', async () => {
     t = await maakTestDatabase({ migreren: false });
     const backup = vi.fn(() => Promise.resolve());
     const uitkomst = await migreer(t.db, { backup });
-    expect(uitkomst).toEqual({ van: 0, naar: 2, backupGemaakt: false });
+    expect(uitkomst).toEqual({ van: 0, naar: SCHEMA_VERSIE, backupGemaakt: false });
     expect(backup).not.toHaveBeenCalled();
-    expect(t.db.pragma('user_version', { simple: true })).toBe(2);
+    expect(t.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     expect(tabellen(t.db)).toEqual(
       expect.arrayContaining([
         'offertes',
@@ -73,13 +76,22 @@ describe('migreer', () => {
         'idx_privacylog_tijd',
         'keuzeopties',
         'idx_keuzeopties_lijst',
+        'werkzaamheden',
+        'werkzaamheid_soortwerk',
+        'werkzaamheid_opties',
+        'materialen',
+        'werkzaamheid_materiaal',
+        'idx_een_standaardmateriaal',
       ]),
     );
   });
 
   it('startset gelijk aan shared/prijsStartset.ts (FE-074, V-13)', async () => {
     t = await maakTestDatabase();
-    const rijen = t.db.prepare('SELECT * FROM prijsposten ORDER BY volgorde').all();
+    // Zonder de posten van werkzaamheden, opties en materialen (OFM-043, sleutel met `:`).
+    const rijen = t.db
+      .prepare("SELECT * FROM prijsposten WHERE sleutel NOT LIKE '%:%' ORDER BY volgorde")
+      .all();
     expect(rijen).toEqual(
       PRIJS_STARTSET.map((p, i) => ({
         id: `start-${p.sleutel}`,
@@ -129,7 +141,7 @@ describe('migreer', () => {
     zet.run('tien', invoer(10));
     zet.run('twintig', invoer(20));
     const backup = vi.fn(() => Promise.resolve());
-    expect(await migreer(t.db, { backup })).toEqual({ van: 1, naar: 2, backupGemaakt: true });
+    expect(await migreer(t.db, { backup })).toEqual({ van: 1, naar: SCHEMA_VERSIE, backupGemaakt: true });
     expect(backup).toHaveBeenCalledWith('voor-migratie');
     const garantie = (id: string) =>
       (
@@ -146,28 +158,33 @@ describe('migreer', () => {
   it('niets te doen: geen back-up, versie blijft', async () => {
     t = await maakTestDatabase();
     const backup = vi.fn(() => Promise.resolve());
-    expect(await migreer(t.db, { backup })).toEqual({ van: 2, naar: 2, backupGemaakt: false });
+    expect(await migreer(t.db, { backup })).toEqual({
+      van: SCHEMA_VERSIE,
+      naar: SCHEMA_VERSIE,
+      backupGemaakt: false,
+    });
     expect(backup).not.toHaveBeenCalled();
   });
 
-  it('database met data + migratie 003: data blijft, versie 3, back-up voor-migratie', async () => {
+  it('database met data + een nieuwe migratie: data blijft, versie omhoog, back-up voor-migratie', async () => {
     t = await maakTestDatabase();
     t.db.prepare("INSERT INTO instellingen (sleutel, waarde_json) VALUES ('opmaak', '{}')").run();
+    const posten = t.db.prepare('SELECT COUNT(*) AS n FROM prijsposten').get();
     const backupMap = join(t.map, 'Back-ups');
     mkdirSync(backupMap);
     const migraties = laadMigraties({
       './migraties/001_basis.sql': 'SELECT 1;',
       './migraties/002_keuzelijsten.sql': 'SELECT 1;',
-      './migraties/003_test.sql': 'ALTER TABLE offertes ADD COLUMN test_kolom TEXT;',
+      './migraties/998_test.sql': 'ALTER TABLE offertes ADD COLUMN test_kolom TEXT;',
     });
     const uitkomst = await migreer(t.db, {
       migraties,
       backup: (reden) => maakBackup(reden, { db: t!.db, backupMap }),
     });
-    expect(uitkomst).toEqual({ van: 2, naar: 3, backupGemaakt: true });
-    expect(t.db.pragma('user_version', { simple: true })).toBe(3);
+    expect(uitkomst).toEqual({ van: SCHEMA_VERSIE, naar: 998, backupGemaakt: true });
+    expect(t.db.pragma('user_version', { simple: true })).toBe(998);
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM instellingen').get()).toEqual({ n: 1 });
-    expect(t.db.prepare('SELECT COUNT(*) AS n FROM prijsposten').get()).toEqual({ n: 22 });
+    expect(t.db.prepare('SELECT COUNT(*) AS n FROM prijsposten').get()).toEqual(posten);
     const bestanden = readdirSync(backupMap);
     expect(bestanden).toHaveLength(1);
     expect(bestanden[0]).toMatch(/-voor-migratie\.sqlite$/);
@@ -176,10 +193,10 @@ describe('migreer', () => {
   it('een mislukte migratie wordt teruggedraaid', async () => {
     t = await maakTestDatabase();
     const migraties = laadMigraties({
-      './migraties/003_kapot.sql': 'CREATE TABLE tijdelijk (a TEXT); DIT IS GEEN SQL;',
+      './migraties/999_kapot.sql': 'CREATE TABLE tijdelijk (a TEXT); DIT IS GEEN SQL;',
     });
     await expect(migreer(t.db, { migraties, backup: () => Promise.resolve() })).rejects.toThrow();
-    expect(t.db.pragma('user_version', { simple: true })).toBe(2);
+    expect(t.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     expect(tabellen(t.db)).not.toContain('tijdelijk');
   });
 
@@ -191,7 +208,7 @@ describe('migreer', () => {
     t = await maakTestDatabase();
     t.db.close();
     const opnieuw = openDatabase(t.pad);
-    expect(opnieuw.pragma('user_version', { simple: true })).toBe(2);
+    expect(opnieuw.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSIE);
     opnieuw.close();
     expect(existsSync(t.pad)).toBe(true);
   });

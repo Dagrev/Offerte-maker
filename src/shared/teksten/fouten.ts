@@ -45,4 +45,13 @@ export const VALIDATIE_MELDINGEN = {
   keuzeInGebruik: 'Deze keuze staat nog in een offerte. Je kunt hem wel verbergen.',
   keuzeVast: 'Dit is de standaardkeuze van een nieuwe offerte. Je kunt hem alleen een andere naam geven.',
   onbekendeKeuze: 'Deze keuze bestaat niet (meer). Kies een andere.',
+  // Werkzaamheden en materialen (OFM-043)
+  werkInGebruik:
+    'Dit onderdeel staat nog in een offerte en kan niet worden verwijderd. Je kunt het wel verbergen.',
+  werkDubbel: 'Een werkzaamheid, optie of materiaal staat er twee keer in. Laad het scherm opnieuw.',
+  werkOnbekendeKoppeling: 'Een gekoppelde soort werk of een gekoppeld materiaal bestaat niet (meer).',
+  werkLeegLabel: 'Vul bij elke werkzaamheid, optie en elk materiaal een naam in.',
+  werkEenStandaard: 'Kies per werkzaamheid hooguit één standaardmateriaal.',
+  werkPrijspostVast:
+    'Deze prijspost hoort bij een werkzaamheid, optie of materiaal. Verwijder of hernoem die onder Werkzaamheden.',
 } as const;

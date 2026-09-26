@@ -52,6 +52,13 @@ export type Prijspost = z.infer<typeof s.prijspostSchema>;
 export type Keuzeoptie = z.infer<typeof s.keuzeoptieSchema>;
 /** Uitvoer van `keuzelijsten:haal`: per lijst de opties in volgorde (OFM-034). */
 export type Keuzelijsten = Record<KeuzeLijst, Keuzeoptie[]>;
+export type WerkOptie = z.infer<typeof s.werkOptieSchema>;
+export type Werkzaamheid = z.infer<typeof s.werkzaamheidSchema>;
+export type Materiaal = z.infer<typeof s.materiaalSchema>;
+/** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar` (OFM-043). */
+export type WerkzaamhedenSet = z.infer<typeof s.werkzaamhedenSetSchema>;
+/** Invoer van `werkzaamheden:bewaar` (OFM-043). */
+export type WerkzaamhedenBewaar = z.infer<typeof s.werkzaamhedenBewaarSchema>;
 export type VoorbeeldStatus = z.infer<typeof s.voorbeeldStatusSchema>;
 export type VoorbeeldItem = z.infer<typeof s.voorbeeldItemSchema>;
 export type ClaudeStatus = z.infer<typeof s.claudeStatusSchema>;
@@ -106,6 +113,9 @@ export interface KanaalUitvoer {
   'keuzelijsten:haal': Keuzelijsten;
   'keuzelijsten:bewaar': Keuzeoptie[];
   'keuzelijsten:herstel': null;
+  'werkzaamheden:haal': WerkzaamhedenSet;
+  'werkzaamheden:bewaar': WerkzaamhedenSet;
+  'werkzaamheden:herstel': null;
   /** OFM-031: `null` = niet gevonden, geen internet of time-out (geen foutmelding). */
   'adres:zoek': { straat: string; plaats: string } | null;
   'prijzen:lijst': Prijspost[];

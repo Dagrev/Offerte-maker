@@ -89,6 +89,6 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    expect(a.pragma('user_version', { simple: true })).toBe(2);
+    expect(a.pragma('user_version', { simple: true })).toBe(4);
   });
 });

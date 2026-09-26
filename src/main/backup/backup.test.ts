@@ -43,7 +43,9 @@ describe('maakBackup (§14.2, NFE-012)', () => {
     expect(isIntact(pad)).toBe(true);
     const kopie = openDatabase(pad);
     expect(kopie.prepare('SELECT COUNT(*) AS n FROM instellingen').get()).toEqual({ n: 1 });
-    expect(kopie.prepare('SELECT COUNT(*) AS n FROM prijsposten').get()).toEqual({ n: 22 });
+    expect(kopie.prepare('SELECT COUNT(*) AS n FROM prijsposten').get()).toEqual(
+      t.db.prepare('SELECT COUNT(*) AS n FROM prijsposten').get(),
+    );
     kopie.close();
   });
 

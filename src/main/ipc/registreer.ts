@@ -22,6 +22,7 @@ import { privacylogHandlers } from './privacylog';
 import { prijzenHandlers } from './prijzen';
 import { voorbeeldenHandlers } from './voorbeelden';
 import { welkomHandlers } from './welkom';
+import { werkzaamhedenHandlers } from './werkzaamheden';
 
 // IPC-registratie (TDO §6.1, NFE-014). Elke handler krijgt gevalideerde invoer en geeft data terug of
 // gooit een AppFout; de omzetting naar `Resultaat<T>` gebeurt hier. Naar de renderer wordt nooit gegooid.
@@ -48,6 +49,7 @@ export const alleHandlers: AlleHandlers = {
   ...offerteBeheerHandlers,
   ...instellingenHandlers,
   ...keuzelijstenHandlers,
+  ...werkzaamhedenHandlers,
   ...adresHandlers,
   ...prijzenHandlers,
   ...voorbeeldenHandlers,
