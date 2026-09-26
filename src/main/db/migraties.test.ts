@@ -259,6 +259,103 @@ describe('migreer', () => {
     });
   });
 
+  it('009: lijst nieuweBedekking, zinnen, vinkjes; koppelingen blijven; bedekking afgeleid (OFM-050)', async () => {
+    t = await maakTestDatabase({ migreren: false });
+    const alle = laadMigraties(
+      import.meta.glob<string>('./migraties/*.sql', { query: '?raw', import: 'default', eager: true }),
+    );
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr < 9), backup: () => Promise.resolve() });
+    const koppelingen = t.db.prepare('SELECT COUNT(*) AS n FROM werkzaamheid_soortwerk').get() as {
+      n: number;
+    };
+    expect(koppelingen.n).toBeGreaterThan(0);
+    // Eigen soort werk met een koppeling, een hernoemde startoptie en drie oude offertes.
+    t.db
+      .prepare(
+        "INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde) VALUES ('eigen', 'soortWerk', 'dakkapel', 'Dakkapel', 99)",
+      )
+      .run();
+    t.db
+      .prepare(
+        "INSERT INTO werkzaamheid_soortwerk (werkzaamheid_id, soort_werk) VALUES ('start-werk-slopen', 'dakkapel')",
+      )
+      .run();
+    t.db
+      .prepare(
+        "UPDATE keuzeopties SET label = 'Houten vloer' WHERE lijst = 'ondergrond' AND sleutel = 'hout'",
+      )
+      .run();
+    const offerte = t.db.prepare(
+      `INSERT INTO offertes (id, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
+       VALUES (?, '2026-09-01', '2026-10-01', '{}', ?, 'x', 'x')`,
+    );
+    const werk = (sleutel: string, materialen: string[]) => ({
+      sleutel,
+      materialen: materialen.map((m) => ({ sleutel: m })),
+    });
+    offerte.run(
+      'epdm',
+      JSON.stringify({ werkzaamheden: [werk('isoleren', ['pir_80']), werk('nieuwe_bedekking', ['epdm'])] }),
+    );
+    offerte.run('herstel', JSON.stringify({ werkzaamheden: [werk('plaatselijk_herstel', ['bitumen'])] }));
+    offerte.run('leeg', JSON.stringify({ werkzaamheden: [] }));
+
+    await migreer(t.db, { migraties: alle.filter((mig) => mig.nr === 9), backup: () => Promise.resolve() });
+
+    expect(t.db.prepare('SELECT COUNT(*) AS n FROM werkzaamheid_soortwerk').get()).toEqual({
+      n: koppelingen.n + 1,
+    });
+    expect(
+      t.db
+        .prepare("SELECT sleutel, label FROM keuzeopties WHERE lijst = 'nieuweBedekking' ORDER BY volgorde")
+        .all(),
+    ).toEqual(KEUZE_STARTSET.nieuweBedekking);
+    expect(
+      t.db
+        .prepare("SELECT label, zin FROM keuzeopties WHERE lijst = 'ondergrond' AND sleutel = 'hout'")
+        .get(),
+    ).toEqual({ label: 'Houten vloer', zin: 'Het dak heeft een houten dakbeschot.' });
+    expect(
+      t.db.prepare("SELECT zin FROM keuzeopties WHERE lijst = 'hoogte' AND sleutel = '2'").get(),
+    ).toEqual({ zin: 'Het dak ligt op de tweede bouwlaag.' });
+    expect(
+      t.db
+        .prepare(
+          "SELECT sleutel FROM keuzeopties WHERE lijst = 'soortWerk' AND vraagt_bedekking = 1 ORDER BY volgorde",
+        )
+        .all(),
+    ).toEqual([{ sleutel: 'nieuw_dak' }, { sleutel: 'dak_vervangen' }]);
+    expect(t.db.prepare("SELECT zin FROM keuzeopties WHERE id = 'eigen'").get()).toEqual({ zin: '' });
+    const bedekking = (id: string) =>
+      (
+        JSON.parse(
+          (t!.db.prepare('SELECT invoer_json FROM offertes WHERE id = ?').get(id) as { invoer_json: string })
+            .invoer_json,
+        ) as { nieuweBedekking: unknown }
+      ).nieuweBedekking;
+    expect(bedekking('epdm')).toBe('epdm');
+    expect(bedekking('herstel')).toBeNull();
+    expect(bedekking('leeg')).toBeNull();
+    // De oude lijsten van de stap Extra's passen niet meer in de CHECK.
+    expect(() =>
+      t!.db
+        .prepare(
+          "INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde) VALUES ('x', 'isolatie', 'x', 'X', 1)",
+        )
+        .run(),
+    ).toThrow(/CHECK/);
+    // Nog steeds hoogstens één standaardkeuze per lijst, en de koppeling volgt een verwijderde soort werk.
+    t.db.prepare("DELETE FROM keuzeopties WHERE id = 'eigen'").run();
+    expect(
+      t.db.prepare("SELECT COUNT(*) AS n FROM werkzaamheid_soortwerk WHERE soort_werk = 'dakkapel'").get(),
+    ).toEqual({
+      n: 0,
+    });
+    expect(() =>
+      t!.db.prepare("UPDATE keuzeopties SET standaardkeuze = 1 WHERE lijst = 'hoogte'").run(),
+    ).toThrow(/UNIQUE/);
+  });
+
   it('niets te doen: geen back-up, versie blijft', async () => {
     t = await maakTestDatabase();
     const backup = vi.fn(() => Promise.resolve());

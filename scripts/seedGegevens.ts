@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { nieuweBedekkingUitWerkzaamheden, zetHuidigDakStartset } from '../src/main/db/huidigDak';
 import { voegPrijzenSamen } from '../src/main/db/prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
@@ -200,6 +201,8 @@ export function zorgVoorSchema(db: Database.Database): void {
     zetWerkzaamhedenStartset(db);
     // OFM-048 (migratie 006): uurprijs-posten, oude losse posten weg (er zijn nog geen offertes).
     voegPrijzenSamen(db);
+    // OFM-050 (migratie 009): startzinnen en de vinkjes "vraagt nieuwe dakbedekking".
+    zetHuidigDakStartset(db);
     // Hoogste migratienummer, niet het aantal bestanden (zoals `migreer()`).
     db.pragma(`user_version = ${Number(bestanden.at(-1)?.slice(0, 3) ?? 0)}`);
   })();
@@ -271,6 +274,8 @@ function maakOfferte(random: () => number, n: number, status: Status): SeedOffer
   const invoer: KlusInvoer = {
     ...legeKlusInvoer(),
     soortWerk,
+    // OFM-050: zoals migratie 009 hem afleidt (het materiaal bij Nieuwe bedekking).
+    nieuweBedekking: nieuweBedekkingUitWerkzaamheden(werkzaamheden),
     soortDak: kies(random, SOORTEN_DAK),
     dakvlakken: vlakken,
     werkzaamheden,
@@ -473,11 +478,7 @@ export function vulMetSeed(
       );
       versieSql.run(`${o.id}-v1`, o.id, inhoudJson, tijdstip);
       if (nr) {
-        const pad = join(
-          documentenMap,
-          String(nr.jaar),
-          `${nr.nummer} ${volledigeNaam(o.klant)}.pdf`,
-        );
+        const pad = join(documentenMap, String(nr.jaar), `${nr.nummer} ${volledigeNaam(o.klant)}.pdf`);
         pdfSql.run(`${o.id}-pdf`, o.id, pad, tijdstip);
       }
       perStatus[o.status] += 1;

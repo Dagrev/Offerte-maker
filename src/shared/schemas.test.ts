@@ -15,6 +15,7 @@ import type { KlusInvoer } from './types';
 
 const legeKlusInvoer: KlusInvoer = {
   soortWerk: null,
+  nieuweBedekking: null,
   soortDak: null,
   dakvlakken: [{ id: 'd1', naam: 'Dakvlak 1', modus: 'lxb', lengteM: null, breedteM: null, m2: null }],
   huidigeBedekking: null,

@@ -39,7 +39,40 @@ afterEach(() => t.opruimen());
 /** Maakt migratie 007 (OFM-049) ongedaan: de kolom `standaardkeuze` en zijn index weg. */
 /** Vóór OFM-047 (migratie 008): zonder `invoer_gewijzigd`; de versietabel mag blijven, 008 bouwt hem opnieuw. */
 function zonderInvoerGewijzigd(db: Database.Database): void {
+  zonderHuidigDak(db);
   db.exec('ALTER TABLE offertes DROP COLUMN invoer_gewijzigd');
+}
+
+/**
+ * Vóór OFM-050 (migratie 009): `keuzeopties` met de oude CHECK op `lijst` (ook de lijsten van de oude
+ * stap Extra's), zonder `zin`, `vraagt_bedekking` en de lijst `nieuweBedekking`. De koppeling met soort
+ * werk gaat bij het weggooien van de tabel mee (ON DELETE CASCADE) en wordt daarna teruggezet.
+ */
+function zonderHuidigDak(db: Database.Database): void {
+  db.exec(`
+    DELETE FROM keuzeopties WHERE lijst = 'nieuweBedekking';
+    CREATE TEMP TABLE soortwerk_oud AS SELECT werkzaamheid_id, soort_werk FROM werkzaamheid_soortwerk;
+    CREATE TABLE keuzeopties_oud (
+      id TEXT PRIMARY KEY,
+      lijst TEXT NOT NULL CHECK (lijst IN ('soortWerk','soortDak','bedekking','huidigeBedekking','ondergrond',
+                                          'isolatie','extras','afwerking','hoogte','garantie')),
+      sleutel TEXT NOT NULL,
+      label TEXT NOT NULL,
+      volgorde INTEGER NOT NULL,
+      verborgen INTEGER NOT NULL DEFAULT 0 CHECK (verborgen IN (0,1)),
+      standaard INTEGER NOT NULL DEFAULT 0 CHECK (standaard IN (0,1)),
+      standaardkeuze INTEGER NOT NULL DEFAULT 0 CHECK (standaardkeuze IN (0, 1)),
+      UNIQUE (lijst, sleutel)
+    );
+    INSERT INTO keuzeopties_oud (id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze)
+      SELECT id, lijst, sleutel, label, volgorde, verborgen, standaard, standaardkeuze FROM keuzeopties;
+    DROP TABLE keuzeopties;
+    ALTER TABLE keuzeopties_oud RENAME TO keuzeopties;
+    CREATE INDEX idx_keuzeopties_lijst ON keuzeopties(lijst, volgorde);
+    CREATE UNIQUE INDEX idx_keuzeopties_standaardkeuze ON keuzeopties (lijst) WHERE standaardkeuze = 1;
+    INSERT INTO werkzaamheid_soortwerk (werkzaamheid_id, soort_werk) SELECT werkzaamheid_id, soort_werk FROM soortwerk_oud;
+    DROP TABLE soortwerk_oud;
+  `);
 }
 
 function zonderStandaardkeuze(db: Database.Database): void {
@@ -219,8 +252,14 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
         invoer_json: string;
       };
       // Migratie 005 (OFM-045) heeft de oude velden omgezet: isolatie "geen" geeft geen werkzaamheid.
-      expect(JSON.parse(invoer.invoer_json)).toEqual({ garantieJaren: '20', werkzaamheden: [] });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 21 });
+      // Migratie 009 (OFM-050) zette nieuweBedekking erbij (geen bedekkingsmateriaal: null).
+      expect(JSON.parse(invoer.invoer_json)).toEqual({
+        garantieJaren: '20',
+        werkzaamheden: [],
+        nieuweBedekking: null,
+      });
+      // 21 startopties plus de 3 van nieuweBedekking (009).
+      expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 24 });
     } finally {
       db.close();
     }

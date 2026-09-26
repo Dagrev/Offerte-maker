@@ -19,6 +19,7 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     const klus = bouwKlusVoorAgent({
       invoer: maakInvoer({
         soortWerk: 'nieuw_dak',
+        nieuweBedekking: 'epdm',
         soortDak: 'hellend',
         dakvlakken: [
           { id: 'a', naam: 'Voorkant', modus: 'lxb', lengteM: 5, breedteM: 4.5, m2: null },
@@ -38,6 +39,8 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     });
     expect(klus).toEqual({
       soortWerk: 'Nieuw dak',
+      nieuweBedekking: 'EPDM',
+      beginsituatie: [],
       soortDak: 'hellend dak',
       dakvlakken: [
         { naam: 'Voorkant', m2: 22.5 },
@@ -282,5 +285,27 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
   it('zonder catalogus en posten: sleutel als naam en geen prijspost-id', () => {
     const klus = bouwKlusVoorAgent({ ...bron, catalogus: undefined, postOpSleutel: undefined });
     expect(klus.werkzaamheden[0]).toMatchObject({ naam: 'slopen', prijspostId: null });
+  });
+});
+
+describe('beginsituatie (OFM-050)', () => {
+  it('de zinnen van stap 2, door het privacyfilter, en in de gebruikerstekst', () => {
+    const keuzes = {
+      ...KEUZE_STARTSET,
+      soortDak: [{ sleutel: 'plat', label: 'plat dak', zin: 'Het betreft een plat dak.' }],
+      ondergrond: [{ sleutel: 'hout', label: 'Hout', zin: 'Hout, gelegd door De Vries uit Veldhoven.' }],
+    };
+    const klus = bouwKlusVoorAgent({
+      invoer: maakInvoer({ soortDak: 'plat', ondergrond: 'hout', hoogte: '1' }),
+      klant,
+      offertedatum: '2026-09-25',
+      keuzes,
+    });
+    expect(klus.beginsituatie).toEqual([
+      'Het betreft een plat dak.',
+      'Hout, gelegd door [KLANT_NAAM] uit [KLANT_PLAATS].',
+    ]);
+    expect(gebruikersTekst(klus)).toEqual(expect.arrayContaining(klus.beginsituatie));
+    expect(klus.nieuweBedekking).toBeNull();
   });
 });

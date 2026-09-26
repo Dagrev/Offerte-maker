@@ -1,5 +1,5 @@
 import { euroNaarCent, m2VanDakvlak, totaalM2 } from '@shared/calc/bedragen';
-import { keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
+import { beginsituatie, keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
 import type { Klant, KlusInvoer, Prijspost } from '@shared/types';
 import { werkGroepen, type WerkCatalogus, type WerkRegel } from '@shared/werkzaamheden';
 import { anonimiseer } from './anonimiseer';
@@ -36,12 +36,20 @@ export interface WerkzaamheidVoorAgent extends WerkRegelVoorAgent {
 
 export interface KlusVoorAgent {
   soortWerk: string | null;
+  /** OFM-050: label van de nieuwe dakbedekking (stap 3), `null` als die niet gekozen is. */
+  nieuweBedekking: string | null;
   soortDak: string | null;
   dakvlakken: { naam: string; m2: number }[];
   huidigeBedekking: string | null;
   ondergrond: string | null;
   /** `null` als er (nog) geen hoogte is gekozen (OFM-049: geen standaard). */
   hoogte: string | null;
+  /**
+   * OFM-050: de zinnen van de gekozen opties van stap 2 (Instellingen › Keuzelijsten, "Zin in de
+   * offerte"), in de volgorde soort dak, huidige bedekking, ondergrond, hoogte. Vrije tekst van de
+   * dakdekker: door het privacyfilter.
+   */
+  beginsituatie: string[];
   /** OFM-044: de gekozen werkzaamheden, met materialen en opties. */
   werkzaamheden: WerkzaamheidVoorAgent[];
   steigerNodig: boolean;
@@ -122,12 +130,15 @@ export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): Klus
 
   return {
     soortWerk: invoer.soortWerk === null ? null : label('soortWerk', invoer.soortWerk),
+    nieuweBedekking:
+      invoer.nieuweBedekking === null ? null : label('nieuweBedekking', invoer.nieuweBedekking),
     soortDak: invoer.soortDak === null ? null : label('soortDak', invoer.soortDak),
     dakvlakken: invoer.dakvlakken.map((v) => ({ naam: filter(v.naam), m2: m2VanDakvlak(v) })),
     huidigeBedekking:
       invoer.huidigeBedekking === null ? null : label('huidigeBedekking', invoer.huidigeBedekking),
     ondergrond: invoer.ondergrond === null ? null : label('ondergrond', invoer.ondergrond),
     hoogte: invoer.hoogte === null ? null : label('hoogte', invoer.hoogte),
+    beginsituatie: beginsituatie(invoer, keuzes).map(filter),
     werkzaamheden,
     steigerNodig: invoer.steigerNodig,
     garantie: invoer.garantieJaren === null ? null : label('garantie', invoer.garantieJaren),
@@ -174,6 +185,8 @@ export function gebruikersTekst(klus: KlusVoorAgent): string[] {
   return [
     klus.gewensteUitvoering,
     klus.overig,
+    // OFM-050: de zinnen van de beginsituatie zijn vrije tekst uit de instellingen.
+    ...klus.beginsituatie,
     ...klus.dakvlakken.map((v) => v.naam),
     ...klus.werkzaamheden.flatMap((w) => [w.notitie, ...eenmalig(w), ...w.materialen.flatMap(eenmalig)]),
   ];

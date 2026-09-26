@@ -45,6 +45,7 @@ export function nieuwDakvlak(n: number, id: string = nieuwId()): Dakvlak {
 export function legeKlusInvoer(standaard: Standaardkeuzes = STANDAARDKEUZE_STARTSET): KlusInvoer {
   return {
     soortWerk: standaard.soortWerk ?? null,
+    nieuweBedekking: standaard.nieuweBedekking ?? null,
     soortDak: standaard.soortDak ?? null,
     dakvlakken: [nieuwDakvlak(1)],
     huidigeBedekking: standaard.huidigeBedekking ?? null,
@@ -74,7 +75,9 @@ export function normaliseerKlant(klant: Klant): Klant {
  * offertes na migratie 003) is de zoektekst precies als vroeger.
  */
 export function zoektekstVan(
-  klant: Pick<Klant, 'voornaam' | 'tussenvoegsel' | 'achternaam' | 'bedrijfsnaam'> & { adres: Pick<Adres, 'plaats'> },
+  klant: Pick<Klant, 'voornaam' | 'tussenvoegsel' | 'achternaam' | 'bedrijfsnaam'> & {
+    adres: Pick<Adres, 'plaats'>;
+  },
   nummer: string | null,
 ): string {
   return [volledigeNaam(klant), klant.bedrijfsnaam, klant.adres.plaats, nummer ?? ''].join(' ').toLowerCase();

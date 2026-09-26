@@ -24,11 +24,13 @@ const STAPPEN = [1, 2, 3] as const;
 /** Uitleg onder een veld, als dat iets bijzonders heeft. */
 function hintVan(veld: WizardVeld): string | undefined {
   if ((ALTIJD_VERPLICHT as readonly string[]).includes(veld)) return t.altijd;
+  // Vóór `startsWith('werk')`: anders kreeg "werkzaamheid" de uitleg van het werkadres.
+  if (veld === 'werkzaamheid') return t.werkzaamheidHint;
+  if (veld === 'nieuweBedekking') return t.nieuweBedekkingHint;
   if (veld.startsWith('werk')) return t.werkadresHint;
   if (veld === 'bedrijfsnaam') return t.bedrijfsnaamHint;
   if (veld === 'hoogte') return t.hoogteHint;
   if (veld === 'aanhef') return t.aanhefHint;
-  if (veld === 'werkzaamheid') return t.werkzaamheidHint;
   return undefined;
 }
 

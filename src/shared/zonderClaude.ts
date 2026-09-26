@@ -1,5 +1,6 @@
-import { aantalNaarHonderdsten } from './calc/bedragen';
-import { keuzeLabel, type Keuzes } from './keuzelijsten';
+import { aantalNaarHonderdsten, totaalM2 } from './calc/bedragen';
+import { formatM2 } from './formatteer';
+import { beginsituatie, keuzeLabel, type Keuzes } from './keuzelijsten';
 import { PRIJS_STARTSET } from './prijsStartset';
 import type { KlusInvoer, OfferteInhoud, Offerteregel, Prijspost } from './types';
 import { werkGroepen, type WerkCatalogus, type WerkRegel } from './werkzaamheden';
@@ -11,6 +12,21 @@ import { werkGroepen, type WerkCatalogus, type WerkRegel } from './werkzaamheden
 // De regels van de oude stap Extra's zijn met OFM-045 vervallen (oude offertes zijn omgezet).
 
 export const UITVOERING_STANDAARD = 'In overleg.';
+
+/**
+ * OFM-050: de eerste stap van de werkomschrijving: "Huidige situatie: " met de zinnen van de gekozen
+ * opties van stap 2 (soort dak, huidige bedekking, ondergrond, hoogte) en het totaal in m². `null` als
+ * er geen zin is en het dak geen oppervlakte heeft.
+ */
+export function stapHuidigeSituatie(
+  invoer: Pick<KlusInvoer, 'soortDak' | 'huidigeBedekking' | 'ondergrond' | 'hoogte' | 'dakvlakken'>,
+  keuzes: Partial<Keuzes>,
+): string | null {
+  const zinnen = beginsituatie(invoer, keuzes);
+  const m2 = totaalM2(invoer.dakvlakken);
+  if (m2 > 0) zinnen.push(`Het dak is in totaal ${formatM2(aantalNaarHonderdsten(m2))} m².`);
+  return zinnen.length === 0 ? null : `Huidige situatie: ${zinnen.join(' ')}`;
+}
 
 /** Controlepunt bij een post zonder prijs of een eigen regel (§9.5, V-09). */
 export function vulPrijsIn(omschrijving: string): string {
@@ -126,8 +142,11 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
   });
   const regels = [...werkRegels, ...overige];
 
-  // Werkomschrijving: per werkzaamheid de naam (met de notitie), daarna de overige regels.
+  // Werkomschrijving: de huidige situatie (OFM-050), per werkzaamheid de naam (met de notitie), daarna
+  // de overige regels.
+  const huidig = stapHuidigeSituatie(bron.invoer, bron.keuzes);
   const werkomschrijving = [
+    ...(huidig === null ? [] : [huidig]),
     ...groepen.map((g) => (g.notitie === '' ? g.werk.omschrijving : `${g.werk.omschrijving}: ${g.notitie}`)),
     ...overige.map((r) => r.omschrijving),
   ];

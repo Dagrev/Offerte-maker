@@ -70,4 +70,24 @@ describe('ontbrekendeVelden', () => {
     const v = ontbrekendeVelden({ ...legeKlant(), voornaam: '  ' }, legeKlusInvoer(), standaardVerplicht());
     expect(v).toContain('voornaam');
   });
+
+  it('OFM-050: nieuwe dakbedekking ontbreekt alleen als verplicht én de soort werk erom vraagt', () => {
+    const vraagt = (s: string) => s === 'dak_vervangen';
+    const aan = { ...standaardVerplicht(), nieuweBedekking: true };
+    const invoer = { ...legeKlusInvoer(), soortWerk: 'dak_vervangen', nieuweBedekking: null };
+    expect(VELD_STAP.nieuweBedekking).toBe(3);
+    expect(STANDAARD_VERPLICHT.nieuweBedekking).toBe(false);
+    expect(ontbrekendeVelden(legeKlant(), invoer, aan, vraagt)).toContain('nieuweBedekking');
+    expect(ontbrekendeVelden(legeKlant(), invoer, standaardVerplicht(), vraagt)).not.toContain(
+      'nieuweBedekking',
+    );
+    expect(ontbrekendeVelden(legeKlant(), { ...invoer, nieuweBedekking: 'epdm' }, aan, vraagt)).not.toContain(
+      'nieuweBedekking',
+    );
+    expect(ontbrekendeVelden(legeKlant(), { ...invoer, soortWerk: 'reparatie' }, aan, vraagt)).not.toContain(
+      'nieuweBedekking',
+    );
+    // Zonder functie (oude aanroepers) nooit.
+    expect(ontbrekendeVelden(legeKlant(), invoer, aan)).not.toContain('nieuweBedekking');
+  });
 });

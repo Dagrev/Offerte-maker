@@ -7,7 +7,8 @@ export const wizard = {
   terugNaarOfferte: 'Terug naar de offerte',
   maakOpnieuw: 'Maak opnieuw',
   maakOpnieuwZonderClaude: 'Maak opnieuw zonder Claude',
-  stappen: ['Klant', 'Het dak', 'Werkzaamheden', 'Overig en maken'] as const,
+  /** OFM-050: stap 2 beschrijft alleen het huidige dak. */
+  stappen: ['Klant', 'Het huidige dak', 'Werkzaamheden', 'Overig en maken'] as const,
   terugNaarOverzicht: 'Terug naar overzicht',
   vorige: 'Vorige',
   volgende: 'Volgende',
@@ -44,7 +45,7 @@ export const wizard = {
   },
 
   dak: {
-    titel: 'Het dak',
+    titel: 'Het huidige dak',
     soortWerk: 'Soort werk',
     soortDak: 'Soort dak',
     dakvlakken: 'Dakvlakken',
@@ -107,6 +108,8 @@ export const wizard = {
     telefoon: 'Telefoon',
     email: 'E-mail',
     soortWerk: 'Soort werk',
+    /** OFM-050 */
+    nieuweBedekking: 'Nieuwe dakbedekking',
     soortDak: 'Soort dak',
     dakvlakken: 'Dakvlakken',
     huidigeBedekking: 'Huidige dakbedekking',
@@ -122,6 +125,10 @@ export const wizard = {
   /** OFM-044: stap 3 Werkzaamheden. */
   werk: {
     soortWerk: 'Soort werk',
+    /** OFM-050 */
+    nieuweBedekking: 'Nieuwe dakbedekking',
+    nieuweBedekkingHint:
+      'Het materiaal komt vanzelf bij de werkzaamheden die het gebruiken; wisselen kan daar nog.',
     kiesSoortEerst: 'Kies eerst een soort werk; daarna verschijnen de werkzaamheden die erbij horen.',
     werkzaamheden: 'Werkzaamheden',
     geenGekoppeld:

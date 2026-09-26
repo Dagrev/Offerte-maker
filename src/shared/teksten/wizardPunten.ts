@@ -26,6 +26,7 @@ export const WIZARD_VELDNAMEN: Record<WizardVeld, string> = {
   soortDak: 'Soort dak',
   dakvlak: 'Een dakvlak groter dan 0 m²',
   hoogte: 'Hoogte',
+  nieuweBedekking: 'Nieuwe dakbedekking',
   werkzaamheid: 'Minstens één werkzaamheid',
 };
 
@@ -49,6 +50,7 @@ export const WIZARD_PUNT_TEKSTEN: Record<WizardVeld, string> = {
   soortDak: 'Soort dak is niet gekozen',
   dakvlak: 'Geen dakvlak ingevuld',
   hoogte: 'Hoogte is niet gekozen',
+  nieuweBedekking: 'Nieuwe dakbedekking is niet gekozen',
   werkzaamheid: 'Geen werkzaamheid gekozen',
 };
 

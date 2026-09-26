@@ -4,7 +4,13 @@ import { CATALOGUS, gekozen } from '../../test/helpers/werkCatalogus';
 import { legeKlusInvoer } from './nieuweOfferte';
 import { PRIJS_STARTSET } from './prijsStartset';
 import type { KlusInvoer, Prijspost } from './types';
-import { maakInhoudZonderClaude, planRegels, titelZonderClaude, vulPrijsIn } from './zonderClaude';
+import {
+  maakInhoudZonderClaude,
+  planRegels,
+  stapHuidigeSituatie,
+  titelZonderClaude,
+  vulPrijsIn,
+} from './zonderClaude';
 
 // OFM-025: elke voorwaarde uit de tabel in §9.5 en elke titelvariant uit V-09 (§15.4).
 
@@ -37,6 +43,8 @@ function invoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
 }
 
 const TEKSTEN = { inleiding: 'Inleiding', afsluiting: 'Afsluiting' };
+/** OFM-050: de eerste stap; de startset-keuzes van de test hebben geen zin, dus alleen de m². */
+const HUIDIG = 'Huidige situatie: Het dak is in totaal 34,75 m².';
 let n = 0;
 const maakId = () => `r${++n}`;
 
@@ -154,7 +162,7 @@ describe('maakInhoudZonderClaude (V-09, V-27)', () => {
       uitvoering: 'Voor de winter',
       opmerkingen: 'Let op de kat',
     });
-    expect(met.werkomschrijving).toEqual(met.regels.map((r) => r.omschrijving));
+    expect(met.werkomschrijving).toEqual([HUIDIG, ...met.regels.map((r) => r.omschrijving)]);
     expect(maakInhoudZonderClaude({ ...basis, invoer: invoer() }).uitvoering).toBe('In overleg.');
   });
 
@@ -275,7 +283,7 @@ describe('werkzaamheden (OFM-044)', () => {
       },
     ]);
     expect(inhoud.regels.at(-1)?.omschrijving).toBe('Voorrijkosten');
-    expect(inhoud.werkomschrijving).toEqual(['Slopen: Asbest vooraf laten keuren', 'Voorrijkosten']);
+    expect(inhoud.werkomschrijving).toEqual([HUIDIG, 'Slopen: Asbest vooraf laten keuren', 'Voorrijkosten']);
     expect(inhoud.controlepunten).toEqual([vulPrijsIn('Zink'), vulPrijsIn('Voorrijkosten')]);
   });
 
@@ -320,6 +328,36 @@ describe('werkzaamheden (OFM-044)', () => {
       prijsbron: 'schatting',
       prijspostId: null,
     });
-    expect(inhoud.werkomschrijving[0]).toBe('slopen');
+    expect(inhoud.werkomschrijving[1]).toBe('slopen');
+  });
+});
+
+describe('huidige situatie (OFM-050)', () => {
+  const keuzes: Keuzes = {
+    ...KEUZE_STARTSET,
+    soortDak: [{ sleutel: 'plat', label: 'plat dak', zin: 'Het betreft een plat dak.' }],
+    huidigeBedekking: [{ sleutel: 'bitumen', label: 'Bitumen', zin: '' }],
+    ondergrond: [{ sleutel: 'hout', label: 'Hout', zin: 'Het dak heeft een houten dakbeschot.' }],
+    hoogte: [{ sleutel: '2', label: '2 bouwlagen', zin: 'Het dak ligt op de tweede bouwlaag.' }],
+  };
+
+  it('zinnen in de volgorde van stap 2, dan de m²; een optie zonder zin telt niet', () => {
+    const inhoud = maakInhoudZonderClaude({
+      invoer: invoer({ soortDak: 'plat', huidigeBedekking: 'bitumen', ondergrond: 'hout', hoogte: '2' }),
+      keuzes,
+      postOpSleutel: posten(),
+      teksten: TEKSTEN,
+      maakId,
+    });
+    expect(inhoud.werkomschrijving[0]).toBe(
+      'Huidige situatie: Het betreft een plat dak. Het dak heeft een houten dakbeschot. Het dak ligt op de tweede bouwlaag. Het dak is in totaal 34,75 m².',
+    );
+  });
+
+  it('geen zinnen en geen m²: geen stap', () => {
+    expect(stapHuidigeSituatie({ ...legeKlusInvoer(), hoogte: null }, keuzes)).toBeNull();
+    expect(stapHuidigeSituatie({ ...legeKlusInvoer(), hoogte: '2' }, keuzes)).toBe(
+      'Huidige situatie: Het dak ligt op de tweede bouwlaag.',
+    );
   });
 });

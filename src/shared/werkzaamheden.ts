@@ -292,10 +292,14 @@ export function kiesWerkzaamheid(
   catalogus: WerkCatalogus,
   totaalM2: number,
   maakId: () => string = nieuwId,
+  /** OFM-050: de gekozen nieuwe dakbedekking; is die een kiesbaar materiaal, dan wint hij van de standaard. */
+  nieuweBedekking: string | null = null,
 ): GekozenWerkzaamheid {
   const aantal = standaardAantal(werk.eenheid, totaalM2);
   const standaard = werk.materialen.find((m) => m.standaard);
-  const materiaal = catalogus.materialen.find((m) => m.id === standaard?.materiaalId);
+  const materiaal =
+    bedekkingMateriaal(werk, catalogus, nieuweBedekking) ??
+    catalogus.materialen.find((m) => m.id === standaard?.materiaalId);
   return {
     id: maakId(),
     sleutel: werk.sleutel,
@@ -307,6 +311,54 @@ export function kiesWerkzaamheid(
     materialen: materiaal ? [kiesMateriaal(materiaal, werk.eenheid, aantal, maakId)] : [],
     opties: [],
   };
+}
+
+// ---------- Nieuwe dakbedekking (OFM-050) ----------
+
+/**
+ * Het kiesbare materiaal van deze werkzaamheid met dezelfde sleutel als de nieuwe dakbedekking, of
+ * `undefined` (geen bedekking gekozen, of de werkzaamheid heeft dat materiaal niet).
+ */
+export function bedekkingMateriaal(
+  werk: Pick<Werkzaamheid, 'materialen'>,
+  catalogus: WerkCatalogus,
+  nieuweBedekking: string | null,
+): Materiaal | undefined {
+  if (nieuweBedekking === null) return undefined;
+  const materiaal = catalogus.materialen.find((m) => m.sleutel === nieuweBedekking);
+  return materiaal && werk.materialen.some((x) => x.materiaalId === materiaal.id) ? materiaal : undefined;
+}
+
+/**
+ * Na het kiezen van een nieuwe dakbedekking: bij elke gekozen werkzaamheid uit de instellingen die dat
+ * materiaal kiesbaar heeft, komt het erin in plaats van een ander bedekkingsmateriaal (een materiaal
+ * met de sleutel van een optie uit `bedekkingen`, de lijst `nieuweBedekking`). Andere materialen, eenmalige
+ * items en werkzaamheden zonder dat materiaal blijven zoals ze zijn; handmatig wisselen kan daarna weer.
+ */
+export function pasBedekkingToe(
+  werkzaamheden: readonly GekozenWerkzaamheid[],
+  set: WerkzaamhedenSet,
+  bedekkingen: ReadonlySet<string>,
+  nieuweBedekking: string | null,
+  maakId: () => string = nieuwId,
+): GekozenWerkzaamheid[] {
+  return werkzaamheden.map((w) => {
+    const item = set.werkzaamheden.find((x) => x.sleutel === w.sleutel);
+    const materiaal = item && bedekkingMateriaal(item, set, nieuweBedekking);
+    if (!item || !materiaal) return w;
+    if (w.materialen.some((m) => m.sleutel === materiaal.sleutel)) return w;
+    const nieuw = kiesMateriaal(materiaal, werkInfo(set, w).eenheid, w.aantal, maakId);
+    const isBedekking = (m: GekozenMateriaal) => m.sleutel !== null && bedekkingen.has(m.sleutel);
+    const plek = w.materialen.findIndex(isBedekking);
+    // Het nieuwe materiaal neemt de plek en het aantal van het eerste oude bedekkingsmateriaal over.
+    const materialen =
+      plek === -1
+        ? [...w.materialen, nieuw]
+        : w.materialen.flatMap((m, i) =>
+            i === plek ? [{ ...nieuw, aantal: m.aantal }] : isBedekking(m) ? [] : [m],
+          );
+    return { ...w, materialen };
+  });
 }
 
 /** Eén regel die uit een werkzaamheid volgt (voor Maak zonder Claude en de agentopdracht). */

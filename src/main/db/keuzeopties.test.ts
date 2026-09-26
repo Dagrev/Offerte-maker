@@ -73,7 +73,15 @@ describe('keuzelijsten:haal', () => {
     expect(na.soortWerk.find((o) => o.sleutel === 'reparatie')?.inGebruik).toBe(true);
     expect(na.ondergrond.find((o) => o.sleutel === 'hout')?.inGebruik).toBe(true);
     expect(na.ondergrond.find((o) => o.sleutel === 'beton')?.inGebruik).toBe(false);
-    expect(haalKeuzes().soortDak).toEqual(KEUZE_STARTSET.soortDak);
+    expect(haalKeuzes().soortDak.map(({ sleutel, label }) => ({ sleutel, label }))).toEqual(
+      KEUZE_STARTSET.soortDak,
+    );
+    // OFM-050: de startzinnen en het vinkje bij soort werk.
+    expect(haalKeuzes().ondergrond.find((o) => o.sleutel === 'hout')?.zin).toBe(
+      'Het dak heeft een houten dakbeschot.',
+    );
+    expect(na.soortWerk.find((o) => o.sleutel === 'dak_vervangen')?.vraagtBedekking).toBe(true);
+    expect(na.soortWerk.find((o) => o.sleutel === 'reparatie')?.vraagtBedekking).toBe(false);
   });
 
   it('een offerte in de prullenbak telt niet als in gebruik', () => {
@@ -303,6 +311,75 @@ describe('keuzelijsten:herstel', () => {
     herstelKeuzelijst('hoogte');
     herstelKeuzelijst('soortDak');
     expect(haalStandaardkeuzes()).toEqual({ hoogte: '1', garantie: '10' });
+  });
+
+  it('OFM-050: zet ook de startzinnen en de vinkjes "vraagt nieuwe dakbedekking" terug', () => {
+    bewaarKeuzelijst('ondergrond', [
+      ...alsInvoer('ondergrond').map((o) => ({ ...o, zin: 'Eigen zin.' })),
+      { id: '', label: 'Riet', verborgen: false, standaardkeuze: false, zin: 'Rieten dak.' },
+    ]);
+    bewaarKeuzelijst(
+      'soortWerk',
+      alsInvoer('soortWerk').map((o) => ({ ...o, vraagtBedekking: o.label === 'Reparatie' })),
+    );
+    herstelKeuzelijst('ondergrond');
+    herstelKeuzelijst('soortWerk');
+    const zinnen = Object.fromEntries(opties('ondergrond').map((o) => [o.label, o.zin]));
+    expect(zinnen).toEqual({
+      Hout: 'Het dak heeft een houten dakbeschot.',
+      Beton: 'Het dak heeft een betonnen ondergrond.',
+      Staal: 'Het dak heeft een ondergrond van staalplaat.',
+      'Weet ik niet': '',
+      Riet: 'Rieten dak.',
+    });
+    expect(
+      opties('soortWerk')
+        .filter((o) => o.vraagtBedekking)
+        .map((o) => o.sleutel),
+    ).toEqual(['nieuw_dak', 'dak_vervangen']);
+  });
+});
+
+describe('OFM-050: zin en vraagt nieuwe dakbedekking', () => {
+  it('bewaren: zin alleen in de lijsten van stap 2, vinkje alleen bij soort werk; weglaten = niet wijzigen', () => {
+    bewaarKeuzelijst(
+      'hoogte',
+      alsInvoer('hoogte').map((o) => ({
+        ...o,
+        zin: o.label === '2 bouwlagen' ? '  Tweede verdieping.  ' : undefined,
+      })),
+    );
+    expect(opties('hoogte').find((o) => o.sleutel === '2')?.zin).toBe('Tweede verdieping.');
+    // Weglaten laat de startzin staan.
+    expect(opties('hoogte').find((o) => o.sleutel === '1')?.zin).toBe(
+      'Het dak ligt op de begane grond of de eerste bouwlaag.',
+    );
+    bewaarKeuzelijst(
+      'garantie',
+      alsInvoer('garantie').map((o) => ({ ...o, zin: 'Genegeerd.', vraagtBedekking: true })),
+    );
+    expect(opties('garantie').every((o) => o.zin === '' && !o.vraagtBedekking)).toBe(true);
+    bewaarKeuzelijst('soortWerk', [
+      ...alsInvoer('soortWerk').map((o) => ({ ...o, vraagtBedekking: o.label === 'Onderhoud' })),
+      { id: '', label: 'Dakkapel', verborgen: false, standaardkeuze: false, vraagtBedekking: true },
+    ]);
+    expect(
+      opties('soortWerk')
+        .filter((o) => o.vraagtBedekking)
+        .map((o) => o.label),
+    ).toEqual(['Onderhoud', 'Dakkapel']);
+    expect(haalKeuzes().soortWerk.find((o) => o.label === 'Dakkapel')).toMatchObject({
+      vraagtBedekking: true,
+      zin: '',
+    });
+  });
+
+  it('nieuweBedekking in een offerte telt als in gebruik en wordt gecontroleerd', () => {
+    offerteMet({ soortWerk: 'dak_vervangen', nieuweBedekking: 'epdm' });
+    expect(opties('nieuweBedekking').find((o) => o.sleutel === 'epdm')?.inGebruik).toBe(true);
+    expect(fout(() => controleerKeuzes({ ...legeKlusInvoer(), nieuweBedekking: 'leien' }, null)).code).toBe(
+      'VALIDATIE',
+    );
   });
 });
 

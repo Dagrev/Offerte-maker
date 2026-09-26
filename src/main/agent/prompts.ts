@@ -32,7 +32,7 @@ Werkzaamheden
 Inhoud
 - titel: kort, bijvoorbeeld "Offerte vervangen dakbedekking plat dak".
 - inleiding en afsluiting: gebruik de standaardteksten als basis en pas alleen aan wat de klus nodig maakt.
-- werkomschrijving: concrete stappen in de volgorde van uitvoering, één stap per item, zonder nummering.
+- werkomschrijving: concrete stappen in de volgorde van uitvoering, één stap per item, zonder nummering. Gebruik de beginsituatie als eerste stap van de werkomschrijving; schrijf hem niet opnieuw.
 - uitvoering: planning en praktische zaken (steiger, bereikbaarheid, weersafhankelijkheid), mede op basis van de gewenste uitvoering.
 - opmerkingen: alleen als er iets bijzonders is, anders een lege tekst.
 - Garantie en betalingsvoorwaarden voegt het programma zelf toe; schrijf daar niets over.

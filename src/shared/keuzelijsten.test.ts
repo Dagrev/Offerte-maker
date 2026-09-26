@@ -4,8 +4,15 @@ import {
   KEUZE_SLEUTEL_PATROON,
   KEUZE_STARTSET,
   STANDAARDKEUZE_STARTSET,
+  VRAAGT_BEDEKKING_STARTSET,
+  ZIN_LIJSTEN,
+  ZIN_STARTSET,
   alsKeuzes,
+  beginsituatie,
   gebruikteSleutels,
+  isZinLijst,
+  startZin,
+  vraagtNieuweBedekking,
   standaardKeuzes,
   keuzeLabel,
   maakSleutel,
@@ -32,6 +39,7 @@ describe('startset (§9.1, OFM-034)', () => {
   it("de lijsten van de oude stap Extra's bestaan niet meer (OFM-045)", () => {
     expect(KEUZE_LIJSTEN).toEqual([
       'soortWerk',
+      'nieuweBedekking',
       'soortDak',
       'huidigeBedekking',
       'ondergrond',
@@ -107,6 +115,7 @@ describe('overige hulpfuncties', () => {
     const invoer = { ...legeKlusInvoer(), soortWerk: 'reparatie', ondergrond: 'hout' };
     expect(gebruikteSleutels(invoer)).toEqual({
       soortWerk: ['reparatie'],
+      nieuweBedekking: [],
       soortDak: [],
       huidigeBedekking: [],
       ondergrond: ['hout'],
@@ -131,5 +140,72 @@ describe('overige hulpfuncties', () => {
     expect(klusInvoerSchema.parse({ ...invoer, bedekking: 'epdm_15', hwaAantal: 2 })).not.toHaveProperty(
       'bedekking',
     );
+  });
+});
+
+describe('beginsituatie en nieuwe dakbedekking (OFM-050)', () => {
+  it('startzinnen horen bij bestaande startopties; "Weet ik niet" heeft geen zin', () => {
+    for (const lijst of ZIN_LIJSTEN) {
+      for (const sleutel of Object.keys(ZIN_STARTSET[lijst])) {
+        expect(KEUZE_STARTSET[lijst].some((o) => o.sleutel === sleutel)).toBe(true);
+      }
+    }
+    expect(startZin('ondergrond', 'hout')).toBe('Het dak heeft een houten dakbeschot.');
+    expect(startZin('hoogte', '2')).toBe('Het dak ligt op de tweede bouwlaag.');
+    expect(startZin('ondergrond', 'onbekend')).toBe('');
+    expect(startZin('garantie', '10')).toBe('');
+    expect(isZinLijst('soortDak')).toBe(true);
+    expect(isZinLijst('soortWerk')).toBe(false);
+  });
+
+  it('nieuweBedekking-startset = bitumen, EPDM, PVC; dak vervangen en nieuw dak vragen erom', () => {
+    expect(KEUZE_STARTSET.nieuweBedekking.map((o) => o.sleutel)).toEqual(['bitumen', 'epdm', 'pvc']);
+    expect([...VRAAGT_BEDEKKING_STARTSET].sort()).toEqual(['dak_vervangen', 'nieuw_dak']);
+    const keuzes = {
+      soortWerk: [
+        { sleutel: 'dak_vervangen', label: 'Dak vervangen', vraagtBedekking: true },
+        { sleutel: 'reparatie', label: 'Reparatie', vraagtBedekking: false },
+        { sleutel: 'oud', label: 'Oud' },
+      ],
+    };
+    expect(vraagtNieuweBedekking(keuzes, 'dak_vervangen')).toBe(true);
+    expect(vraagtNieuweBedekking(keuzes, 'reparatie')).toBe(false);
+    expect(vraagtNieuweBedekking(keuzes, 'oud')).toBe(false);
+    expect(vraagtNieuweBedekking(keuzes, 'onbekend')).toBe(false);
+    expect(vraagtNieuweBedekking(keuzes, null)).toBe(false);
+  });
+
+  it('beginsituatie: de zinnen in de volgorde soort dak, bedekking, ondergrond, hoogte; lege weg', () => {
+    const keuzes = {
+      soortDak: [{ sleutel: 'plat', label: 'plat dak', zin: 'Plat.' }],
+      huidigeBedekking: [{ sleutel: 'epdm', label: 'EPDM', zin: '  ' }],
+      ondergrond: [{ sleutel: 'hout', label: 'Hout', zin: ' Hout. ' }],
+      hoogte: [{ sleutel: '2', label: '2 bouwlagen', zin: 'Twee.' }],
+    };
+    expect(
+      beginsituatie({ soortDak: 'plat', huidigeBedekking: 'epdm', ondergrond: 'hout', hoogte: '2' }, keuzes),
+    ).toEqual(['Plat.', 'Hout.', 'Twee.']);
+    expect(
+      beginsituatie({ soortDak: null, huidigeBedekking: null, ondergrond: 'weg', hoogte: null }, keuzes),
+    ).toEqual([]);
+  });
+
+  it('alsKeuzes houdt zin en vraagtBedekking', () => {
+    const lijsten = Object.fromEntries(
+      KEUZE_LIJSTEN.map((l) => [
+        l,
+        [{ sleutel: 'x', label: 'X', zin: 'Z.', vraagtBedekking: true, id: 'i' }],
+      ]),
+    ) as unknown as Parameters<typeof alsKeuzes>[0];
+    expect(alsKeuzes(lijsten).soortWerk).toEqual([
+      { sleutel: 'x', label: 'X', zin: 'Z.', vraagtBedekking: true },
+    ]);
+  });
+
+  it('schema: nieuweBedekking ontbreekt in oude invoer = null', () => {
+    const invoer: Record<string, unknown> = { ...legeKlusInvoer() };
+    delete invoer['nieuweBedekking'];
+    expect(klusInvoerSchema.parse(invoer).nieuweBedekking).toBeNull();
+    expect(klusInvoerSchema.parse({ ...invoer, nieuweBedekking: 'epdm' }).nieuweBedekking).toBe('epdm');
   });
 });
