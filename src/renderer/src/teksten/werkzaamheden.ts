@@ -86,6 +86,12 @@ export const werkzaamheden = {
   nieuweOptie: (werk: string) => `Nieuwe optie bij ${werk}`,
   optieToevoegen: 'Optie toevoegen',
   kiesbareMaterialen: (werk: string) => `Materialen bij ${werk}`,
+  kiesbaarUitleg:
+    'Hier staan de materialen met Alle situaties. Materialen met eigen tags kies je bij Materiaal per daksituatie.',
+  kiesbaarVervallen: (aantal: number) =>
+    aantal === 1
+      ? 'Een materiaal met eigen tags is niet meer gewoon kiesbaar bij een werkzaamheid. Kies het per daksituatie; in bestaande offertes blijft het staan.'
+      : `${aantal} materialen met eigen tags zijn niet meer gewoon kiesbaar bij een werkzaamheid. Kies ze per daksituatie; in bestaande offertes blijven ze staan.`,
   geenMaterialen: 'Er zijn nog geen materialen.',
   standaardMateriaal: (werk: string) => `Standaardmateriaal bij ${werk}`,
   standaardMateriaalHint: 'Dit materiaal staat in de wizard al aangevinkt.',
@@ -94,12 +100,12 @@ export const werkzaamheden = {
 
   // Tags bij de materialen (OFM-055)
   tags: {
-    titel: 'Beschikbare tags',
     uitleg:
-      'Een materiaal is in de wizard alleen kiesbaar bij de ondergronden en dakbedekkingen waarvan de tag aan staat. Een nieuw materiaal heeft alle tags aan. De tags komen uit de keuzelijsten Ondergrond en Nieuwe dakbedekking.',
+      'Rechts in elke rij staan de tags. Alle situaties: het materiaal past overal en is bij een werkzaamheid gewoon kiesbaar. Zet je Alle situaties uit, dan kies je zelf bij welke ondergronden en nieuwe dakbedekkingen (uit Keuzelijsten) het past; zo’n materiaal kies je bij een werkzaamheid per daksituatie.',
+    alle: 'Alle situaties',
+    alleVan: (materiaal: string) => `Alle situaties bij ${materiaal}`,
     ondergrond: 'Ondergrond',
     bedekking: 'Nieuwe dakbedekking',
-    geen: 'Geen opties in deze keuzelijst.',
     vanMateriaal: (materiaal: string) => `Tags van ${materiaal}`,
     groepVan: (groep: string, materiaal: string) => `${groep} bij ${materiaal}`,
     tag: (tag: string, materiaal: string) => `${tag} bij ${materiaal}`,

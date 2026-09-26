@@ -10,9 +10,11 @@ import {
 import { formatEuro } from '@shared/formatteer';
 import type { Keuzeoptie, Materiaal, WerkOptie, Werkzaamheid } from '@shared/types';
 import {
-  pastBijSituatie,
+  isAlleSituaties,
   situatieCombinaties,
+  situatieKeuzes,
   zelfdeSituatie,
+  zetSituatieMateriaal,
   type SituatieSleutel,
 } from '@shared/werkzaamheden';
 import { alsFout } from '../../api/roep';
@@ -377,6 +379,9 @@ function WerkInhoud({
   const standaardId = `standaard-${werk.id}`;
   // OFM-056: ook de materialen alfabetisch.
   const materialenAbc = sorteerOpNaam(materialen);
+  // OFM-058: gewoon kiesbaar zijn alleen materialen met Alle situaties.
+  const alleSituaties = materialenAbc.filter(isAlleSituaties);
+  const standaardKeuzes = alleSituaties.filter((m) => gekozen.has(m.id));
 
   return (
     <div className="flex flex-col gap-5">
@@ -459,9 +464,11 @@ function WerkInhoud({
 
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-2 text-lg font-semibold">{t.kiesbareMaterialen(naam)}</legend>
-        {materialen.length === 0 && <p className="text-tekst-zacht">{t.geenMaterialen}</p>}
+        {/* OFM-058: alleen materialen met Alle situaties; de andere kies je per daksituatie. */}
+        <p className="mb-1 text-tekst-zacht">{t.kiesbaarUitleg}</p>
+        {alleSituaties.length === 0 && <p className="text-tekst-zacht">{t.geenMaterialen}</p>}
         <div className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-          {materialenAbc.map((m) => (
+          {alleSituaties.map((m) => (
             <Vinkje
               key={m.id}
               label={m.verborgen ? t.verborgenAchter(m.label) : m.label}
@@ -476,7 +483,7 @@ function WerkInhoud({
           ))}
         </div>
       </fieldset>
-      {gekozen.size > 0 && (
+      {materialen.length > 0 && (
         <Vinkje
           label={t.situatie.vinkje}
           hint={t.situatie.vinkjeHint}
@@ -484,18 +491,18 @@ function WerkInhoud({
           opWijzig={(perSituatie) => opWijzig({ perSituatie }, true)}
         />
       )}
-      {gekozen.size > 0 && werk.perSituatie && (
+      {materialen.length > 0 && werk.perSituatie && (
         <SituatieBlok
           werk={werk}
           naam={naam}
-          materialen={materialen.filter((m) => gekozen.has(m.id))}
+          materialen={materialenAbc}
           combinaties={combinaties}
           ondergronden={ondergronden}
           bedekkingen={bedekkingen}
-          opWijzig={(situaties) => opWijzig({ situaties }, true)}
+          opWijzig={(deel) => opWijzig(deel, true)}
         />
       )}
-      {gekozen.size > 0 && !werk.perSituatie && (
+      {standaardKeuzes.length > 0 && !werk.perSituatie && (
         <div className="flex max-w-md flex-col gap-2">
           <label htmlFor={standaardId} className="font-semibold">
             {t.standaardMateriaal(naam)}
@@ -508,13 +515,11 @@ function WerkInhoud({
             onChange={(e) => zetMaterialen(gekozen, e.target.value)}
           >
             <option value="">{t.geenStandaard}</option>
-            {materialenAbc
-              .filter((m) => gekozen.has(m.id))
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
+            {standaardKeuzes.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
           </select>
           <p id={`${standaardId}-hint`} className="text-tekst-zacht">
             {t.standaardMateriaalHint}
@@ -586,8 +591,9 @@ function WerkInhoud({
 
 /**
  * OFM-055: bij een werkzaamheid met Materiaal per daksituatie één knop per combinatie ondergrond ×
- * nieuwe dakbedekking (met het aantal materialen) en voor de gekozen situatie vinkjes voor de kiesbare
- * materialen waarvan de tags passen.
+ * nieuwe dakbedekking (met het aantal materialen) en voor de gekozen situatie vinkjes. OFM-058: de vinkjes
+ * zijn de kiesbare materialen met Alle situaties én alle materialen met specifieke tags die bij de situatie
+ * passen; aanvinken maakt zo'n materiaal kiesbaar bij de werkzaamheid (`zetSituatieMateriaal`).
  */
 function SituatieBlok({
   werk,
@@ -600,12 +606,12 @@ function SituatieBlok({
 }: {
   werk: Werkzaamheid;
   naam: string;
-  /** De kiesbare materialen van deze werkzaamheid. */
+  /** Alle materialen (alfabetisch). */
   materialen: Materiaal[];
   combinaties: SituatieSleutel[];
   ondergronden: Keuzeoptie[];
   bedekkingen: Keuzeoptie[];
-  opWijzig: (situaties: Werkzaamheid['situaties']) => void;
+  opWijzig: (deel: Pick<Werkzaamheid, 'situaties' | 'materialen'>) => void;
 }) {
   const [gekozen, setGekozen] = useState<SituatieSleutel | null>(null);
   const actief = combinaties.find((c) => gekozen !== null && zelfdeSituatie(c, gekozen)) ?? combinaties[0];
@@ -616,19 +622,11 @@ function SituatieBlok({
   const idsVan = (c: SituatieSleutel) => werk.situaties.find((s) => zelfdeSituatie(s, c))?.materiaalIds ?? [];
 
   if (!actief) return <p className="text-tekst-zacht">{t.situatie.geenCombinaties}</p>;
-  const passend = sorteerOpNaam(
-    materialen.filter((m) =>
-      pastBijSituatie(m, { ondergrond: actief.ondergrond, nieuweBedekking: actief.bedekking }),
-    ),
-  );
+  const passend = situatieKeuzes(werk, materialen, actief);
   const ids = new Set(idsVan(actief));
   const zet = (materiaalId: string, aan: boolean) => {
-    const nieuw = new Set(ids);
-    if (aan) nieuw.add(materiaalId);
-    else nieuw.delete(materiaalId);
-    const materiaalIds = materialen.filter((m) => nieuw.has(m.id)).map((m) => m.id);
-    const zonder = werk.situaties.filter((s) => !zelfdeSituatie(s, actief));
-    opWijzig(materiaalIds.length > 0 ? [...zonder, { ...actief, materiaalIds }] : zonder);
+    const nieuw = zetSituatieMateriaal(werk, materialen, actief, materiaalId, aan);
+    opWijzig({ situaties: nieuw.situaties, materialen: nieuw.materialen });
   };
 
   return (

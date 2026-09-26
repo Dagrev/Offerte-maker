@@ -381,6 +381,14 @@ export const TAG_LIJST = { ondergrond: 'ondergrond', bedekking: 'nieuweBedekking
 /** Tags van een nieuw materiaal: overal te gebruiken. */
 export const ALLE_TAGS: MateriaalTags = { ondergrond: 'alle', bedekking: 'alle' };
 
+/**
+ * OFM-058: heeft het materiaal "Alle situaties" (alle tags aan in beide groepen)? Alleen zulke materialen
+ * zijn gewoon kiesbaar bij een werkzaamheid; een materiaal met specifieke tags (niet alle tags aan, ook als
+ * er maar één uit staat) kies je alleen via Materiaal per daksituatie.
+ */
+export const isAlleSituaties = (materiaal: Pick<Materiaal, 'tags'>): boolean =>
+  materiaal.tags.ondergrond === 'alle' && materiaal.tags.bedekking === 'alle';
+
 /** Past een materiaal met deze tags bij een sleutel van die groep? `null` (niets gekozen) = alles past. */
 export function heeftTag(tags: MateriaalTags, groep: TagGroep, sleutel: string | null): boolean {
   const waarde = tags[groep];
@@ -485,7 +493,8 @@ export function standaardMaterialen(
 ): Materiaal[] {
   if (werk.perSituatie) return situatieMaterialen(werk, catalogus, invoer);
   const standaard = werk.materialen.find((m) => m.standaard)?.materiaalId;
-  return catalogus.materialen.filter((m) => m.id === standaard);
+  // OFM-058: zonder vinkje alleen een materiaal met Alle situaties.
+  return catalogus.materialen.filter((m) => m.id === standaard && isAlleSituaties(m));
 }
 
 /**
@@ -518,10 +527,11 @@ export function kiesWerkzaamheid(
 
 /**
  * De materialen die de wizard bij een gekozen werkzaamheid als vinkje toont: kiesbaar bij de
- * werkzaamheid, niet verborgen en passend bij de situatie van de offerte, plus wat al gekozen is.
+ * werkzaamheid, niet verborgen en passend bij de situatie van de offerte, plus wat al gekozen is. OFM-058:
+ * zonder "Materiaal per daksituatie" alleen materialen met Alle situaties.
  */
 export function kiesbareMaterialen(
-  werk: Pick<Werkzaamheid, 'materialen'> | undefined,
+  werk: Pick<Werkzaamheid, 'materialen' | 'perSituatie'> | undefined,
   catalogus: WerkCatalogus,
   invoer: Daksituatie,
   gekozen: ReadonlySet<string>,
@@ -529,7 +539,11 @@ export function kiesbareMaterialen(
   return catalogus.materialen.filter(
     (m) =>
       gekozen.has(m.sleutel) ||
-      (!m.verborgen && werk !== undefined && isKiesbaar(werk, m.id) && pastBijSituatie(m, invoer)),
+      (!m.verborgen &&
+        werk !== undefined &&
+        isKiesbaar(werk, m.id) &&
+        (werk.perSituatie || isAlleSituaties(m)) &&
+        pastBijSituatie(m, invoer)),
   );
 }
 
@@ -623,6 +637,79 @@ export function geldigeSituaties<W extends Pick<Werkzaamheid, 'materialen' | 'si
       return ids.length > 0 ? [{ ...s, materiaalIds: ids }] : [];
     });
     return { ...w, situaties };
+  });
+  return { werkzaamheden: uit, vervallen };
+}
+
+/**
+ * OFM-058: de materialen die het situatieblok in de tab bij één situatie toont: de gewoon kiesbare
+ * materialen met Alle situaties én alle materialen met specifieke tags die bij de situatie passen (ook als
+ * ze nog niet kiesbaar zijn), in de volgorde van `materialen`.
+ */
+export function situatieKeuzes<M extends Pick<Materiaal, 'id' | 'tags'>>(
+  werk: Pick<Werkzaamheid, 'materialen'>,
+  materialen: readonly M[],
+  situatie: SituatieSleutel,
+): M[] {
+  const invoer = { ondergrond: situatie.ondergrond, nieuweBedekking: situatie.bedekking };
+  return materialen.filter((m) => (isAlleSituaties(m) ? isKiesbaar(werk, m.id) : pastBijSituatie(m, invoer)));
+}
+
+/**
+ * OFM-058: een materiaal bij een situatie aan- of uitvinken. Aanvinken maakt het materiaal ook kiesbaar
+ * bij de werkzaamheid ("via situatie"); uitvinken van een materiaal met specifieke tags dat daarna in geen
+ * enkele situatie meer staat, maakt het weer niet kiesbaar. Situaties en kiesbare materialen blijven in de
+ * volgorde van `materialen`; een situatie zonder materialen verdwijnt.
+ */
+export function zetSituatieMateriaal<W extends Pick<Werkzaamheid, 'materialen' | 'situaties'>>(
+  werk: W,
+  materialen: readonly Pick<Materiaal, 'id' | 'tags'>[],
+  situatie: SituatieSleutel,
+  materiaalId: string,
+  aan: boolean,
+): W {
+  const huidig = new Set(werk.situaties.find((s) => zelfdeSituatie(s, situatie))?.materiaalIds);
+  if (aan) huidig.add(materiaalId);
+  else huidig.delete(materiaalId);
+  const materiaalIds = materialen.filter((m) => huidig.has(m.id)).map((m) => m.id);
+  const situaties = [
+    ...werk.situaties.filter((s) => !zelfdeSituatie(s, situatie)),
+    ...(materiaalIds.length > 0 ? [{ ...situatie, materiaalIds }] : []),
+  ];
+  const inSituatie = new Set(situaties.flatMap((s) => s.materiaalIds));
+  const materiaal = materialen.find((m) => m.id === materiaalId);
+  const specifiek = materiaal !== undefined && !isAlleSituaties(materiaal);
+  let kiesbaar = werk.materialen;
+  if (aan && !isKiesbaar(werk, materiaalId)) {
+    const ids = new Set([...kiesbaar.map((k) => k.materiaalId), materiaalId]);
+    kiesbaar = materialen
+      .filter((m) => ids.has(m.id))
+      .map((m) => kiesbaar.find((k) => k.materiaalId === m.id) ?? { materiaalId: m.id, standaard: false });
+  } else if (!aan && specifiek && !inSituatie.has(materiaalId)) {
+    kiesbaar = kiesbaar.filter((k) => k.materiaalId !== materiaalId);
+  }
+  return { ...werk, situaties, materialen: kiesbaar };
+}
+
+/**
+ * OFM-058: een materiaal met specifieke tags is alleen kiesbaar via een situatie. Na een wijziging in de
+ * instellingen (bijvoorbeeld een tag uit bij een materiaal dat gewoon kiesbaar was) vallen kiesbare
+ * materialen met specifieke tags die in geen situatie van de werkzaamheid staan weg; `vervallen` telt ze
+ * (voor de gele melding). Onbekende materialen blijven (main controleert die).
+ */
+export function geldigeKiesbaar<W extends Pick<Werkzaamheid, 'materialen' | 'situaties'>>(
+  werkzaamheden: readonly W[],
+  materialen: readonly Pick<Materiaal, 'id' | 'tags'>[],
+): { werkzaamheden: W[]; vervallen: number } {
+  let vervallen = 0;
+  const uit = werkzaamheden.map((w) => {
+    const inSituatie = new Set(w.situaties.flatMap((s) => s.materiaalIds));
+    const blijft = w.materialen.filter((k) => {
+      const m = materialen.find((x) => x.id === k.materiaalId);
+      return m === undefined || isAlleSituaties(m) || inSituatie.has(k.materiaalId);
+    });
+    vervallen += w.materialen.length - blijft.length;
+    return { ...w, materialen: blijft };
   });
   return { werkzaamheden: uit, vervallen };
 }

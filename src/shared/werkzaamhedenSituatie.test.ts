@@ -164,9 +164,14 @@ describe('daksituaties (OFM-055)', () => {
       ['houtschroeven', 40],
     ]);
     expect(kiesWerkzaamheid(WERK, SET, 40).materialen).toEqual([]);
-    expect(sleutels(standaardMaterialen({ ...WERK, perSituatie: false }, SET, HOUT_EPDM))).toEqual([
-      'bitumen',
-    ]);
+    // OFM-058: zonder vinkje alleen een standaardmateriaal met Alle situaties (bitumen heeft eigen tags).
+    expect(standaardMaterialen({ ...WERK, perSituatie: false }, SET, HOUT_EPDM)).toEqual([]);
+    const losStandaard = {
+      ...WERK,
+      perSituatie: false,
+      materialen: [{ materiaalId: 'm-los', standaard: true }],
+    };
+    expect(sleutels(standaardMaterialen(losStandaard, SET, HOUT_EPDM))).toEqual(['los']);
     const zonderStandaard = {
       ...WERK,
       perSituatie: false,
@@ -183,6 +188,16 @@ describe('daksituaties (OFM-055)', () => {
       sleutels(kiesbareMaterialen(WERK, SET, { ondergrond: null, nieuweBedekking: null }, new Set(['los']))),
     ).toEqual(['epdm', 'bitumen', 'ontluchter', 'houtschroeven', 'betonpluggen', 'los']);
     expect(sleutels(kiesbareMaterialen(undefined, SET, HOUT_EPDM, new Set(['epdm'])))).toEqual(['epdm']);
+    // OFM-058: zonder vinkje alleen materialen met Alle situaties (plus wat gekozen is).
+    const zonderVinkje = {
+      ...WERK,
+      perSituatie: false,
+      materialen: [...WERK.materialen, { materiaalId: 'm-los', standaard: false }],
+    };
+    expect(sleutels(kiesbareMaterialen(zonderVinkje, SET, HOUT_EPDM, new Set(['ontluchter'])))).toEqual([
+      'ontluchter',
+      'los',
+    ]);
   });
 });
 

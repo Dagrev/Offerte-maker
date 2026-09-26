@@ -15,6 +15,7 @@ import {
   CATEGORIE_OVERIG,
   ONDERGROND_ONBEKEND,
   categorieVan,
+  isAlleSituaties,
   groepeerOpCategorie,
   prijsGroep,
   zetTag,
@@ -41,7 +42,6 @@ import {
   PrijsInvoer,
   SetLader,
   TabKop,
-  chipKlasse,
   eenheidNaam,
   invoerKlasse,
   t,
@@ -57,8 +57,14 @@ import {
 // volgorde, verwijderen; Overig is vast). Welke materialen bij een werkzaamheid kiesbaar zijn, staat in de
 // tab Werkzaamheden.
 
-/** Materiaalrij: naam, eenheid, prijs, btw, categorie, knoppen. */
-const RIJ_MATERIAAL = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto] items-center gap-3';
+/**
+ * Materiaalrij: naam, eenheid, prijs, btw, categorie, knoppen en (OFM-058) de tags aan het einde van de
+ * regel (een vaste kolom, zodat de rijen gelijk blijven). Is de groep smaller dan 64rem, of heeft het
+ * materiaal losse tags, dan staan de tags rechts onder de rij (container query).
+ */
+const RIJ_MATERIAAL =
+  'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto] items-center gap-x-3 gap-y-1 ' +
+  '@5xl:grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto_11rem]';
 const RIJ_OVERIG = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem] items-center gap-3';
 const tc = t.categorie;
 
@@ -146,7 +152,7 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
       {b.meldingen}
 
       <Deel titel={t.materialen} uitleg={t.materialenUitleg}>
-        <BeschikbareTags ondergronden={tagOndergronden} bedekkingen={tagBedekkingen} />
+        <p className="max-w-3xl text-tekst-zacht">{t.tags.uitleg}</p>
         <CategorieBeheer
           categorieen={set.categorieen}
           bewaard={beginSet.categorieen}
@@ -267,7 +273,7 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
                             )
                           }
                         />
-                        <TagKnoppen
+                        <TagChips
                           naam={naam}
                           tags={m.tags}
                           ondergronden={tagOndergronden}
@@ -337,7 +343,7 @@ function Groep({
         </button>
       </h3>
       {open && (
-        <div id={inhoudId} className="flex flex-col gap-4 border-t-2 border-rand p-4">
+        <div id={inhoudId} className="@container flex flex-col gap-4 border-t-2 border-rand p-4">
           {children}
           <NieuwFormulier
             label={tc.nieuwIn(naam)}
@@ -511,45 +517,14 @@ function CategorieBeheer({
   );
 }
 
-/** OFM-055: bovenaan de materialen de tags die er zijn (de opties van twee keuzelijsten). */
-function BeschikbareTags({
-  ondergronden,
-  bedekkingen,
-}: {
-  ondergronden: Keuzeoptie[];
-  bedekkingen: Keuzeoptie[];
-}) {
-  const groep = (titel: string, opties: Keuzeoptie[]) => (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="min-w-48 font-semibold">{titel}</span>
-      {opties.length === 0 ? (
-        <span className="text-tekst-zacht">{t.tags.geen}</span>
-      ) : (
-        <ul aria-label={titel} className="flex flex-wrap gap-2">
-          {opties.map((o) => (
-            <li key={o.id} className="rounded-full bg-vlak px-3 py-1">
-              {o.label}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-  return (
-    <section aria-label={t.tags.titel} className="flex flex-col gap-2 rounded-knop border-2 border-rand p-4">
-      <h3 className="text-lg font-semibold">{t.tags.titel}</h3>
-      <p className="max-w-3xl text-tekst-zacht">{t.tags.uitleg}</p>
-      {groep(t.tags.ondergrond, ondergronden)}
-      {groep(t.tags.bedekking, bedekkingen)}
-    </section>
-  );
-}
-
 /**
- * OFM-055: de tags van één materiaal als aan/uit-knoppen, onder de rij. De laatste tag van een groep kan
- * niet uit (geen tags = alle, dat zou het omgekeerde doen).
+ * OFM-058: de tags van één materiaal als compacte aan/uit-knoppen aan het einde van de rij. Staan alle tags
+ * aan, dan alleen de knop **Alle situaties** (aan). Uitzetten toont de losse tags (alles aan) om er een paar
+ * uit te zetten; staan ze daarna weer allemaal aan, dan klapt het terug naar Alle situaties. Bij een
+ * materiaal met specifieke tags zet Alle situaties alles weer aan. De laatste tag van een groep kan niet uit
+ * (geen tags = alle, dat zou het omgekeerde doen).
  */
-function TagKnoppen({
+function TagChips({
   naam,
   tags,
   ondergronden,
@@ -562,21 +537,21 @@ function TagKnoppen({
   bedekkingen: Keuzeoptie[];
   opWijzig: (tags: MateriaalTags) => void;
 }) {
+  const alle = isAlleSituaties({ tags });
+  const [uitgeklapt, setUitgeklapt] = useState(false);
+  const losZichtbaar = !alle || uitgeklapt;
   const groep = (groep: TagGroep, titel: string, opties: Keuzeoptie[]) => {
     if (opties.length === 0) return null;
     const waarde = tags[groep];
     const aan = (sleutel: string) => waarde === 'alle' || waarde.includes(sleutel);
     const aantalAan = opties.filter((o) => aan(o.sleutel)).length;
-    const alle = opties.map((o) => o.sleutel);
+    const sleutels = opties.map((o) => o.sleutel);
     return (
-      <div
+      <span
         role="group"
         aria-label={t.tags.groepVan(titel, naam)}
-        className="flex flex-wrap items-center gap-2"
+        className="flex flex-wrap items-center gap-1"
       >
-        <span aria-hidden="true" className="min-w-48 text-tekst-zacht">
-          {titel}
-        </span>
         {opties.map((o) => {
           const isAan = aan(o.sleutel);
           const laatste = isAan && aantalAan === 1 && waarde !== 'alle';
@@ -586,26 +561,62 @@ function TagKnoppen({
               type="button"
               aria-pressed={isAan}
               aria-label={t.tags.tag(o.label, naam)}
-              title={laatste ? t.tags.laatste : undefined}
+              title={laatste ? t.tags.laatste : titel}
               disabled={laatste}
-              onClick={() => opWijzig(zetTag(tags, groep, o.sleutel, !isAan, alle))}
-              className={chipKlasse(isAan)}
+              onClick={() => {
+                const nieuw = zetTag(tags, groep, o.sleutel, !isAan, sleutels);
+                // Alles weer aan: terug naar Alle situaties.
+                if (isAlleSituaties({ tags: nieuw })) setUitgeklapt(false);
+                opWijzig(nieuw);
+              }}
+              className={chipKlein(isAan)}
             >
-              {isAan && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
               {o.label}
             </button>
           );
         })}
-      </div>
+      </span>
     );
   };
   return (
-    <div className="col-span-full flex flex-col gap-2 pb-2">
-      {groep('ondergrond', t.tags.ondergrond, ondergronden)}
-      {groep('bedekking', t.tags.bedekking, bedekkingen)}
+    <div
+      role="group"
+      aria-label={t.tags.vanMateriaal(naam)}
+      className={
+        'col-span-full flex flex-wrap items-center justify-end gap-1' +
+        // Alleen de knop Alle situaties: in de laatste kolom; losse tags: rechts onder de rij.
+        (losZichtbaar ? '' : ' @5xl:col-span-1')
+      }
+    >
+      <button
+        type="button"
+        aria-pressed={alle && !uitgeklapt}
+        aria-label={t.tags.alleVan(naam)}
+        onClick={() => {
+          if (alle) setUitgeklapt(!uitgeklapt);
+          else {
+            setUitgeklapt(false);
+            opWijzig(ALLE_TAGS);
+          }
+        }}
+        className={chipKlein(alle && !uitgeklapt)}
+      >
+        {alle && !uitgeklapt && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
+        {t.tags.alle}
+      </button>
+      {losZichtbaar && groep('ondergrond', t.tags.ondergrond, ondergronden)}
+      {losZichtbaar && groep('bedekking', t.tags.bedekking, bedekkingen)}
     </div>
   );
 }
+
+/** Compacte aan/uit-knop (kleine tekst; wel een klikdoel van 48 px). */
+const chipKlein = (aan: boolean) =>
+  'inline-flex min-h-12 min-w-12 items-center justify-center gap-1 rounded-full px-3 text-sm font-semibold ' +
+  'disabled:cursor-not-allowed ' +
+  (aan
+    ? 'border-2 border-accent bg-achtergrond text-accent'
+    : 'border-2 border-rand bg-achtergrond text-tekst-zacht hover:border-accent');
 
 /** De vaste posten (steiger, verzekerde garantie, voorrijkosten) via `prijzen:bewaar`. */
 function OverigePrijzen() {

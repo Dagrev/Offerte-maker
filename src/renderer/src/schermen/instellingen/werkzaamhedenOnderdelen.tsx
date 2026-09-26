@@ -9,7 +9,7 @@ import type {
   Werkzaamheid,
   WerkzaamhedenSet,
 } from '@shared/types';
-import { geldigeSituaties } from '@shared/werkzaamheden';
+import { geldigeKiesbaar, geldigeSituaties } from '@shared/werkzaamheden';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { alsFout } from '../../api/roep';
 import {
@@ -84,10 +84,30 @@ export function SetLader({ kind }: { kind: (props: SetProps) => ReactNode }) {
   );
 }
 
+/**
+ * Situaties en kiesbare materialen die na een wijziging nog kloppen, met de meldingen (OFM-055: een
+ * situatiemateriaal dat niet meer kiesbaar is of niet meer past; OFM-058: een materiaal met specifieke tags
+ * dat gewoon kiesbaar was).
+ */
+function geldig(set: WerkzaamhedenSet): { set: WerkzaamhedenSet; meldingen: string[] } {
+  const situaties = geldigeSituaties(set.werkzaamheden, set.materialen);
+  const kiesbaar = geldigeKiesbaar(situaties.werkzaamheden, set.materialen);
+  return {
+    set: { ...set, werkzaamheden: kiesbaar.werkzaamheden },
+    meldingen: [
+      ...(situaties.vervallen > 0 ? [t.situatie.vervallen(situaties.vervallen)] : []),
+      ...(kiesbaar.vervallen > 0 ? [t.kiesbaarVervallen(kiesbaar.vervallen)] : []),
+    ],
+  };
+}
+
 /** Staat en bewaren van de set, gedeeld door beide tabs. */
 export function useSetBewerker(beginSet: WerkzaamhedenSet, soorten: Keuzeoptie[]) {
-  const [set, setSet] = useState(beginSet);
-  const [vervallen, setVervallen] = useState<string | null>(null);
+  // OFM-058: ook bij het openen opschonen (bijv. een materiaal dat vóór deze versie specifieke tags kreeg
+  // terwijl het gewoon kiesbaar was); bewaard wordt dat met de volgende wijziging.
+  const [begin] = useState(() => geldig(beginSet));
+  const [set, setSet] = useState(begin.set);
+  const [vervallen, setVervallen] = useState<string[]>(begin.meldingen);
   const [teVerwijderen, setTeVerwijderen] = useState<TeVerwijderen | null>(null);
   const [bewerker] = useState(() => Symbol('werkzaamheden'));
 
@@ -107,14 +127,8 @@ export function useSetBewerker(beginSet: WerkzaamhedenSet, soorten: Keuzeoptie[]
   useEffect(() => () => meldWachtend(bewerker, false), [bewerker]);
 
   const wijzig = (gewijzigd: WerkzaamhedenSet, direct: boolean) => {
-    // OFM-055: een standaardmateriaal bij een daksituatie dat niet meer kiesbaar is of niet meer bij de
-    // tags past, vervalt (melding).
-    const { werkzaamheden, vervallen: aantal } = geldigeSituaties(
-      gewijzigd.werkzaamheden,
-      gewijzigd.materialen,
-    );
-    const nieuw = { ...gewijzigd, werkzaamheden };
-    setVervallen(aantal > 0 ? t.situatie.vervallen(aantal) : null);
+    const { set: nieuw, meldingen } = geldig(gewijzigd);
+    setVervallen(meldingen);
     setSet(nieuw);
     if (direct) bewaren.bewaarDirect(nieuw);
     else {
@@ -139,14 +153,15 @@ export function useSetBewerker(beginSet: WerkzaamhedenSet, soorten: Keuzeoptie[]
   const meldingen = (
     <>
       {bewaren.fout && <Foutmelding fout={bewaren.fout} />}
-      {vervallen && (
+      {vervallen.map((melding) => (
         <p
+          key={melding}
           role="status"
           className="rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-4 py-3 text-waarschuwing"
         >
-          {vervallen}
+          {melding}
         </p>
-      )}
+      ))}
     </>
   );
 

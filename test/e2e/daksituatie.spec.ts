@@ -14,6 +14,9 @@ import {
 } from '../helpers/e2e';
 import { controleerScherm } from '../helpers/toegankelijkheid';
 
+// OFM-058: tags als compacte knoppen met Alle situaties; houtschroeven (tag hout) staan niet in de gewone
+// kiesbare lijst van Nieuwe bedekking maar wel in de situaties met hout, en worden kiesbaar door ze daar aan
+// te vinken. Een tag uit bij een gewoon kiesbaar materiaal geeft een gele melding.
 // OFM-055 (vervangt daksysteem.spec.ts van OFM-051): materiaaltags en materiaal per daksituatie. In de
 // tab Materialen en prijzen (OFM-056) krijgen Houtschroeven alleen de tag Hout en de EPDM-ontluchter alleen de
 // tag EPDM; in de tab Werkzaamheden worden bij Nieuwe bedekking (vinkje Materiaal per daksituatie staat al aan in de startset) worden bij
@@ -53,40 +56,62 @@ test('tags en materiaal per daksituatie: hout × EPDM drie materialen, beton × 
   await knop(page, nl.overzicht.instellingen).click();
   await knop(page, nl.instellingen.tab.materialen).click();
 
-  // Beschikbare tags bovenaan de materialen: ondergronden zonder "Weet ik niet" en de bedekkingen.
-  const tags = page.getByRole('region', { name: t.tags.titel });
-  await expect(tags.getByRole('list', { name: t.tags.ondergrond })).toHaveText(/Hout.*Beton.*Staal/);
-  await expect(tags.getByRole('list', { name: t.tags.bedekking })).toHaveText(/Bitumen.*EPDM.*PVC/);
-  await expect(tags.getByText('Weet ik niet')).toHaveCount(0);
-  // Startset: bitumen alleen de tag bitumen.
-  await expect(
-    page.getByRole('button', { name: t.tags.tag('EPDM', 'Bitumen'), exact: true }),
-  ).toHaveAttribute('aria-pressed', 'false');
-
-  // Houtschroeven: alleen Hout (nieuw = alle tags aan). De laatste tag kan niet uit.
-  await voegMateriaalToe(page, HOUT);
+  // Geen blok Beschikbare tags meer, wel een uitlegregel.
+  await expect(page.getByText(t.tags.uitleg)).toBeVisible();
   const tag = (label: string, materiaal: string) =>
     page.getByRole('button', { name: t.tags.tag(label, materiaal), exact: true });
+  const alle = (materiaal: string) =>
+    page.getByRole('button', { name: t.tags.alleVan(materiaal), exact: true });
+  // Startset: bitumen alleen de tag bitumen (losse tags zichtbaar, Alle situaties uit); PIR 80 mm alle.
+  await expect(tag('EPDM', 'Bitumen')).toHaveAttribute('aria-pressed', 'false');
+  await expect(alle('Bitumen')).toHaveAttribute('aria-pressed', 'false');
+  await expect(alle('PIR 80 mm')).toHaveAttribute('aria-pressed', 'true');
+  await expect(tag('Hout', 'PIR 80 mm')).toHaveCount(0);
+  // Geen "Weet ik niet" als tag.
+  await expect(tag('Weet ik niet', 'Bitumen')).toHaveCount(0);
+
+  // Houtschroeven: nieuw = Alle situaties; uitzetten toont de losse tags (alles aan); alleen Hout. De
+  // laatste tag kan niet uit.
+  await voegMateriaalToe(page, HOUT);
+  await expect(alle(HOUT)).toHaveAttribute('aria-pressed', 'true');
+  await expect(tag('Beton', HOUT)).toHaveCount(0);
+  await alle(HOUT).click();
+  await expect(alle(HOUT)).toHaveAttribute('aria-pressed', 'false');
   await expect(tag('Beton', HOUT)).toHaveAttribute('aria-pressed', 'true');
+  // Alles weer aan: terug naar Alle situaties.
+  await tag('PVC', HOUT).click();
+  await expect(tag('PVC', HOUT)).toHaveAttribute('aria-pressed', 'false');
+  await tag('PVC', HOUT).click();
+  await expect(alle(HOUT)).toHaveAttribute('aria-pressed', 'true');
+  await expect(tag('PVC', HOUT)).toHaveCount(0);
+  await alle(HOUT).click();
   await tag('Beton', HOUT).click();
   await tag('Staal', HOUT).click();
   await expect(tag('Beton', HOUT)).toHaveAttribute('aria-pressed', 'false');
   await expect(tag('Hout', HOUT)).toBeDisabled();
   // EPDM-ontluchter: alleen EPDM.
   await voegMateriaalToe(page, ONTL);
+  await alle(ONTL).click();
   await tag('Bitumen', ONTL).click();
   await tag('PVC', ONTL).click();
   await expect(tag('EPDM', ONTL)).toHaveAttribute('aria-pressed', 'true');
 
+  // Een tag uit bij een materiaal dat gewoon kiesbaar is (PIR 60 mm bij Isoleren): gele melding.
+  await alle('PIR 60 mm').click();
+  await tag('Staal', 'PIR 60 mm').click();
+  await expect(page.getByText(t.kiesbaarVervallen(1))).toBeVisible();
   await controleerScherm(page, 'Materialen en prijzen met tags', []);
 
-  // Tab Werkzaamheden, kaart Nieuwe bedekking openen: beide kiesbaar, vinkje staat aan, Hout × EPDM.
+  // Tab Werkzaamheden, kaart Nieuwe bedekking openen: houtschroeven en ontluchter staan niet in de gewone
+  // kiesbare lijst (eigen tags), wel in de situaties; vinkje staat aan, Hout × EPDM.
   await knop(page, nl.instellingen.tab.werkzaamheden).click();
   const kaart = page.getByRole('listitem', { name: BED, exact: true });
   await kaart.getByRole('button', { name: BED, exact: true }).click();
   const kiesbaar = kaart.getByRole('group', { name: t.kiesbareMaterialen(BED) });
-  await kiesbaar.getByLabel(HOUT, { exact: true }).check();
-  await kiesbaar.getByLabel(ONTL, { exact: true }).check();
+  for (const naam of [HOUT, ONTL, 'EPDM', 'Bitumen']) {
+    await expect(kiesbaar.getByLabel(naam, { exact: true })).toHaveCount(0);
+  }
+  await expect(kiesbaar.getByLabel('PIR 80 mm', { exact: true })).not.toBeChecked();
   await expect(kaart.getByLabel(t.situatie.vinkje, { exact: true })).toBeChecked();
   await expect(kaart.getByLabel(t.standaardMateriaal(BED), { exact: true })).toHaveCount(0);
   const knoppen = kaart.getByRole('group', { name: t.situatie.knoppen(BED) });
@@ -102,6 +127,18 @@ test('tags en materiaal per daksituatie: hout × EPDM drie materialen, beton × 
   await situatie.getByLabel(HOUT, { exact: true }).check();
   await expect(houtEpdm).toHaveAccessibleName(/3 materialen$/);
   await expect(page.getByText(nl.componenten.bewaard).first()).toBeVisible();
+  // Houtschroeven ook bij Hout × Bitumen te kiezen (niet kiesbaar in de gewone lijst).
+  await knoppen.getByRole('button', { name: /^Hout × Bitumen/ }).click();
+  const houtBitumen = kaart.getByRole('group', { name: t.situatie.materialen('Hout × Bitumen', BED) });
+  await expect(houtBitumen.getByLabel(HOUT, { exact: true })).not.toBeChecked();
+  await expect(houtBitumen.getByLabel(ONTL, { exact: true })).toHaveCount(0);
+  await expect(kiesbaar.getByLabel(HOUT, { exact: true })).toHaveCount(0);
+  // Isoleren: PIR 60 mm (tag staal uit) staat niet meer in de gewone kiesbare lijst.
+  const iso = page.getByRole('listitem', { name: 'Isoleren', exact: true });
+  await iso.getByRole('button', { name: 'Isoleren', exact: true }).click();
+  const isoKiesbaar = iso.getByRole('group', { name: t.kiesbareMaterialen('Isoleren') });
+  await expect(isoKiesbaar.getByLabel('PIR 60 mm', { exact: true })).toHaveCount(0);
+  await expect(isoKiesbaar.getByLabel('PIR 80 mm', { exact: true })).toBeChecked();
   // Bij beton × EPDM staan de houtschroeven er niet (tag hout).
   await knoppen.getByRole('button', { name: /^Beton × EPDM/ }).click();
   const betonEpdm = kaart.getByRole('group', { name: t.situatie.materialen('Beton × EPDM', BED) });
