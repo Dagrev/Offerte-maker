@@ -10,7 +10,6 @@ import { puntTekst } from '@shared/teksten/wizardPunten';
 import type { Verplicht } from '@shared/verplicht';
 import { ontbrekendInStap1, puntSleutel, wizardPunten, type WizardPunt } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
-import { useClaudeStatus } from '../../api/claude';
 import { useInstellingen } from '../../api/instellingen';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { useAutoBewaarInvoer, useOfferte } from '../../api/offerte';
@@ -20,7 +19,7 @@ import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
 import { stapMarkeringen } from '../../componenten/stapMarkering';
 import { Stappenbalk } from '../../componenten/Stappenbalk';
-import { markeerMislukt, toonZonderClaude } from '../../stores/mislukteMaken';
+import { markeerMislukt } from '../../stores/mislukteMaken';
 import { useNavigatie, type WizardStap } from '../../stores/navigatie';
 import { nl } from '../../teksten/nl';
 import { StapDak } from './StapDak';
@@ -133,13 +132,11 @@ function WizardFormulier({
   const storeFout = useNavigatie((s) => s.fout);
   const opnieuwInloggen = useOpnieuwInloggen();
   const bewaar = useAutoBewaarInvoer(detail.id);
-  const claudeStatus = useClaudeStatus();
   // V-09: terug van het Bezig-scherm met een fout = een mislukte poging in deze sessie. De markering
   // blijft staan als de gebruiker weggaat en later terugkomt; `storeFout` alleen niet.
   useEffect(() => {
     if (storeFout !== undefined) markeerMislukt(detail.id);
   }, [storeFout, detail.id]);
-  const zonderClaudeZichtbaar = storeFout !== undefined || toonZonderClaude(claudeStatus, detail.id);
 
   // Lokale formulierstate (§13.4). De refs houden de nieuwste waarde vast voor snel na elkaar
   // volgende wijzigingen; de state zorgt voor het renderen.
@@ -263,10 +260,8 @@ function WizardFormulier({
           <Knop label={t.volgende} variant="hoofd" icoon={ArrowRight} onClick={() => naarStap(stap + 1)} />
         ) : (
           <div className="flex flex-wrap items-center gap-4">
-            {/* V-09: alleen bij een statusfout of na een mislukte poging voor deze offerte. */}
-            {zonderClaudeZichtbaar && (
-              <Knop label={t.maakZonderClaude} icoon={FileText} onClick={() => void maak('zonder_claude')} />
-            )}
+            {/* OFM-039: altijd, als tweede knop naast Maak de offerte (was V-09: alleen na een fout). */}
+            <Knop label={t.maakZonderClaude} icoon={FileText} onClick={() => void maak('zonder_claude')} />
             <Knop label={t.maakDeOfferte} variant="hoofd" icoon={Sparkles} onClick={() => void maak()} />
           </div>
         )}
