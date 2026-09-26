@@ -145,7 +145,8 @@ export function TabOpmaak({ instellingen }: { instellingen: Instellingen }) {
         />
       </div>
 
-      <div className="sticky top-6 self-start">
+      {/* OFM-054: het voorbeeld met zoomwerkbalk vult deze hoogte. */}
+      <div className="sticky top-6 flex h-[calc(100vh-12rem)] min-h-96 flex-col self-start">
         {voorbeeld.isError ? (
           <Foutmelding fout={alsFout(voorbeeld.error)} opnieuw={() => void voorbeeld.refetch()} />
         ) : (
@@ -172,7 +173,7 @@ function LayoutTegel({ opmaak, gekozen, opKies }: { opmaak: Opmaak; gekozen: boo
     >
       {/* Het voorbeeld is decoratief; klikken gaat naar de knop, niet naar het iframe. */}
       <span aria-hidden="true" className="pointer-events-none block">
-        <PdfVoorbeeld html={voorbeeld.data?.html ?? null} titel={t.voorbeeldLayout(naam)} />
+        <PdfVoorbeeld html={voorbeeld.data?.html ?? null} titel={t.voorbeeldLayout(naam)} werkbalk={false} />
       </span>
       <span className="flex items-center justify-between">
         {naam}
