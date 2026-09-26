@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { app, BrowserWindow, session, type WebContents } from 'electron';
+import { app, BrowserWindow, screen, session, type WebContents } from 'electron';
 
 // Hoofdvenster, single instance en Electron-beveiliging (TDO §14.1 stap 1 en 7, §17, NFE-014).
 
@@ -86,11 +86,28 @@ export function claimEnkeleInstantie(): boolean {
   return true;
 }
 
+/**
+ * Testhaak: `OFFERTE_MAKER_SCHERM=<n>` (1 = eerste scherm in de volgorde van Electron) opent het
+ * venster op dat scherm, zodat E2E-runs en `pnpm dev` op een tweede monitor kunnen draaien terwijl
+ * de eigenaar op het eerste doorwerkt. Ongeldig of ontbrekend: geen positie (Electron kiest).
+ */
+export function vensterPositie(
+  waarde: string | undefined,
+  schermen: readonly { workArea: { x: number; y: number } }[],
+): { x: number; y: number } | undefined {
+  const n = Number(waarde?.trim() || Number.NaN);
+  if (!Number.isInteger(n) || n < 1 || n > schermen.length) return undefined;
+  const { x, y } = schermen[n - 1]!.workArea;
+  return { x: x + 40, y: y + 40 };
+}
+
 export function maakHoofdvenster(): BrowserWindow {
   const devUrl = devServerUrl();
   const htmlPad = rendererHtml();
+  const positie = vensterPositie(process.env['OFFERTE_MAKER_SCHERM'], screen.getAllDisplays());
   const venster = new BrowserWindow({
     show: false,
+    ...positie,
     // Vensterminimum (TDO §13.2); ontworpen voor 1366 × 768 en groter.
     minWidth: 1024,
     minHeight: 700,
