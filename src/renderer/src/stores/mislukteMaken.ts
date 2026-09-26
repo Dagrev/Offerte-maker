@@ -19,7 +19,10 @@ export function wisMislukt(): void {
   mislukt.clear();
 }
 
-/** V-09: de knop **Maak zonder Claude** verschijnt bij een statusfout of na een mislukte poging. */
+/**
+ * V-09: de knop **Maak zonder Claude** verscheen alleen bij een statusfout of na een mislukte poging.
+ * Sinds OFM-039 staat de knop er altijd; deze functie blijft voor wie wil weten of er iets misging.
+ */
 export function toonZonderClaude(status: ClaudeStatus | null, offerteId: string): boolean {
   return status?.toestand === 'fout' || isMislukt(offerteId);
 }

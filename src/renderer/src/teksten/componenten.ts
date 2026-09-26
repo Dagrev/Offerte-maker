@@ -5,7 +5,7 @@ import type { Status } from '@shared/types';
 export const componenten = {
   bewaard: 'Bewaard ✓',
 
-  /** `AdresVelden` (OFM-031): postcode en huisnummer vooraan, straat en plaats worden opgezocht. */
+  /** `AdresVelden` (OFM-031, OFM-040): adres opzoeken in beide richtingen en controleren. */
   adres: {
     postcode: 'Postcode',
     huisnummer: 'Huisnummer',
@@ -13,6 +13,10 @@ export const componenten = {
     plaats: 'Plaats',
     zoeken: 'Adres opzoeken…',
     nietGevonden: 'Niet gevonden, vul zelf in',
+    /** OFM-040: andersom opzoeken (straat + huisnummer + plaats → postcode). */
+    postcodeNietGevonden: 'Postcode niet gevonden, vul zelf in',
+    /** OFM-040: oranje, niet-blokkerend als straat of plaats niet bij postcode + huisnummer hoort. */
+    afwijkend: 'Dit adres is niet gevonden bij PDOK. Klopt het?',
     straatLeeg: 'Vul ook de straat in',
     huisnummerLeeg: 'Vul ook het huisnummer in',
   },

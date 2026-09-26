@@ -2,13 +2,14 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// OFM-031: PDOK-opzoeken met een lokale nep-server (geen echte netwerkaanroepen).
+// OFM-031/040: PDOK-opzoeken in beide richtingen met een lokale nep-server (geen echte netwerkaanroepen).
 
 const nepLog = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 vi.mock('../log', () => ({ log: nepLog }));
 vi.mock('electron', () => ({ app: { getPath: () => 'C:\\nergens', isPackaged: false } }));
 
-const { PDOK_URL, kiesDoc, leesAntwoord, pdokUrl, zoekAdres, zoekUrl } = await import('./pdok');
+const { PDOK_URL, frase, kiesDoc, leesAntwoord, pdokUrl, zoekAdres, zoekUrl, zoekvraag } =
+  await import('./pdok');
 const { maakIpcHandler } = await import('../ipc/registreer');
 const { adresHandlers } = await import('../ipc/adres');
 
@@ -42,6 +43,7 @@ beforeEach(() => {
 const doc = (straatnaam: string, extra: Record<string, string> = {}) => ({
   straatnaam,
   woonplaatsnaam: 'Eindhoven',
+  postcode: '5611AB',
   ...extra,
 });
 
@@ -52,10 +54,57 @@ describe('pdokUrl en zoekUrl', () => {
   });
 
   it('alleen postcode en huisnummer gaan mee', () => {
-    const url = new URL(zoekUrl(PDOK_URL, '5611 AB', { nummer: 12, toevoeging: 'A' }));
+    const url = new URL(
+      zoekUrl(PDOK_URL, {
+        soort: 'postcode',
+        postcode: '5611 AB',
+        huisnummer: { nummer: 12, toevoeging: 'A' },
+      }),
+    );
     expect(url.origin + url.pathname).toBe(PDOK_URL);
     expect(url.searchParams.getAll('fq')).toEqual(['type:adres', 'postcode:5611AB', 'huisnummer:12']);
+    expect(url.searchParams.get('fl')).toBe(
+      'straatnaam woonplaatsnaam postcode huisletter huisnummertoevoeging',
+    );
     expect(url.searchParams.get('rows')).toBe('20');
+  });
+
+  it('OFM-040: andersom straat, plaats (als frase) en huisnummer', () => {
+    const url = new URL(
+      zoekUrl(PDOK_URL, {
+        soort: 'straat',
+        straat: 'Prins Hendrikkade',
+        plaats: "'s-Hertogenbosch",
+        huisnummer: { nummer: 1, toevoeging: '' },
+      }),
+    );
+    expect(url.searchParams.getAll('fq')).toEqual([
+      'type:adres',
+      'straatnaam:"Prins Hendrikkade"',
+      'woonplaatsnaam:"\'s-Hertogenbosch"',
+      'huisnummer:1',
+    ]);
+  });
+
+  it('frase: witruimte samengevoegd, aanhalingsteken en backslash ge-escaped', () => {
+    expect(frase('  Lange   Laan ')).toBe('"Lange Laan"');
+    expect(frase('a"b\\c')).toBe('"a\\"b\\\\c"');
+  });
+
+  it('zoekvraag: alleen met een geldig huisnummer en een postcode of straat en plaats met letters', () => {
+    expect(zoekvraag({ postcode: '5611ab', huisnummer: '3' })).toMatchObject({
+      soort: 'postcode',
+      postcode: '5611 AB',
+    });
+    expect(zoekvraag({ straat: ' Kerkstraat ', huisnummer: '3a', plaats: 'Best' })).toEqual({
+      soort: 'straat',
+      straat: 'Kerkstraat',
+      plaats: 'Best',
+      huisnummer: { nummer: 3, toevoeging: 'A' },
+    });
+    expect(zoekvraag({ straat: '12', huisnummer: '3', plaats: 'Best' })).toBeNull();
+    expect(zoekvraag({ straat: 'Kerkstraat', huisnummer: '3', plaats: ' ' })).toBeNull();
+    expect(zoekvraag({ straat: 'Kerkstraat', huisnummer: 'x', plaats: 'Best' })).toBeNull();
   });
 });
 
@@ -76,7 +125,13 @@ describe('leesAntwoord en kiesDoc', () => {
   });
 
   it('null bij geen docs, een raar antwoord of een onvolledige treffer', () => {
-    expect(leesAntwoord({ response: { docs } }, 'A')).toEqual({ straat: 'Straat A', plaats: 'Eindhoven' });
+    expect(leesAntwoord({ response: { docs } }, 'A')).toEqual({
+      straat: 'Straat A',
+      plaats: 'Eindhoven',
+      postcode: '5611 AB',
+    });
+    expect(leesAntwoord({ response: { docs: [doc('X', { postcode: '' })] } }, '')).toBeNull();
+    expect(leesAntwoord({ response: { docs: [doc('X', { postcode: '12345' })] } }, '')).toBeNull();
     expect(leesAntwoord({ response: { docs: [] } }, '')).toBeNull();
     expect(leesAntwoord({ response: {} }, '')).toBeNull();
     expect(leesAntwoord(null, '')).toBeNull();
@@ -90,6 +145,7 @@ describe('zoekAdres', () => {
     expect(await zoekAdres({ postcode: '5611ab', huisnummer: '12' }, { basis })).toEqual({
       straat: 'Dorpsstraat',
       plaats: 'Eindhoven',
+      postcode: '5611 AB',
     });
     expect(verzoeken[0]?.searchParams.getAll('fq')).toEqual([
       'type:adres',
@@ -97,8 +153,28 @@ describe('zoekAdres', () => {
       'huisnummer:12',
     ]);
     const regel = String(nepLog.info.mock.calls[0]?.[0]);
-    expect(regel).toMatch(/^adres opgezocht: gevonden, \d+ ms$/);
+    expect(regel).toMatch(/^adres opgezocht op postcode: gevonden, \d+ ms$/);
     expect(regel).not.toMatch(/5611|Dorpsstraat|Eindhoven/);
+  });
+
+  it('OFM-040: op straat en plaats → postcode; log zonder waarden', async () => {
+    antwoord = { status: 200, body: { response: { docs: [doc('Dorpsstraat', { postcode: '5611AB' })] } } };
+    expect(
+      await zoekAdres({ straat: 'dorpsstraat', huisnummer: '12', plaats: 'eindhoven' }, { basis }),
+    ).toEqual({
+      straat: 'Dorpsstraat',
+      plaats: 'Eindhoven',
+      postcode: '5611 AB',
+    });
+    expect(verzoeken[0]?.searchParams.getAll('fq')).toEqual([
+      'type:adres',
+      'straatnaam:"dorpsstraat"',
+      'woonplaatsnaam:"eindhoven"',
+      'huisnummer:12',
+    ]);
+    const regel = String(nepLog.info.mock.calls[0]?.[0]);
+    expect(regel).toMatch(/^adres opgezocht op straat: gevonden, \d+ ms$/);
+    expect(regel).not.toMatch(/5611|orpsstraat|indhoven/);
   });
 
   it('geen treffer, http-fout, kapotte json, geen verbinding en time-out geven null', async () => {
@@ -115,11 +191,11 @@ describe('zoekAdres', () => {
     expect(await zoekAdres({ postcode: '5611 AB', huisnummer: '1' }, { basis, timeoutMs: 50 })).toBeNull();
     const regels = nepLog.info.mock.calls.map((c) => String(c[0]).replace(/\d+ ms$/, 'n ms'));
     expect(regels).toEqual([
-      'adres opgezocht: niet gevonden, n ms',
-      'adres opgezocht: niet gevonden (http 500), n ms',
-      'adres opgezocht: niet gevonden (geen verbinding), n ms',
-      'adres opgezocht: niet gevonden (geen verbinding), n ms',
-      'adres opgezocht: niet gevonden (time-out), n ms',
+      'adres opgezocht op postcode: niet gevonden, n ms',
+      'adres opgezocht op postcode: niet gevonden (http 500), n ms',
+      'adres opgezocht op postcode: niet gevonden (geen verbinding), n ms',
+      'adres opgezocht op postcode: niet gevonden (geen verbinding), n ms',
+      'adres opgezocht op postcode: niet gevonden (time-out), n ms',
     ]);
   });
 
@@ -128,6 +204,7 @@ describe('zoekAdres', () => {
     expect(await zoekAdres({ postcode: '', huisnummer: '12' }, { haal })).toBeNull();
     expect(await zoekAdres({ postcode: '12345', huisnummer: '12' }, { haal })).toBeNull();
     expect(await zoekAdres({ postcode: '5611 AB', huisnummer: 'x' }, { haal })).toBeNull();
+    expect(await zoekAdres({ straat: '', huisnummer: '1', plaats: 'Best' }, { haal })).toBeNull();
     expect(haal).not.toHaveBeenCalled();
   });
 
@@ -137,8 +214,18 @@ describe('zoekAdres', () => {
     const zoek = maakIpcHandler('adres:zoek', adresHandlers['adres:zoek']);
     expect(await zoek({} as never, { postcode: '5611 AB', huisnummer: '3' })).toEqual({
       ok: true,
-      data: { straat: 'Kerkstraat', plaats: 'Eindhoven' },
+      data: { straat: 'Kerkstraat', plaats: 'Eindhoven', postcode: '5611 AB' },
     });
+    expect(
+      await zoek({} as never, { straat: 'Kerkstraat', huisnummer: '3', plaats: 'Eindhoven', naam: 'Jansen' }),
+    ).toMatchObject({ ok: true, data: { postcode: '5611 AB' } });
+    // De naam is weggevallen: alleen adreswaarden in het verzoek.
+    expect(verzoeken.at(-1)?.search).not.toMatch(/Jansen/);
+    expect(await zoek({} as never, { straat: '', huisnummer: '3', plaats: 'Eindhoven' })).toMatchObject({
+      ok: false,
+      fout: { code: 'VALIDATIE' },
+    });
+    expect(await zoek({} as never, { huisnummer: '3', plaats: 'Eindhoven' })).toMatchObject({ ok: false });
     expect(await zoek({} as never, { postcode: '1234 SA', huisnummer: '3' })).toMatchObject({
       ok: false,
       fout: { code: 'VALIDATIE' },

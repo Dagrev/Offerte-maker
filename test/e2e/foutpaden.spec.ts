@@ -266,18 +266,21 @@ test('privacyfilter-uit + klantnaam in Overig: geblokkeerd, niets verstuurd (FE-
   await controleerNaFout(page, id);
 });
 
-test('Maak zonder Claude: bij een statusfout zichtbaar, via Bezig naar het detailscherm (OFM-025)', async () => {
-  const page = await start({ modus: 'niet-ingelogd' });
-  const id = await nieuweOfferteTotStap4(page, KLANT);
-  const knop = page.getByRole('button', { name: nl.wizard.maakZonderClaude });
-  await expect(knop).toBeVisible();
-  await knop.click();
-  await expect(page.getByRole('heading', { name: nl.detail.controleerEven })).toBeVisible({
-    timeout: 15_000,
+// OFM-039: de knop staat er altijd, ook met een werkende (groene) koppeling; er gaat niets naar Claude.
+for (const modus of ['niet-ingelogd', 'ok']) {
+  test(`Maak zonder Claude (koppeling ${modus}): zichtbaar, via Bezig naar het detailscherm (OFM-025/039)`, async () => {
+    const page = await start({ modus });
+    const id = await nieuweOfferteTotStap4(page, KLANT);
+    const knop = page.getByRole('button', { name: nl.wizard.maakZonderClaude });
+    await expect(knop).toBeVisible();
+    await knop.click();
+    await expect(page.getByRole('heading', { name: nl.detail.controleerEven })).toBeVisible({
+      timeout: 15_000,
+    });
+    expect(nepClaudeAanroepen(mappen)).toEqual([]);
+    const detail = await apiData(page, 'offerteHaal', { id });
+    expect(detail.versies.map((v) => v.bron)).toEqual(['zonder_claude']);
+    expect(detail.status).toBe('concept');
+    expect(gestart?.paginaFouten).toEqual([]);
   });
-  expect(nepClaudeAanroepen(mappen)).toEqual([]);
-  const detail = await apiData(page, 'offerteHaal', { id });
-  expect(detail.versies.map((v) => v.bron)).toEqual(['zonder_claude']);
-  expect(detail.status).toBe('concept');
-  expect(gestart?.paginaFouten).toEqual([]);
-});
+}
