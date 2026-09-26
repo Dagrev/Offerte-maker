@@ -91,6 +91,7 @@ export const CATALOGUS: WerkzaamhedenSet = {
       inGebruik: false,
     },
   ],
+  daksystemen: [],
 };
 
 /** Een gekozen werkzaamheid met standaardwaarden. */

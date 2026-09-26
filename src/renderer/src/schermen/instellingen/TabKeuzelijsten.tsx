@@ -4,6 +4,7 @@ import { isZinLijst, KEUZE_LIJSTEN } from '@shared/keuzelijsten';
 import type { KeuzeLijst, Keuzeoptie } from '@shared/types';
 import { bewaarKeuzelijst, herstelKeuzelijst, useKeuzelijsten } from '../../api/keuzelijsten';
 import { alsFout } from '../../api/roep';
+import { useWerkzaamheden } from '../../api/werkzaamheden';
 import { Bevestiging } from '../../componenten/Bevestiging';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
 import { Foutmelding } from '../../componenten/Foutmelding';
@@ -17,7 +18,8 @@ import { useAutoBewaar } from './autoBewaar';
 // OFM-049: per optie een keuzerondje Standaard plus Geen standaard; de standaard is niet te verbergen of
 // te verwijderen (dan een melding: eerst een andere kiezen). OFM-050: bij soort dak, huidige bedekking,
 // ondergrond en hoogte per optie een veld "Zin in de offerte" (beginsituatie), bij soort werk een vinkje
-// "Vraagt nieuwe dakbedekking".
+// "Vraagt nieuwe dakbedekking". OFM-051: verwijderen van een ondergrond of nieuwe dakbedekking meldt hoeveel
+// afwijkingen bij Standaardmaterialen per daksysteem meeverdwijnen (de database verwijdert ze).
 
 const t = nl.keuzelijsten;
 const invoerKlasse =
@@ -81,6 +83,13 @@ export function LijstBewerker({
   const [herstellen, setHerstellen] = useState(false);
   const [herstelFout, setHerstelFout] = useState<ReturnType<typeof alsFout> | null>(null);
   const [melding, setMelding] = useState<string | null>(null);
+  const werk = useWerkzaamheden();
+  const afwijkingenOp = (optie: Keuzeoptie) =>
+    (werk.data?.daksystemen ?? []).filter((r) =>
+      lijst === 'ondergrond'
+        ? r.ondergrond === optie.sleutel
+        : lijst === 'nieuweBedekking' && r.bedekking === optie.sleutel,
+    ).length;
 
   const bewaren = useAutoBewaar(
     (waarde: Keuzeoptie[]) =>
@@ -313,6 +322,9 @@ export function LijstBewerker({
         }}
       >
         <p>{teVerwijderen && t.verwijderTekst(teVerwijderen.label)}</p>
+        {teVerwijderen && afwijkingenOp(teVerwijderen) > 0 && (
+          <p>{t.verwijderAfwijkingen(afwijkingenOp(teVerwijderen))}</p>
+        )}
       </Bevestiging>
 
       <Bevestiging

@@ -50,6 +50,37 @@ export const werkzaamheden = {
   geenStandaard: 'Geen',
   verborgenAchter: (label: string) => `${label} (verborgen)`,
 
+  // Sectie Standaardmaterialen per daksysteem (OFM-051)
+  daksysteem: {
+    titel: 'Standaardmaterialen per daksysteem',
+    uitleg:
+      'Gebruik je bij een bepaalde ondergrond of dakbedekking een ander materiaal dan normaal? Kies hier de combinatie en zet alleen wat afwijkt. Wat je niet invult, volgt de algemene regel of de gewone standaard.',
+    ondergrond: 'Ondergrond',
+    bedekking: 'Nieuwe dakbedekking',
+    alleOndergronden: 'Alle ondergronden',
+    alleBedekkingen: 'Alle bedekkingen',
+    teller: (aantal: number) => (aantal === 1 ? '1 afwijking' : `${aantal} afwijkingen`),
+    kiesCombinatie:
+      'Kies hierboven een ondergrond, een nieuwe dakbedekking of allebei. Het gewone standaardmateriaal stel je in bij de werkzaamheid zelf.',
+    geenWerkzaamheden:
+      'Er is nog geen werkzaamheid met twee of meer kiesbare materialen. Vink eerst materialen aan bij een werkzaamheid.',
+    combinatie: (ondergrond: string, bedekking: string) => `${ondergrond} × ${bedekking}`,
+    werkzaamheid: 'Werkzaamheid',
+    standaardmateriaal: 'Standaardmateriaal bij deze combinatie',
+    waarVandaan: 'Waar komt het vandaan',
+    keuzeLabel: (werk: string, combinatie: string) => `Standaardmateriaal bij ${werk} voor ${combinatie}`,
+    geenAfwijking: 'Geen afwijking',
+    geenAfwijkingNu: (materiaal: string) => `Geen afwijking (nu: ${materiaal})`,
+    geenMateriaal: 'geen',
+    bronCombinatie: 'Deze combinatie',
+    bronGeerfd: (combinatie: string) => `Geërfd van ${combinatie}`,
+    bronGewoon: 'Gewone standaard',
+    vervallen: (aantal: number) =>
+      aantal === 1
+        ? 'Eén afwijking bij Standaardmaterialen per daksysteem is vervallen, omdat het materiaal niet meer kiesbaar is.'
+        : `${aantal} afwijkingen bij Standaardmaterialen per daksysteem zijn vervallen, omdat het materiaal niet meer kiesbaar is.`,
+  },
+
   // Sectie Overige prijzen (de vaste posten, via prijzen:*)
   overig: 'Overige prijzen',
   overigUitleg:
@@ -86,7 +117,7 @@ export const werkzaamheden = {
   herstel: 'Herstel startset',
   herstelTitel: 'Startset herstellen?',
   herstelTekst:
-    'De standaardwerkzaamheden en -materialen krijgen hun oorspronkelijke naam, volgorde en koppelingen terug en worden weer getoond. Prijzen en je eigen onderdelen blijven.',
+    'De standaardwerkzaamheden en -materialen krijgen hun oorspronkelijke naam, volgorde en koppelingen terug en worden weer getoond. Prijzen en je eigen onderdelen blijven. De afwijkingen bij Standaardmaterialen per daksysteem worden gewist.',
   herstelJa: 'Herstellen',
   herstelNee: 'Annuleren',
 };

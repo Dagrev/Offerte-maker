@@ -55,6 +55,8 @@ export type Keuzelijsten = Record<KeuzeLijst, Keuzeoptie[]>;
 export type WerkOptie = z.infer<typeof s.werkOptieSchema>;
 export type Werkzaamheid = z.infer<typeof s.werkzaamheidSchema>;
 export type Materiaal = z.infer<typeof s.materiaalSchema>;
+/** Afwijkend standaardmateriaal per daksysteem (OFM-051). */
+export type DaksysteemRegel = z.infer<typeof s.daksysteemRegelSchema>;
 /** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar` (OFM-043). */
 export type WerkzaamhedenSet = z.infer<typeof s.werkzaamhedenSetSchema>;
 /** Invoer van `werkzaamheden:bewaar` (OFM-043). */

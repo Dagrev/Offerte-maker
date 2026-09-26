@@ -53,6 +53,8 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
       btwTarief,
       verborgen,
     })),
+    // OFM-051: alle afwijkingen per daksysteem; main laat regels vallen die niet meer kloppen.
+    daksystemen: set.daksystemen,
   };
 }
 

@@ -11,7 +11,7 @@ import type {
   Werkzaamheid,
   WerkzaamhedenSet,
 } from '@shared/types';
-import { prijsGroep } from '@shared/werkzaamheden';
+import { geldigeDaksystemen, prijsGroep } from '@shared/werkzaamheden';
 import { useKeuzelijsten } from '../../api/keuzelijsten';
 import { bewaarPrijspost, usePrijzen } from '../../api/prijzen';
 import { alsFout } from '../../api/roep';
@@ -30,6 +30,7 @@ import { Veld } from '../../componenten/Veld';
 import { Vinkje } from '../../componenten/Vinkje';
 import { leesGetal, schoonGetalInvoer, toonGetal } from '../../componenten/getalNotatie';
 import { useNavigatie } from '../../stores/navigatie';
+import { SectieDaksystemen } from './SectieDaksystemen';
 import { nl } from '../../teksten/nl';
 import { useAutoBewaar } from './autoBewaar';
 
@@ -37,7 +38,8 @@ import { useAutoBewaar } from './autoBewaar';
 // Drie secties: (1) Materialen met naam, eenheid, prijs en btw; (2) Werkzaamheden met naam, eenheid,
 // prijs per eenheid, prijs per uur, btw, bij welke soorten werk ze horen, kiesbare materialen (één
 // standaard) en daaronder de opties; (3) Overige prijzen: de vaste posten (steiger, verzekerde garantie,
-// voorrijkosten) via `prijzen:bewaar`. Secties 1 en 2 bewaren als geheel via `werkzaamheden:bewaar`
+// voorrijkosten) via `prijzen:bewaar`. Sinds OFM-051 tussen 2 en 3 de sectie Standaardmaterialen per
+// daksysteem (`SectieDaksystemen.tsx`), die met de set meebewaart. Secties 1 en 2 bewaren als geheel via `werkzaamheden:bewaar`
 // (FE-075): namen en prijzen na 800 ms of bij verlaten van het veld, vinkjes en knoppen meteen. Een nieuw
 // item krijgt hier al een id. De soorten werk zelf staan onder Keuzelijsten.
 
@@ -81,6 +83,8 @@ export function TabWerkzaamhedenPrijzen() {
       key={versie}
       beginSet={werk.data}
       soorten={keuzes.data.soortWerk}
+      ondergronden={keuzes.data.ondergrond}
+      bedekkingen={keuzes.data.nieuweBedekking}
       opHersteld={() => void werk.refetch().then(() => setVersie((v) => v + 1))}
       overig={<OverigePrijzen />}
     />
@@ -90,11 +94,15 @@ export function TabWerkzaamhedenPrijzen() {
 function Bewerker({
   beginSet,
   soorten,
+  ondergronden,
+  bedekkingen,
   opHersteld,
   overig,
 }: {
   beginSet: WerkzaamhedenSet;
   soorten: Keuzeoptie[];
+  ondergronden: Keuzeoptie[];
+  bedekkingen: Keuzeoptie[];
   opHersteld: () => void;
   overig: ReactNode;
 }) {
@@ -105,6 +113,9 @@ function Bewerker({
   const [teVerwijderen, setTeVerwijderen] = useState<TeVerwijderen | null>(null);
   const [herstellen, setHerstellen] = useState(false);
   const [herstelFout, setHerstelFout] = useState<ReturnType<typeof alsFout> | null>(null);
+  const [vervallen, setVervallen] = useState<string | null>(null);
+  // "Bewaard ✓" bij de sectie waar de wijziging vandaan kwam (niet twee keer tegelijk).
+  const [inDaksysteem, setInDaksysteem] = useState(false);
 
   const soortSleutels = useRef(new Set(soorten.map((s) => s.sleutel)));
   useEffect(() => {
@@ -116,7 +127,12 @@ function Bewerker({
     allesBenoemd,
   );
 
-  const wijzig = (nieuw: WerkzaamhedenSet, direct: boolean) => {
+  const wijzig = (gewijzigd: WerkzaamhedenSet, direct: boolean, daksysteem = false) => {
+    setInDaksysteem(daksysteem);
+    // OFM-051: een afwijking per daksysteem met een materiaal dat niet meer kiesbaar is, vervalt (melding).
+    const { regels, vervallen: aantal } = geldigeDaksystemen(gewijzigd.daksystemen, gewijzigd.werkzaamheden);
+    const nieuw = { ...gewijzigd, daksystemen: regels };
+    setVervallen(aantal > 0 ? t.daksysteem.vervallen(aantal) : null);
     setSet(nieuw);
     if (direct) bewaren.bewaarDirect(nieuw);
     else bewaren.wijzig(nieuw);
@@ -180,6 +196,7 @@ function Bewerker({
         })),
         materialen: set.materialen.filter((m) => m.id !== id),
         soortenWerk: set.soortenWerk,
+        daksystemen: set.daksystemen,
       },
       true,
     );
@@ -193,7 +210,7 @@ function Bewerker({
     <div className="flex flex-col gap-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="max-w-3xl text-tekst-zacht">{t.uitleg}</p>
-        <BewaardIndicator signaal={bewaren.signaal} />
+        <BewaardIndicator signaal={inDaksysteem ? 0 : bewaren.signaal} />
       </div>
       {bewaren.fout && <Foutmelding fout={bewaren.fout} />}
       {herstelFout && <Foutmelding fout={herstelFout} />}
@@ -325,6 +342,16 @@ function Bewerker({
           toevoegenLabel={t.werkToevoegen}
         />
       </Deel>
+
+      {/* OFM-051: Standaardmaterialen per daksysteem */}
+      <SectieDaksystemen
+        set={set}
+        ondergronden={ondergronden}
+        bedekkingen={bedekkingen}
+        opWijzig={(daksystemen) => wijzig({ ...set, daksystemen }, true, true)}
+        signaal={inDaksysteem ? bewaren.signaal : 0}
+        melding={vervallen}
+      />
 
       {/* 3. Overige prijzen */}
       {overig}

@@ -32,6 +32,8 @@ export default defineConfig({
         'src/shared/omzetting.ts': { branches: 100 },
         // OFM-046: alle vormen van de klantnaam.
         'src/shared/naam.ts': { branches: 100 },
+        // OFM-051: o.a. de terugval van standaardMateriaalVoor per daksysteem.
+        'src/shared/werkzaamheden.ts': { branches: 100 },
       },
     },
   },

@@ -173,7 +173,7 @@ describe('info, standaardaantal en kiezen (OFM-044)', () => {
     let n = 0;
     const id = () => `id${++n}`;
     const iso = CATALOGUS.werkzaamheden[1]!;
-    expect(kiesWerkzaamheid(iso, CATALOGUS, 40, id)).toEqual({
+    expect(kiesWerkzaamheid(iso, CATALOGUS, 40, { ondergrond: null, nieuweBedekking: null }, [], id)).toEqual({
       id: 'id1',
       sleutel: 'isoleren',
       eenmalig: null,
@@ -345,15 +345,15 @@ describe('nieuwe dakbedekking voorselecteren (OFM-050)', () => {
   });
 
   it('kiesWerkzaamheid: de gekozen bedekking wint van het standaardmateriaal', () => {
-    const met = kiesWerkzaamheid(werk, SET, 40, maakId, 'epdm');
+    const met = kiesWerkzaamheid(werk, SET, 40, { ondergrond: null, nieuweBedekking: 'epdm' }, [], maakId);
     expect(met.materialen.map((m) => [m.sleutel, m.aantal, m.prijsCent])).toEqual([['epdm', 40, 2500]]);
-    const zonder = kiesWerkzaamheid(werk, SET, 40, maakId, 'pvc');
+    const zonder = kiesWerkzaamheid(werk, SET, 40, { ondergrond: null, nieuweBedekking: 'pvc' }, [], maakId);
     expect(zonder.materialen.map((m) => m.sleutel)).toEqual(['bitumen']);
   });
 
   it('pasBedekkingToe: vervangt het oude bedekkingsmateriaal (plek en aantal), laat de rest staan', () => {
     const gekozenBed = {
-      ...kiesWerkzaamheid(werk, SET, 40, maakId),
+      ...kiesWerkzaamheid(werk, SET, 40, { ondergrond: null, nieuweBedekking: null }, [], maakId),
       materialen: [
         { id: 'a', sleutel: 'pir_80', eenmalig: null, aantal: 40, prijsCent: null },
         { id: 'b', sleutel: 'bitumen', eenmalig: null, aantal: 38, prijsCent: 2000 },

@@ -12,6 +12,8 @@ import type {
   WerkzaamhedenSet,
 } from '@shared/types';
 import {
+  daksysteemHint,
+  gebruikDaksysteem,
   kiesMateriaal,
   kiesWerkzaamheid,
   materiaalInfo,
@@ -20,6 +22,7 @@ import {
   standaardPrijs,
   werkInfo,
   wisselPerUur,
+  type DaksysteemHint,
   type WerkCatalogus,
 } from '@shared/werkzaamheden';
 import { vraagtNieuweBedekking } from '@shared/keuzelijsten';
@@ -92,9 +95,13 @@ export function StapWerkzaamheden({
     if (huidig.some((w) => w.sleutel === werk.sleutel)) {
       zetWerkzaamheden(huidig.filter((w) => w.sleutel !== werk.sleutel));
     } else {
-      // OFM-050: de gekozen nieuwe dakbedekking is voorgeselecteerd als hij bij deze werkzaamheid hoort.
-      const bedekking = leesInvoer().nieuweBedekking;
-      zetWerkzaamheden([...huidig, kiesWerkzaamheid(werk, catalogus, m2, undefined, bedekking)]);
+      // OFM-050: de gekozen nieuwe dakbedekking is voorgeselecteerd als hij bij deze werkzaamheid hoort;
+      // OFM-051: anders het standaardmateriaal bij dit daksysteem (ondergrond × nieuwe bedekking).
+      const { ondergrond, nieuweBedekking } = leesInvoer();
+      zetWerkzaamheden([
+        ...huidig,
+        kiesWerkzaamheid(werk, catalogus, m2, { ondergrond, nieuweBedekking }, set.daksystemen),
+      ]);
     }
   };
 
@@ -258,6 +265,7 @@ export function StapWerkzaamheden({
           werk={w}
           set={set}
           totaalM2={m2}
+          hint={daksysteemHint(w, set, invoer)}
           opWijzig={(deel) => zetEen(w.id, deel)}
           opVerwijder={() => zetWerkzaamheden(leesInvoer().werkzaamheden.filter((x) => x.id !== w.id))}
           opSlaOp={(materiaalId) => void slaOp(w.id, materiaalId)}
@@ -299,6 +307,7 @@ function WerkKaart({
   werk,
   set,
   totaalM2,
+  hint,
   opWijzig,
   opVerwijder,
   opSlaOp,
@@ -306,6 +315,8 @@ function WerkKaart({
   werk: GekozenWerkzaamheid;
   set: WerkzaamhedenSet;
   totaalM2: number;
+  /** OFM-051: het standaardmateriaal bij het huidige daksysteem is een ander dan gekozen. */
+  hint: DaksysteemHint | null;
   opWijzig: (deel: Partial<GekozenWerkzaamheid>) => void;
   opVerwijder: () => void;
   opSlaOp: (materiaalId: string | null) => void;
@@ -419,6 +430,17 @@ function WerkKaart({
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 font-semibold">{t.materialen}</legend>
+        {hint && (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-knop border-2 border-waarschuwing-rand bg-waarschuwing-vlak px-4 py-3 text-waarschuwing">
+            <span className="font-semibold">{t.daksysteemHint(hint.materiaal.label)}</span>
+            <Knop
+              label={t.gebruik}
+              aria-label={t.daksysteemGebruik(hint.materiaal.label, naam)}
+              icoon={Check}
+              onClick={() => opWijzig({ materialen: gebruikDaksysteem(werk, set, hint).materialen })}
+            />
+          </div>
+        )}
         <div className="grid gap-x-6 md:grid-cols-2">
           {kiesbaar.map((m) => (
             <Vinkje

@@ -64,6 +64,11 @@ export const keuzelijsten = {
   verwijderTitel: 'Keuze verwijderen?',
   verwijderTekst: (label: string) =>
     `"${label}" verdwijnt uit de wizard. Dit kan niet ongedaan worden gemaakt.`,
+  /** OFM-051 */
+  verwijderAfwijkingen: (aantal: number) =>
+    aantal === 1
+      ? 'Ook de afwijking bij Standaardmaterialen per daksysteem voor deze keuze verdwijnt.'
+      : `Ook de ${aantal} afwijkingen bij Standaardmaterialen per daksysteem voor deze keuze verdwijnen.`,
   verwijderJa: 'Verwijderen',
   verwijderNee: 'Annuleren',
   herstel: 'Herstel standaardlijst',

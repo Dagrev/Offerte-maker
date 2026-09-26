@@ -523,6 +523,17 @@ export const materiaalSchema = z.object({
   inGebruik: z.boolean(),
 });
 
+/**
+ * OFM-051: een afwijkend standaardmateriaal voor een werkzaamheid bij een daksysteem (ondergrond ×
+ * nieuwe dakbedekking). `null` = alle; niet allebei `null`. Het materiaal moet kiesbaar zijn.
+ */
+export const daksysteemRegelSchema = z.object({
+  werkzaamheidId: idSchema,
+  ondergrond: keuzeSleutelSchema.nullable(),
+  bedekking: keuzeSleutelSchema.nullable(),
+  materiaalId: idSchema,
+});
+
 /** Uitvoer van `werkzaamheden:haal` en `werkzaamheden:bewaar`: alles in één keer, in volgorde. */
 export const werkzaamhedenSetSchema = z.object({
   /** De keuzelijst `soortWerk` met per soort de gekoppelde werkzaamheden (id's, in volgorde). */
@@ -536,6 +547,8 @@ export const werkzaamhedenSetSchema = z.object({
   ),
   werkzaamheden: z.array(werkzaamheidSchema),
   materialen: z.array(materiaalSchema),
+  /** OFM-051: Standaardmaterialen per daksysteem (alleen de afwijkingen). */
+  daksystemen: z.array(daksysteemRegelSchema),
 });
 
 /** Invoer van `werkzaamheden:bewaar`: de hele set in de nieuwe volgorde. Een onbekende `id` = nieuw. */
@@ -581,6 +594,11 @@ export const werkzaamhedenBewaarSchema = z.object({
       }),
     )
     .max(200),
+  /**
+   * OFM-051: alle afwijkingen per daksysteem; weglaten = niet wijzigen. Een regel met een materiaal dat
+   * (na deze bewaaractie) niet kiesbaar is of een onbekende ondergrond/bedekking vervalt.
+   */
+  daksystemen: z.array(daksysteemRegelSchema).max(2000).optional(),
 });
 
 // ---------- §6.2 Invoer per kanaal ----------

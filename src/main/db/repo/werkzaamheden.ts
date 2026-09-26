@@ -1,7 +1,13 @@
 import { AppFout } from '@shared/fouten';
 import { maakSleutel } from '@shared/keuzelijsten';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
-import type { BtwTarief, KlusInvoer, WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
+import type {
+  BtwTarief,
+  DaksysteemRegel,
+  KlusInvoer,
+  WerkzaamhedenBewaar,
+  WerkzaamhedenSet,
+} from '@shared/types';
 import {
   gebruikteWerkzaamheden,
   itemSleutel,
@@ -76,6 +82,62 @@ function inGebruik(db: Db): Gebruik {
     for (const s of gebruikt.materialen) uit.materialen.add(s);
   }
   return uit;
+}
+
+// ---------- Standaardmaterialen per daksysteem (OFM-051, migratie 010) ----------
+
+function regelRijen(db: Db): DaksysteemRegel[] {
+  const rijen = db
+    .prepare(
+      'SELECT werkzaamheid_id, ondergrond, bedekking, materiaal_id FROM daksysteem_materiaal ORDER BY rowid',
+    )
+    .all() as {
+    werkzaamheid_id: string;
+    ondergrond: string | null;
+    bedekking: string | null;
+    materiaal_id: string;
+  }[];
+  return rijen.map((r) => ({
+    werkzaamheidId: r.werkzaamheid_id,
+    ondergrond: r.ondergrond,
+    bedekking: r.bedekking,
+    materiaalId: r.materiaal_id,
+  }));
+}
+
+const regelSleutel = (r: DaksysteemRegel) => `${r.werkzaamheidId}|${r.ondergrond ?? ''}|${r.bedekking ?? ''}`;
+
+/**
+ * Vervangt alle regels. Een regel waarvan het materiaal niet (meer) kiesbaar is bij de werkzaamheid, of
+ * met een ondergrond of bedekking die niet (meer) in de keuzelijst staat, vervalt (de tab meldt dat).
+ */
+function schrijfRegels(db: Db, regels: readonly DaksysteemRegel[]): void {
+  const koppelingen = new Set(
+    (
+      db.prepare('SELECT werkzaamheid_id, materiaal_id FROM werkzaamheid_materiaal').all() as {
+        werkzaamheid_id: string;
+        materiaal_id: string;
+      }[]
+    ).map((k) => `${k.werkzaamheid_id}|${k.materiaal_id}`),
+  );
+  const opties = (lijst: string) =>
+    new Set(
+      (
+        db.prepare('SELECT sleutel FROM keuzeopties WHERE lijst = ?').all(lijst) as { sleutel: string }[]
+      ).map((r) => r.sleutel),
+    );
+  const ondergronden = opties('ondergrond');
+  const bedekkingen = opties('nieuweBedekking');
+  db.prepare('DELETE FROM daksysteem_materiaal').run();
+  const invoegen = db.prepare(
+    'INSERT INTO daksysteem_materiaal (werkzaamheid_id, ondergrond, bedekking, materiaal_id) VALUES (?, ?, ?, ?)',
+  );
+  for (const r of regels) {
+    if (!koppelingen.has(`${r.werkzaamheidId}|${r.materiaalId}`)) continue;
+    if (r.ondergrond !== null && !ondergronden.has(r.ondergrond)) continue;
+    if (r.bedekking !== null && !bedekkingen.has(r.bedekking)) continue;
+    invoegen.run(r.werkzaamheidId, r.ondergrond, r.bedekking, r.materiaalId);
+  }
 }
 
 // ---------- Lezen ----------
@@ -159,6 +221,7 @@ function haalSet(db: Db): WerkzaamhedenSet {
       standaard: m.standaard === 1,
       inGebruik: gebruik.materialen.has(m.sleutel),
     })),
+    daksystemen: regelRijen(db),
   };
 }
 
@@ -239,6 +302,13 @@ function controleer(db: Db, invoer: WerkzaamhedenBewaar): void {
       throw ongeldig(VALIDATIE_MELDINGEN.werkEenStandaard);
     }
   }
+
+  // OFM-051: per combinatie hooguit één regel, en niet "alle × alle" (dat is de gewone standaard).
+  const regels = invoer.daksystemen ?? [];
+  if (regels.some((r) => r.ondergrond === null && r.bedekking === null)) {
+    throw ongeldig(VALIDATIE_MELDINGEN.werkOnbekendeKoppeling);
+  }
+  if (!uniek(regels.map(regelSleutel))) throw ongeldig(VALIDATIE_MELDINGEN.werkDubbel);
 }
 
 /** Sleutels die al bezet zijn: werkzaamheden, opties en materialen, en de prijsposten van die groepen. */
@@ -266,6 +336,9 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
   const db = database();
   db.transaction(() => {
     controleer(db, invoer);
+    // OFM-051: de koppelingen hieronder worden opnieuw geschreven (de FK-cascade wist de regels mee);
+    // zonder `daksystemen` in de invoer komen de bestaande regels daarna terug.
+    const regels = invoer.daksystemen ?? regelRijen(db);
     const gebruik = inGebruik(db);
     const werken = new Map(werkRijen(db).map((r) => [r.id, r]));
     const materialen = new Map(materiaalRijen(db).map((r) => [r.id, r]));
@@ -381,14 +454,22 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
         ).run(w.id, m.materiaalId, m.standaard ? 1 : 0);
       }
     });
+
+    schrijfRegels(db, regels);
   })();
   return haalSet(db);
 }
 
 // ---------- Startset ----------
 
-/** `werkzaamheden:herstel` ("Herstel startset"). */
+/**
+ * `werkzaamheden:herstel` ("Herstel startset"). OFM-051: de afwijkingen per daksysteem gaan terug naar de
+ * startset, en die is leeg.
+ */
 export function herstelWerkzaamheden(): void {
   const db = database();
-  db.transaction(() => zetWerkzaamhedenStartset(db))();
+  db.transaction(() => {
+    zetWerkzaamhedenStartset(db);
+    db.prepare('DELETE FROM daksysteem_materiaal').run();
+  })();
 }

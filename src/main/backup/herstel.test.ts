@@ -49,6 +49,7 @@ function zonderInvoerGewijzigd(db: Database.Database): void {
  * werk gaat bij het weggooien van de tabel mee (ON DELETE CASCADE) en wordt daarna teruggezet.
  */
 function zonderHuidigDak(db: Database.Database): void {
+  zonderDaksysteem(db);
   db.exec(`
     DELETE FROM keuzeopties WHERE lijst = 'nieuweBedekking';
     CREATE TEMP TABLE soortwerk_oud AS SELECT werkzaamheid_id, soort_werk FROM werkzaamheid_soortwerk;
@@ -73,6 +74,11 @@ function zonderHuidigDak(db: Database.Database): void {
     INSERT INTO werkzaamheid_soortwerk (werkzaamheid_id, soort_werk) SELECT werkzaamheid_id, soort_werk FROM soortwerk_oud;
     DROP TABLE soortwerk_oud;
   `);
+}
+
+/** Vóór OFM-051 (migratie 010): zonder de tabel `daksysteem_materiaal`. */
+function zonderDaksysteem(db: Database.Database): void {
+  db.exec('DROP TABLE daksysteem_materiaal');
 }
 
 function zonderStandaardkeuze(db: Database.Database): void {
@@ -378,6 +384,33 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
         { lijst: 'garantie', sleutel: '10' },
         { lijst: 'hoogte', sleutel: '1' },
       ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('OFM-051: back-up met schemaversie 9 wordt teruggezet; bij de herstart draait 010 en werkt de tabel', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 4, 9, 0, 0),
+    });
+    const kopie = new Database(join(map, bestand));
+    zonderDaksysteem(kopie);
+    kopie.pragma('user_version = 9');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({
+        van: 9,
+        naar: SCHEMA_VERSIE,
+      });
+      db.prepare(
+        "INSERT INTO daksysteem_materiaal (werkzaamheid_id, ondergrond, bedekking, materiaal_id) VALUES ('start-werk-isoleren', 'hout', NULL, 'start-mat-pir_100')",
+      ).run();
+      expect(db.prepare('SELECT COUNT(*) AS n FROM daksysteem_materiaal').get()).toEqual({ n: 1 });
     } finally {
       db.close();
     }
