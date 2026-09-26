@@ -5,7 +5,7 @@ import { queryKeys } from './queryKeys';
 import { roep } from './roep';
 
 // Werkzaamheden, opties en materialen (OFM-043). Bewaren en herstellen invalideren ook de prijslijst
-// (elk item heeft een prijspost).
+// (elk item heeft een prijspost). Sinds OFM-048 gaan ook de uurprijs en de btw via `werkzaamheden:bewaar`.
 
 export function useWerkzaamheden() {
   return useQuery({
@@ -32,6 +32,8 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
       label: w.label.trim(),
       eenheid: w.eenheid,
       prijsCent: w.prijsCent,
+      uurprijsCent: w.uurprijsCent,
+      btwTarief: w.btwTarief,
       verborgen: w.verborgen,
       soortenWerk: soorten ? w.soortenWerk.filter((s) => soorten.has(s)) : w.soortenWerk,
       opties: w.opties.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
@@ -43,11 +45,12 @@ export function alsBewaarInvoer(set: WerkzaamhedenSet, soorten?: ReadonlySet<str
       })),
       materialen: w.materialen,
     })),
-    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, verborgen }) => ({
+    materialen: set.materialen.map(({ id, label, eenheid, prijsCent, btwTarief, verborgen }) => ({
       id,
       label: label.trim(),
       eenheid,
       prijsCent,
+      btwTarief,
       verborgen,
     })),
   };
@@ -63,12 +66,4 @@ export async function bewaarWerkzaamheden(set: WerkzaamhedenBewaar): Promise<Wer
 export async function herstelWerkzaamheden(): Promise<void> {
   await roep(window.api.werkzaamhedenHerstel());
   await naWijziging();
-}
-
-/**
- * Na een wijziging elders (prijs in de tab Prijzen, soort werk in Keuzelijsten): de werkzaamheden
- * opnieuw laden bij het volgende openen, zodat de tab nooit met oude prijzen begint en ze terugschrijft.
- */
-export function vergeetWerkzaamheden(): void {
-  queryClient.removeQueries({ queryKey: queryKeys.werkzaamheden() });
 }

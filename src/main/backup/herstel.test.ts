@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppFout } from '@shared/fouten';
+import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/database';
 
 // OFM-022: opruimen, lijst, dagelijkse back-up (FE-100) en terugzetten (FE-101, V-19).
@@ -35,7 +36,10 @@ beforeEach(async () => {
 });
 afterEach(() => t.opruimen());
 
-/** Maakt van een kopie van de huidige database een database van vóór OFM-043 (zonder migratie 004). */
+/**
+ * Maakt van een kopie van de huidige database een database van vóór OFM-043 (zonder migratie 004), met
+ * de volledige prijslijst-startset van toen (die migratie 006 van OFM-048 grotendeels opruimt).
+ */
 function maakVersie2(db: Database.Database): void {
   db.exec(`
     DROP TABLE werkzaamheid_materiaal;
@@ -45,6 +49,12 @@ function maakVersie2(db: Database.Database): void {
     DROP TABLE werkzaamheden;
     DELETE FROM prijsposten WHERE sleutel LIKE '%:%';
   `);
+  const invoegen = db.prepare(
+    'INSERT OR IGNORE INTO prijsposten (id, sleutel, omschrijving, eenheid, prijs_cent, btw_tarief, volgorde) VALUES (?, ?, ?, ?, NULL, ?, ?)',
+  );
+  PRIJS_STARTSET.forEach((p, i) =>
+    invoegen.run(`start-${p.sleutel}`, p.sleutel, p.omschrijving, p.eenheid, p.btwTarief, (i + 1) * 10),
+  );
 }
 
 function nepBackup(dag: number, reden = 'dagelijks'): string {
@@ -201,7 +211,7 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     }
   });
 
-  it('OFM-043/045: back-up met schemaversie 2 wordt teruggezet; bij de herstart draaien 004 en 005 opnieuw', async () => {
+  it('OFM-043/045/048: back-up met schemaversie 2 wordt teruggezet; bij de herstart draaien 004 t/m 006 opnieuw', async () => {
     const bestand = await maakBackup('handmatig', {
       db: t.db,
       backupMap: map,
@@ -250,9 +260,21 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
         naar: SCHEMA_VERSIE,
       });
       expect(db.prepare('SELECT COUNT(*) AS n FROM werkzaamheden').get()).toEqual({ n: 8 });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM materialen').get()).toEqual({ n: 9 });
+      // OFM-048: de oude post isolatie_80 staat in een regel en wordt een materiaal (zelfde id en prijs);
+      // de ongebruikte oude posten zonder prijs verdwijnen, de vaste posten blijven.
+      expect(db.prepare('SELECT COUNT(*) AS n FROM materialen').get()).toEqual({ n: 10 });
+      expect(db.prepare("SELECT sleutel FROM prijsposten WHERE id = 'start-isolatie_80'").get()).toEqual({
+        sleutel: 'mat:isolatie_80',
+      });
+      expect(
+        db
+          .prepare("SELECT sleutel FROM prijsposten WHERE sleutel NOT LIKE '%:%' ORDER BY volgorde")
+          .all()
+          .map((r) => (r as { sleutel: string }).sleutel),
+      ).toEqual(['steiger', 'voorrijkosten', 'verzekerde_garantie']);
+      // Per werkzaamheid een prijs per eenheid en een prijs per uur.
       expect(db.prepare("SELECT COUNT(*) AS n FROM prijsposten WHERE sleutel LIKE 'werk:%'").get()).toEqual({
-        n: 8,
+        n: 16,
       });
       const { invoer_json } = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
         invoer_json: string;

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '@shared/keuzelijsten';
-import { PRIJS_STARTSET } from '@shared/prijsStartset';
+import { PRIJS_STARTSET, VASTE_POSTEN } from '@shared/prijsStartset';
 import { maakTestDatabase, type TestDatabase } from '../../../test/helpers/database';
 
 vi.mock('electron', () => ({ app: { getPath: () => 'C:\\nergens', isPackaged: false } }));
@@ -86,12 +86,14 @@ describe('migreer', () => {
     );
   });
 
-  it('startset gelijk aan shared/prijsStartset.ts (FE-074, V-13)', async () => {
+  it('startset gelijk aan shared/prijsStartset.ts (FE-074, V-13); na 006 alleen de vaste posten los', async () => {
     t = await maakTestDatabase();
-    // Zonder de posten van werkzaamheden, opties en materialen (OFM-043, sleutel met `:`).
+    // Zonder de posten van werkzaamheden, opties en materialen (OFM-043, sleutel met `:`). Migratie 006
+    // (OFM-048) ruimt de ongebruikte oude posten zonder prijs op; de vaste posten blijven met hun id.
     const rijen = t.db
       .prepare("SELECT * FROM prijsposten WHERE sleutel NOT LIKE '%:%' ORDER BY volgorde")
       .all();
+    const vast = new Set<string>(VASTE_POSTEN);
     expect(rijen).toEqual(
       PRIJS_STARTSET.map((p, i) => ({
         id: `start-${p.sleutel}`,
@@ -101,9 +103,10 @@ describe('migreer', () => {
         prijs_cent: null,
         btw_tarief: p.btwTarief,
         volgorde: (i + 1) * 10,
-      })),
+      })).filter((p) => vast.has(p.sleutel)),
     );
-    expect(rijen).toHaveLength(22);
+    expect(rijen).toHaveLength(3);
+    expect(PRIJS_STARTSET).toHaveLength(22);
   });
 
   it('keuzelijsten-startset gelijk aan shared/keuzelijsten.ts (OFM-034)', async () => {

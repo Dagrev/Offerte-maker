@@ -139,7 +139,6 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
     'bedrijf',
     'opmaak',
     'teksten',
-    'prijzen',
     'keuzelijsten',
     'werkzaamheden',
     'verplicht',

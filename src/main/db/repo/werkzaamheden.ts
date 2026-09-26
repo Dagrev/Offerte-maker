@@ -1,12 +1,14 @@
 import { AppFout } from '@shared/fouten';
 import { maakSleutel } from '@shared/keuzelijsten';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
-import type { KlusInvoer, WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
+import type { BtwTarief, KlusInvoer, WerkzaamhedenBewaar, WerkzaamhedenSet } from '@shared/types';
 import {
   gebruikteWerkzaamheden,
+  itemSleutel,
   materiaalPrijsSleutel,
   optiePrijsSleutel,
   prijsGroep,
+  uurPrijsSleutel,
   werkPrijsSleutel,
 } from '@shared/werkzaamheden';
 import { database, type Db } from '../verbinding';
@@ -16,25 +18,40 @@ import {
   optieRijen,
   werkRijen,
   zetPrijspost,
+  zetUurPrijspost,
   zetWerkzaamhedenStartset,
 } from '../werkzaamhedenStartset';
 
 // Werkzaamheden, opties en materialen (OFM-043, TDO §4.2 migratie 004, §6.2 `werkzaamheden:*`).
 // Soorten werk zijn de keuzelijst `soortWerk` (OFM-034); de koppeling staat in `werkzaamheid_soortwerk`.
 // Prijzen staan alleen in `prijsposten` (V-13) onder `werk:<s>`, `optie:<werkzaamheid>:<s>` en
-// `mat:<s>`; deze module houdt omschrijving en eenheid van die posten gelijk aan het item.
+// `mat:<s>`, en sinds OFM-048 de uurprijs onder `werk:<s>:uur`; deze module houdt omschrijving en
+// eenheid van die posten gelijk aan het item. Sinds OFM-048 bewaart `werkzaamheden:bewaar` ook de btw
+// (de tab Werkzaamheden en prijzen is de enige plek waar deze prijzen worden ingevuld).
 
 const ongeldig = (melding: string) => new AppFout('VALIDATIE', melding);
 
 const verwijderPrijspost = (db: Db, sleutel: string) =>
   db.prepare('DELETE FROM prijsposten WHERE sleutel = ?').run(sleutel);
 
-function prijzen(db: Db): Map<string, number | null> {
-  const rijen = db.prepare('SELECT sleutel, prijs_cent FROM prijsposten WHERE sleutel IS NOT NULL').all() as {
+interface PostWaarde {
+  prijsCent: number | null;
+  btwTarief: BtwTarief;
+}
+
+function prijzen(db: Db): Map<string, PostWaarde> {
+  const rijen = db
+    .prepare('SELECT sleutel, prijs_cent, btw_tarief FROM prijsposten WHERE sleutel IS NOT NULL')
+    .all() as {
     sleutel: string;
     prijs_cent: number | null;
+    btw_tarief: BtwTarief;
   }[];
-  return new Map(rijen.filter((r) => prijsGroep(r.sleutel) !== null).map((r) => [r.sleutel, r.prijs_cent]));
+  return new Map(
+    rijen
+      .filter((r) => prijsGroep(r.sleutel) !== null)
+      .map((r) => [r.sleutel, { prijsCent: r.prijs_cent, btwTarief: r.btw_tarief }]),
+  );
 }
 
 // ---------- Gebruik ----------
@@ -64,7 +81,9 @@ function inGebruik(db: Db): Gebruik {
 // ---------- Lezen ----------
 
 function haalSet(db: Db): WerkzaamhedenSet {
-  const prijs = prijzen(db);
+  const posten = prijzen(db);
+  const prijs = { get: (sleutel: string) => posten.get(sleutel)?.prijsCent };
+  const btw = (sleutel: string) => posten.get(sleutel)?.btwTarief ?? 21;
   const gebruik = inGebruik(db);
   const werken = werkRijen(db);
   const materialen = materiaalRijen(db);
@@ -102,6 +121,8 @@ function haalSet(db: Db): WerkzaamhedenSet {
       label: w.label,
       eenheid: w.eenheid,
       prijsCent: prijs.get(werkPrijsSleutel(w.sleutel)) ?? null,
+      uurprijsCent: prijs.get(uurPrijsSleutel(w.sleutel)) ?? null,
+      btwTarief: btw(werkPrijsSleutel(w.sleutel)),
       verborgen: w.verborgen === 1,
       standaard: w.standaard === 1,
       inGebruik: gebruik.werkzaamheden.has(w.sleutel),
@@ -133,6 +154,7 @@ function haalSet(db: Db): WerkzaamhedenSet {
       label: m.label,
       eenheid: m.eenheid,
       prijsCent: prijs.get(materiaalPrijsSleutel(m.sleutel)) ?? null,
+      btwTarief: btw(materiaalPrijsSleutel(m.sleutel)),
       verborgen: m.verborgen === 1,
       standaard: m.standaard === 1,
       inGebruik: gebruik.materialen.has(m.sleutel),
@@ -229,7 +251,7 @@ function bezetteSleutels(db: Db): Set<string> {
   for (const r of db.prepare('SELECT sleutel FROM prijsposten WHERE sleutel IS NOT NULL').all() as {
     sleutel: string;
   }[]) {
-    if (prijsGroep(r.sleutel) !== null) bezet.add(r.sleutel.split(':').at(-1) ?? '');
+    if (prijsGroep(r.sleutel) !== null) bezet.add(itemSleutel(r.sleutel));
   }
   return bezet;
 }
@@ -272,6 +294,7 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
     }
     for (const r of weg.werken) {
       verwijderPrijspost(db, werkPrijsSleutel(r.sleutel));
+      verwijderPrijspost(db, uurPrijsSleutel(r.sleutel));
       db.prepare('DELETE FROM werkzaamheden WHERE id = ?').run(r.id);
     }
     for (const r of weg.materialen) {
@@ -302,7 +325,7 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
         ).run(m.id, sleutel, label, m.eenheid, (index + 1) * 10, m.verborgen ? 1 : 0);
       }
       materiaalSleutel.set(m.id, sleutel);
-      zetPrijspost(db, materiaalPrijsSleutel(sleutel), label, m.eenheid, m.prijsCent);
+      zetPrijspost(db, materiaalPrijsSleutel(sleutel), label, m.eenheid, m.prijsCent, m.btwTarief);
     });
 
     // Werkzaamheden met opties en koppelingen.
@@ -319,7 +342,8 @@ export function bewaarWerkzaamheden(invoer: WerkzaamhedenBewaar): WerkzaamhedenS
           'INSERT INTO werkzaamheden (id, sleutel, label, eenheid, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, ?, 0)',
         ).run(w.id, sleutel, label, w.eenheid, (index + 1) * 10, w.verborgen ? 1 : 0);
       }
-      zetPrijspost(db, werkPrijsSleutel(sleutel), label, w.eenheid, w.prijsCent);
+      zetPrijspost(db, werkPrijsSleutel(sleutel), label, w.eenheid, w.prijsCent, w.btwTarief);
+      zetUurPrijspost(db, sleutel, label, w.uurprijsCent);
 
       w.opties.forEach((o, optieIndex) => {
         const optieLabel = o.label.trim();

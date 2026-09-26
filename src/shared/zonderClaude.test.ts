@@ -279,6 +279,34 @@ describe('werkzaamheden (OFM-044)', () => {
     expect(inhoud.controlepunten).toEqual([vulPrijsIn('Zink'), vulPrijsIn('Voorrijkosten')]);
   });
 
+  it('OFM-048: per uur → eenheid uur, de uurprijs-post en prijslijst als de prijs gelijk is', () => {
+    n = 0;
+    const bron = (prijsCent: number | null) =>
+      maakInhoudZonderClaude({
+        invoer: invoer({ werkzaamheden: [gekozen({ perUur: true, aantal: 6, prijsCent })] }),
+        keuzes: KEUZE_STARTSET,
+        catalogus: CATALOGUS,
+        postOpSleutel: werkPosten({ 'werk:slopen': 1200, 'werk:slopen:uur': 4500 }),
+        teksten: TEKSTEN,
+        maakId,
+      });
+    expect(bron(4500).regels[0]).toEqual({
+      id: 'r1',
+      omschrijving: 'Slopen',
+      aantalHonderdsten: 600,
+      eenheid: 'uur',
+      prijsCent: 4500,
+      btwTarief: 21,
+      prijsbron: 'prijslijst',
+      prijspostId: 'post-werk:slopen:uur',
+    });
+    expect(bron(5000).regels[0]).toMatchObject({ prijsbron: 'handmatig', prijsCent: 5000 });
+    // Geen uurprijs: een schatting met controlepunt, zoals elke prijs die ontbreekt.
+    const zonder = bron(null);
+    expect(zonder.regels[0]).toMatchObject({ prijsbron: 'schatting', prijsCent: 0, eenheid: 'uur' });
+    expect(zonder.controlepunten).toContain(vulPrijsIn('Slopen'));
+  });
+
   it('zonder catalogus en post: de sleutel als naam, geen prijs = schatting', () => {
     const inhoud = maakInhoudZonderClaude({
       invoer: invoer({ werkzaamheden: [gekozen({ prijsCent: null })] }),

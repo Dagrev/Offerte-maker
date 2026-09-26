@@ -60,6 +60,7 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
           aantal: 22.5,
           prijsEuro: null,
           prijspostId: null,
+          perUur: false,
           notitie: '',
           materialen: [],
           opties: [],
@@ -204,6 +205,7 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
         aantal: 20,
         prijsEuro: 12,
         prijspostId: 'post-werk:slopen',
+        perUur: false,
         notitie: 'Bel mevrouw [KLANT_NAAM] vooraf op [VERWIJDERD]',
         materialen: [
           { naam: 'PIR 80 mm', eenheid: 'm²', aantal: 20, prijsEuro: 18, prijspostId: 'post-mat:pir_80' },
@@ -223,6 +225,7 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
         aantal: 1,
         prijsEuro: 250,
         prijspostId: 'eenmalig-w2',
+        perUur: false,
         notitie: '',
         materialen: [],
         opties: [],
@@ -245,6 +248,25 @@ describe('werkzaamheden in de klus (OFM-044)', () => {
       ['post-mat:pir_80', 1800],
       ['eenmalig-w2', 25000],
     ]);
+  });
+
+  it('OFM-048: per uur → eenheid uur, de uurprijs-post en perUur true; vaste prijs op die post', () => {
+    const perUur = maakInvoer({ werkzaamheden: [gekozen({ perUur: true, aantal: 6, prijsCent: 4500 })] });
+    const klus = bouwKlusVoorAgent({
+      ...bron,
+      invoer: perUur,
+      postOpSleutel: (s) =>
+        s === 'werk:slopen:uur' ? { ...postOpSleutel('werk:slopen')!, id: 'post-uur' } : null,
+    });
+    expect(klus.werkzaamheden[0]).toMatchObject({
+      naam: 'Slopen',
+      eenheid: 'uur',
+      aantal: 6,
+      prijsEuro: 45,
+      prijspostId: 'post-uur',
+      perUur: true,
+    });
+    expect([...vastePrijzen(klus)]).toEqual([['post-uur', 4500]]);
   });
 
   it('zonder catalogus en posten: sleutel als naam en geen prijspost-id', () => {

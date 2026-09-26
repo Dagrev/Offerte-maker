@@ -112,6 +112,11 @@ export const gekozenWerkzaamheidSchema = z
     eenmalig: eenmaligSchema.nullable(),
     aantal: nietNegatief,
     prijsCent: offertePrijsSchema,
+    /**
+     * OFM-048: prijs per uur in plaats van per eenheid. Dan is `aantal` het aantal uren, de eenheid op
+     * de regel `uur` en de standaardprijs de uurprijs (`werk:<s>:uur`). Oude invoer heeft dit veld niet.
+     */
+    perUur: z.boolean().default(false),
     notitie: z.string().max(2000),
     materialen: z.array(gekozenMateriaalSchema).max(50),
     opties: z.array(gekozenOptieSchema).max(50),
@@ -472,6 +477,10 @@ export const werkzaamheidSchema = z.object({
   label: z.string(),
   eenheid: eenheidSchema,
   prijsCent: prijsCentSchema,
+  /** OFM-048: prijs per uur (post `werk:<sleutel>:uur`); `null` = geen uurprijs ingesteld. */
+  uurprijsCent: prijsCentSchema,
+  /** OFM-048: btw van de werkzaamheid (voor beide posten). */
+  btwTarief: btwTariefSchema,
   verborgen: z.boolean(),
   /** Uit de startset (voor "Herstel startset"). */
   standaard: z.boolean(),
@@ -490,6 +499,8 @@ export const materiaalSchema = z.object({
   label: z.string(),
   eenheid: eenheidSchema,
   prijsCent: prijsCentSchema,
+  /** OFM-048 */
+  btwTarief: btwTariefSchema,
   verborgen: z.boolean(),
   standaard: z.boolean(),
   inGebruik: z.boolean(),
@@ -519,6 +530,10 @@ export const werkzaamhedenBewaarSchema = z.object({
         label: itemLabelSchema,
         eenheid: eenheidSchema,
         prijsCent: prijsCentSchema,
+        /** OFM-048; weglaten = uurprijs niet wijzigen (nieuw: geen uurprijs). */
+        uurprijsCent: prijsCentSchema.optional(),
+        /** OFM-048; weglaten = btw niet wijzigen (nieuw: 21 %). */
+        btwTarief: btwTariefSchema.optional(),
         verborgen: z.boolean(),
         soortenWerk: z.array(keuzeSleutelSchema).max(100),
         opties: z
@@ -543,6 +558,8 @@ export const werkzaamhedenBewaarSchema = z.object({
         label: itemLabelSchema,
         eenheid: eenheidSchema,
         prijsCent: prijsCentSchema,
+        /** OFM-048; weglaten = btw niet wijzigen (nieuw: 21 %). */
+        btwTarief: btwTariefSchema.optional(),
         verborgen: z.boolean(),
       }),
     )

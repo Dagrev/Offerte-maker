@@ -105,8 +105,9 @@ describe('prijsposten (V-15)', () => {
 
   it('lijst staat op volgorde', () => {
     const lijst = lijstPrijsposten();
-    expect(lijst.filter((p) => !p.sleutel?.includes(':'))).toHaveLength(22);
-    expect(lijst[0]).toMatchObject({ id: 'start-epdm_11', volgorde: 10, prijsCent: null });
+    // Sinds migratie 006 (OFM-048) alleen de vaste posten los; de rest hoort bij een item.
+    expect(lijst.filter((p) => !p.sleutel?.includes(':'))).toHaveLength(3);
+    expect(lijst[0]).toMatchObject({ id: 'start-steiger', prijsCent: null });
     expect(lijst.map((p) => p.volgorde)).toEqual([...lijst.map((p) => p.volgorde)].sort((a, b) => a - b));
   });
 
@@ -122,17 +123,20 @@ describe('prijsposten (V-15)', () => {
   });
 
   it('bijwerken houdt de sleutel; onbekende id geeft VALIDATIE', () => {
-    const start = haalPrijspostOpSleutel('hwa');
+    const start = haalPrijspostOpSleutel('voorrijkosten');
     expect(start).not.toBeNull();
     bewaarPrijspost({ ...start!, prijsCent: 4500, sleutel: null });
-    expect(haalPrijspostOpSleutel('hwa')).toMatchObject({ id: 'start-hwa', prijsCent: 4500 });
+    expect(haalPrijspostOpSleutel('voorrijkosten')).toMatchObject({
+      id: 'start-voorrijkosten',
+      prijsCent: 4500,
+    });
     expect(() => bewaarPrijspost({ ...nieuw, id: 'bestaat-niet' })).toThrow(AppFout);
   });
 
   it('verwijderen', () => {
-    verwijderPrijspost('start-hwa');
-    expect(haalPrijspost('start-hwa')).toBeNull();
-    expect(haalPrijspostOpSleutel('hwa')).toBeNull();
-    expect(lijstPrijsposten().filter((p) => !p.sleutel?.includes(':'))).toHaveLength(21);
+    verwijderPrijspost('start-voorrijkosten');
+    expect(haalPrijspost('start-voorrijkosten')).toBeNull();
+    expect(haalPrijspostOpSleutel('voorrijkosten')).toBeNull();
+    expect(lijstPrijsposten().filter((p) => !p.sleutel?.includes(':'))).toHaveLength(2);
   });
 });

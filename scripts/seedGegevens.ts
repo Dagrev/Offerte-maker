@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { voegPrijzenSamen } from '../src/main/db/prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from '../src/main/db/werkzaamhedenStartset';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
 import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
@@ -189,6 +190,8 @@ export function zorgVoorSchema(db: Database.Database): void {
     }
     // Werkzaamheden, opties en materialen (OFM-043), na de keuzelijsten (koppeling met soort werk).
     zetWerkzaamhedenStartset(db);
+    // OFM-048 (migratie 006): uurprijs-posten, oude losse posten weg (er zijn nog geen offertes).
+    voegPrijzenSamen(db);
     // Hoogste migratienummer, niet het aantal bestanden (zoals `migreer()`).
     db.pragma(`user_version = ${Number(bestanden.at(-1)?.slice(0, 3) ?? 0)}`);
   })();
@@ -314,6 +317,7 @@ function kiesWerkzaamheden(
         eenmalig: null,
         aantal: werkAantal,
         prijsCent: geheel(random, 500, 9500),
+        perUur: false,
         notitie: '',
         materialen:
           materiaal === null

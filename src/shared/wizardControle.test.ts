@@ -33,6 +33,7 @@ const slopen: GekozenWerkzaamheid = {
   eenmalig: null,
   aantal: 20,
   prijsCent: null,
+  perUur: false,
   notitie: '',
   materialen: [],
   opties: [],

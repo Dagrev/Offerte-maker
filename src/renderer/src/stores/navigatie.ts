@@ -12,7 +12,6 @@ export type InstellingenTab =
   | 'bedrijf'
   | 'opmaak'
   | 'teksten'
-  | 'prijzen'
   | 'keuzelijsten'
   | 'werkzaamheden'
   | 'verplicht'

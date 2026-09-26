@@ -330,6 +330,7 @@ describe('"anders", eigen keuzes en ontbrekende gegevens', () => {
       eenmalig: null,
       aantal: 1,
       prijsCent: null,
+      perUur: false,
       notitie: '',
       materialen: [],
       opties: [],

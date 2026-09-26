@@ -62,6 +62,10 @@ describe('domeinschema’s', () => {
     expect(klusInvoerSchema.safeParse(met({})).success).toBe(true);
     expect(klusInvoerSchema.safeParse(met({ aantal: -1 })).success).toBe(false);
     expect(klusInvoerSchema.safeParse(met({ prijsCent: 1.5 })).success).toBe(false);
+    // OFM-048: perUur ontbreekt in oude invoer en wordt dan false.
+    expect(klusInvoerSchema.parse(met({})).werkzaamheden[0]?.perUur).toBe(false);
+    expect(klusInvoerSchema.parse(met({ perUur: true })).werkzaamheden[0]?.perUur).toBe(true);
+    expect(klusInvoerSchema.safeParse(met({ perUur: 'ja' })).success).toBe(false);
     expect(klusInvoerSchema.safeParse({ ...legeKlusInvoer, garantieJaren: 15 }).success).toBe(false);
   });
 

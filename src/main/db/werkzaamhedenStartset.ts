@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { Eenheid } from '../../shared/types';
+import type { BtwTarief, Eenheid } from '../../shared/types';
 import {
   MATERIALEN_STARTSET,
   WERKZAAMHEDEN_STARTSET,
   materiaalPrijsSleutel,
   optiePrijsSleutel,
+  uurPrijsSleutel,
   werkPrijsSleutel,
 } from '../../shared/werkzaamheden';
 import type { Db } from './verbinding';
@@ -44,9 +45,13 @@ export const optieRijen = (db: Db) =>
 /** Omschrijving van de prijspost van een optie: "Afvalcontainer (Slopen)". */
 export const optieOmschrijving = (optie: string, werkzaamheid: string) => `${optie} (${werkzaamheid})`;
 
+/** Omschrijving van de uurprijs-post van een werkzaamheid (OFM-048): "Slopen (per uur)". */
+export const uurOmschrijving = (werkzaamheid: string) => `${werkzaamheid} (per uur)`;
+
 /**
  * Maakt de prijspost met deze sleutel aan (btw 21 %, achteraan) of werkt omschrijving en eenheid bij.
- * `prijsCent` weglaten = de prijs niet aanraken (een nieuwe post krijgt dan geen prijs).
+ * `prijsCent` weglaten = de prijs niet aanraken (een nieuwe post krijgt dan geen prijs); `btwTarief`
+ * weglaten = de btw niet aanraken (OFM-048).
  */
 export function zetPrijspost(
   db: Db,
@@ -54,6 +59,7 @@ export function zetPrijspost(
   omschrijving: string,
   eenheid: Eenheid,
   prijsCent?: number | null,
+  btwTarief?: BtwTarief,
 ): void {
   const bestaand = db.prepare('SELECT id FROM prijsposten WHERE sleutel = ?').get(sleutel) as
     { id: string } | undefined;
@@ -66,6 +72,9 @@ export function zetPrijspost(
     if (prijsCent !== undefined) {
       db.prepare('UPDATE prijsposten SET prijs_cent = ? WHERE id = ?').run(prijsCent, bestaand.id);
     }
+    if (btwTarief !== undefined) {
+      db.prepare('UPDATE prijsposten SET btw_tarief = ? WHERE id = ?').run(btwTarief, bestaand.id);
+    }
     return;
   }
   const { hoogste } = db.prepare('SELECT COALESCE(MAX(volgorde), 0) AS hoogste FROM prijsposten').get() as {
@@ -75,8 +84,38 @@ export function zetPrijspost(
   const startId = `start-${sleutel}`;
   const vrij = prijsCent === undefined && !db.prepare('SELECT 1 FROM prijsposten WHERE id = ?').get(startId);
   db.prepare(
-    'INSERT INTO prijsposten (id, sleutel, omschrijving, eenheid, prijs_cent, btw_tarief, volgorde) VALUES (?, ?, ?, ?, ?, 21, ?)',
-  ).run(vrij ? startId : randomUUID(), sleutel, omschrijving, eenheid, prijsCent ?? null, hoogste + 10);
+    'INSERT INTO prijsposten (id, sleutel, omschrijving, eenheid, prijs_cent, btw_tarief, volgorde) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(
+    vrij ? startId : randomUUID(),
+    sleutel,
+    omschrijving,
+    eenheid,
+    prijsCent ?? null,
+    btwTarief ?? 21,
+    hoogste + 10,
+  );
+}
+
+/** De btw van een bestaande post (standaard 21 %). */
+export function btwVanPost(db: Db, sleutel: string): BtwTarief {
+  const rij = db.prepare('SELECT btw_tarief FROM prijsposten WHERE sleutel = ?').get(sleutel) as
+    { btw_tarief: BtwTarief } | undefined;
+  return rij?.btw_tarief ?? 21;
+}
+
+/**
+ * De uurprijs-post van een werkzaamheid (OFM-048, `werk:<s>:uur`, eenheid uur), met dezelfde btw als de
+ * post per eenheid. Bestaat hij al, dan alleen omschrijving (en eventueel prijs) bijwerken.
+ */
+export function zetUurPrijspost(db: Db, werkSleutel: string, label: string, prijsCent?: number | null): void {
+  zetPrijspost(
+    db,
+    uurPrijsSleutel(werkSleutel),
+    uurOmschrijving(label),
+    'uur',
+    prijsCent,
+    btwVanPost(db, werkPrijsSleutel(werkSleutel)),
+  );
 }
 
 /** Eigen items achter de startitems, in hun huidige volgorde. */
@@ -139,6 +178,7 @@ export function zetWerkzaamhedenStartset(db: Db): void {
       ).run(id, w.sleutel, w.label, w.eenheid, (index + 1) * 10);
     }
     zetPrijspost(db, werkPrijsSleutel(w.sleutel), w.label, w.eenheid);
+    zetUurPrijspost(db, w.sleutel, w.label);
 
     const opties = new Map(
       (db.prepare('SELECT * FROM werkzaamheid_opties WHERE werkzaamheid_id = ?').all(id) as OptieRij[]).map(

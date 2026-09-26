@@ -56,6 +56,7 @@ export function maakInvoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
         eenmalig: null,
         aantal: 22.5,
         prijsCent: null,
+        perUur: false,
         notitie: '',
         materialen: [],
         opties: [],
@@ -490,6 +491,7 @@ export const testset: Privacygeval[] = [
           eenmalig: null,
           aantal: 22.5,
           prijsCent: 0,
+          perUur: false,
           notitie: '',
           materialen: [
             {

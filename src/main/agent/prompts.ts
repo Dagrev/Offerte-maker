@@ -27,7 +27,7 @@ Prijzen en bedragen
 - Btw-tarief is 21, tenzij de prijslijst anders zegt.
 
 Werkzaamheden
-- De klusgegevens bevatten de gekozen werkzaamheden, elk met aantal, eenheid, prijs, materialen en opties. Maak per werkzaamheid één regel en zet de materialen en opties als eigen regels direct eronder, met in onderdeelVan het volgnummer (vanaf 1) van de regel van die werkzaamheid; alle andere regels krijgen onderdeelVan null. Neem naam, aantal, eenheid, prijsEuro en prijspostId exact over, met prijsbron "prijslijst"; is prijsEuro null, schat de prijs zoals hierboven. Verwerk een notitie in de werkomschrijving.
+- De klusgegevens bevatten de gekozen werkzaamheden, elk met aantal, eenheid, prijs, materialen en opties. Maak per werkzaamheid één regel en zet de materialen en opties als eigen regels direct eronder, met in onderdeelVan het volgnummer (vanaf 1) van de regel van die werkzaamheid; alle andere regels krijgen onderdeelVan null. Neem naam, aantal, eenheid, prijsEuro en prijspostId exact over, met prijsbron "prijslijst"; is prijsEuro null, schat de prijs zoals hierboven. Verwerk een notitie in de werkomschrijving. Heeft een werkzaamheid perUur true, dan wordt die per uur gerekend: het aantal is het aantal uren en prijsEuro de uurprijs; neem ook dan de eenheid "uur" over en reken niet om naar m².
 
 Inhoud
 - titel: kort, bijvoorbeeld "Offerte vervangen dakbedekking plat dak".

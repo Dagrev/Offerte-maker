@@ -4,6 +4,7 @@ import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { maakBackup, type BackupReden } from '../backup/backup';
 import { log } from '../log';
 import { zetOffertesOm } from './omzettingWerkzaamheden';
+import { voegPrijzenSamen } from './prijzenSamenvoegen';
 import { zetWerkzaamhedenStartset } from './werkzaamhedenStartset';
 import type { Db } from './verbinding';
 
@@ -68,6 +69,11 @@ const NA_MIGRATIE: Record<string, (db: Db) => void> = {
   '002_keuzelijsten.sql': voegKeuzeStartsetIn,
   // OFM-043: werkzaamheden, opties en materialen, met hun prijsposten zonder prijs.
   '004_werkzaamheden.sql': zetWerkzaamhedenStartset,
+  // OFM-048: uurprijzen erbij, oude losse posten naar materialen (of weg).
+  '006_prijzen_samenvoegen.sql': (db) => {
+    const { materialen, verwijderd } = voegPrijzenSamen(db);
+    log.info(`prijzen samengevoegd: ${materialen} post(en) naar materialen, ${verwijderd} verwijderd`);
+  },
 };
 
 /**

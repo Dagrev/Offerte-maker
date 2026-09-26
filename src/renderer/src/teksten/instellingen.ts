@@ -1,7 +1,8 @@
 import type { Eenheid } from '@shared/types';
 import type { InstellingenTab } from '../stores/navigatie';
 
-// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-018 (container en tabs Bedrijf, Opmaak, Teksten, Prijzen).
+// Interfacetekst (NFE-006, V-11). Eigenaar: OFM-018 (container en tabs Bedrijf, Opmaak, Teksten).
+// Sinds OFM-048 staan de prijzen in de tab Werkzaamheden en prijzen (tekst in `werkzaamheden.ts`).
 // De inhoud van Voorbeelden en de Geavanceerd-subtabs staat in hun eigen modules (OFM-019 t/m 022).
 export const instellingen = {
   titel: 'Instellingen',
@@ -13,9 +14,8 @@ export const instellingen = {
     bedrijf: 'Bedrijf',
     opmaak: 'Opmaak',
     teksten: 'Teksten',
-    prijzen: 'Prijzen',
     keuzelijsten: 'Keuzelijsten',
-    werkzaamheden: 'Werkzaamheden',
+    werkzaamheden: 'Werkzaamheden en prijzen',
     verplicht: 'Verplichte velden',
     voorbeelden: 'Voorbeelden',
     claudeKoppeling: 'Claude-koppeling',
@@ -80,28 +80,10 @@ export const instellingen = {
   },
 
   prijzen: {
-    uitleg:
-      'Prijzen zijn exclusief btw. Een post zonder prijs mag: Claude schat die dan, en de offerte vraagt je om te controleren.',
-    omschrijving: 'Omschrijving',
-    eenheid: 'Eenheid',
-    prijs: 'Prijs excl. btw',
-    btw: 'Btw',
-    btwTarief: (tarief: number) => `${tarief}%`,
+    // Sinds OFM-048 alleen nog de namen van de eenheden (ook gebruikt in de wizard).
     eenheden: { 'm²': 'm²', 'm¹': 'm¹', stuk: 'stuk', post: 'post', uur: 'uur', dag: 'dag' } satisfies Record<
       Eenheid,
       string
     >,
-    toevoegen: 'Prijspost toevoegen',
-    nieuwePost: 'Nieuwe post',
-    verwijder: (omschrijving: string) => `Verwijder ${omschrijving}`,
-    verwijderTitel: 'Prijspost verwijderen?',
-    verwijderTekst: (omschrijving: string) => `"${omschrijving}" verdwijnt uit de prijslijst.`,
-    verwijderJa: 'Verwijderen',
-    verwijderNee: 'Annuleren',
-    omschrijvingFout: 'Vul een omschrijving in.',
-    rijLabel: (omschrijving: string, veld: string) => `${veld} van ${omschrijving}`,
-    // OFM-043: posten van werkzaamheden, opties en materialen.
-    groep: { werk: 'Werkzaamheden', optie: 'Opties bij werkzaamheden', mat: 'Materialen' },
-    groepUitleg: 'De naam en de eenheid wijzig je onder Werkzaamheden; hier alleen de prijs en de btw.',
   },
 };

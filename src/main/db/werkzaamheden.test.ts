@@ -133,9 +133,17 @@ describe('startset na migratie 004', () => {
       'Afvalcontainer (Slopen)',
     );
     expect(haalPrijspostOpSleutel('mat:daktrim_aluminium')?.eenheid).toBe('m¹');
-    expect(lijstPrijsposten().filter((p) => p.sleutel?.includes(':'))).toHaveLength(8 + 1 + 9);
-    // Sinds OFM-044 gaan ze ook naar de agent.
-    expect(prijslijstVoorAgent()).toHaveLength(22 + 8 + 1 + 9);
+    // OFM-048: per werkzaamheid ook een uurprijs-post, eenheid uur, zelfde btw.
+    expect(haalPrijspostOpSleutel('werk:slopen:uur')).toMatchObject({
+      id: 'start-werk:slopen:uur',
+      omschrijving: 'Slopen (per uur)',
+      eenheid: 'uur',
+      prijsCent: null,
+      btwTarief: 21,
+    });
+    expect(lijstPrijsposten().filter((p) => p.sleutel?.includes(':'))).toHaveLength(8 * 2 + 1 + 9);
+    // Sinds OFM-044 gaan ze ook naar de agent; na migratie 006 alleen nog 3 vaste posten los.
+    expect(prijslijstVoorAgent()).toHaveLength(3 + 8 * 2 + 1 + 9);
   });
 
   it('op een database van versie 2 zonder een gekoppelde soort werk: die koppeling wordt overgeslagen', async () => {
@@ -451,7 +459,7 @@ describe('werkzaamheden:herstel', () => {
   });
 });
 
-describe('prijsposten van werkzaamheden (tab Prijzen)', () => {
+describe('prijsposten van werkzaamheden (prijzen:bewaar)', () => {
   it('prijs en btw aanpasbaar; naam en eenheid blijven die van het item; verwijderen kan niet', () => {
     const post = haalPrijspostOpSleutel('werk:slopen')!;
     bewaarPrijspost({ ...post, omschrijving: 'Anders', eenheid: 'dag', prijsCent: 1500, btwTarief: 9 });
@@ -464,11 +472,11 @@ describe('prijsposten van werkzaamheden (tab Prijzen)', () => {
     expect(werk(haalWerkzaamheden(), 'slopen')?.prijsCent).toBe(1500);
     expect(fout(() => verwijderPrijspost(post.id)).melding).toBe(VALIDATIE_MELDINGEN.werkPrijspostVast);
     // Gewone posten blijven gewoon te hernoemen en te verwijderen.
-    const sloop = haalPrijspostOpSleutel('sloop')!;
-    bewaarPrijspost({ ...sloop, omschrijving: 'Sloopwerk' });
-    expect(haalPrijspostOpSleutel('sloop')?.omschrijving).toBe('Sloopwerk');
-    verwijderPrijspost(sloop.id);
-    expect(haalPrijspostOpSleutel('sloop')).toBeNull();
+    const steiger = haalPrijspostOpSleutel('steiger')!;
+    bewaarPrijspost({ ...steiger, omschrijving: 'Steigerwerk' });
+    expect(haalPrijspostOpSleutel('steiger')?.omschrijving).toBe('Steigerwerk');
+    verwijderPrijspost(steiger.id);
+    expect(haalPrijspostOpSleutel('steiger')).toBeNull();
     verwijderPrijspost('bestaat-niet');
   });
 });
@@ -480,6 +488,7 @@ describe('offerte:bewaarInvoer met werkzaamheden (OFM-044)', () => {
     eenmalig: null,
     aantal: 20,
     prijsCent: 1500,
+    perUur: false,
     notitie: '',
     materialen: [],
     opties: [],
@@ -548,5 +557,81 @@ describe('kanalen werkzaamheden:*', () => {
     });
     const herstel = maakIpcHandler('werkzaamheden:herstel', werkzaamhedenHandlers['werkzaamheden:herstel']);
     expect(await herstel(event, undefined)).toEqual({ ok: true, data: null });
+  });
+});
+
+describe('uurprijs en btw via werkzaamheden:bewaar (OFM-048)', () => {
+  it('uurprijs en btw bewaren; hernoemen werkt beide posten bij; weglaten raakt ze niet', () => {
+    const invoer = alsInvoer(haalWerkzaamheden());
+    const slopen = invoer.werkzaamheden.find((w) => w.id === 'start-werk-slopen')!;
+    const pir = invoer.materialen.find((m) => m.id === 'start-mat-pir_80')!;
+    Object.assign(slopen, { label: 'Slopen oud dak', prijsCent: 1100, uurprijsCent: 5250, btwTarief: 9 });
+    Object.assign(pir, { prijsCent: 1800, btwTarief: 9 });
+    const uit = bewaarWerkzaamheden(invoer);
+    expect(werk(uit, 'slopen')).toMatchObject({ prijsCent: 1100, uurprijsCent: 5250, btwTarief: 9 });
+    expect(uit.materialen.find((m) => m.sleutel === 'pir_80')).toMatchObject({
+      prijsCent: 1800,
+      btwTarief: 9,
+    });
+    expect(haalPrijspostOpSleutel('werk:slopen:uur')).toMatchObject({
+      omschrijving: 'Slopen oud dak (per uur)',
+      eenheid: 'uur',
+      prijsCent: 5250,
+      btwTarief: 9,
+    });
+    expect(haalPrijspostOpSleutel('mat:pir_80')?.btwTarief).toBe(9);
+
+    // Zonder uurprijs en btw in de invoer (oudere aanroeper): niets gewijzigd.
+    const zonder = alsInvoer(haalWerkzaamheden());
+    for (const w of zonder.werkzaamheden) {
+      delete w.uurprijsCent;
+      delete w.btwTarief;
+    }
+    for (const m of zonder.materialen) delete m.btwTarief;
+    expect(werk(bewaarWerkzaamheden(zonder), 'slopen')).toMatchObject({ uurprijsCent: 5250, btwTarief: 9 });
+  });
+
+  it('een nieuwe werkzaamheid krijgt een uurprijs-post; verwijderen neemt hem mee', () => {
+    const invoer = alsInvoer(haalWerkzaamheden());
+    invoer.werkzaamheden.push({
+      id: 'w-kapel',
+      label: 'Dakkapel bekleden',
+      eenheid: 'm¹',
+      prijsCent: 8500,
+      uurprijsCent: 6000,
+      verborgen: false,
+      soortenWerk: [],
+      opties: [],
+      materialen: [],
+    });
+    bewaarWerkzaamheden(invoer);
+    expect(haalPrijspostOpSleutel('werk:dakkapel_bekleden:uur')).toMatchObject({
+      prijsCent: 6000,
+      btwTarief: 21,
+    });
+    bewaarWerkzaamheden({ ...invoer, werkzaamheden: invoer.werkzaamheden.filter((w) => w.id !== 'w-kapel') });
+    expect(haalPrijspostOpSleutel('werk:dakkapel_bekleden')).toBeNull();
+    expect(haalPrijspostOpSleutel('werk:dakkapel_bekleden:uur')).toBeNull();
+  });
+
+  it('een werkzaamheid die "Uur" heet krijgt gewoon de sleutel uur (de uurpost telt niet als bezet)', () => {
+    const invoer = alsInvoer(haalWerkzaamheden());
+    invoer.werkzaamheden.push({
+      id: 'w-uur',
+      label: 'Uur',
+      eenheid: 'uur',
+      prijsCent: null,
+      verborgen: false,
+      soortenWerk: [],
+      opties: [],
+      materialen: [],
+    });
+    expect(werk(bewaarWerkzaamheden(invoer), 'uur')?.label).toBe('Uur');
+  });
+
+  it('herstel startset zet een verdwenen uurprijs-post terug zonder prijs', () => {
+    t.db.prepare("DELETE FROM prijsposten WHERE sleutel = 'werk:slopen:uur'").run();
+    herstelWerkzaamheden();
+    expect(haalPrijspostOpSleutel('werk:slopen:uur')).toMatchObject({ prijsCent: null, eenheid: 'uur' });
   });
 });

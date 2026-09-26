@@ -192,6 +192,7 @@ export function zetOmNaarWerkzaamheden(
       eenmalig: bekend ? null : eenmalig(info.label, info.eenheid),
       aantal: info.aantal,
       prijsCent: info.prijsCent,
+      perUur: false,
       notitie: '',
       materialen,
       opties: [],

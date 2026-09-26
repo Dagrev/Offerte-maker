@@ -118,7 +118,7 @@ export const wizard = {
     kiesSoortEerst: 'Kies eerst een soort werk; daarna verschijnen de werkzaamheden die erbij horen.',
     werkzaamheden: 'Werkzaamheden',
     geenGekoppeld:
-      'Bij deze soort werk horen nog geen werkzaamheden. Voeg er een toe met Andere werkzaamheid, of stel ze in onder Instellingen › Werkzaamheden.',
+      'Bij deze soort werk horen nog geen werkzaamheden. Voeg er een toe met Andere werkzaamheid, of stel ze in onder Instellingen › Werkzaamheden en prijzen.',
     nietBijSoort: 'hoort niet bij deze soort werk',
     aantal: 'Aantal',
     prijs: 'Prijs per eenheid (excl. btw)',
@@ -134,6 +134,14 @@ export const wizard = {
     subtotaal: 'Subtotaal excl. btw',
     aantalVan: (label: string) => `Aantal ${label}`,
     prijsVan: (label: string) => `Prijs per eenheid ${label}`,
+    /** OFM-048: per eenheid of per uur. */
+    rekenwijze: (label: string) => `${label} rekenen`,
+    perEenheid: (eenheid: string) => `Per eenheid (${eenheid})`,
+    perUur: 'Per uur',
+    urenVan: (label: string) => `Aantal uren ${label}`,
+    uurprijsVan: (label: string) => `Prijs per uur ${label}`,
+    geenUurprijs:
+      'Geen uurprijs ingesteld. Vul hier de prijs per uur in, of laat hem leeg: dan schat Claude hem.',
     eenmalig: 'eenmalig',
     eenmaligUitleg: 'Alleen voor deze offerte.',
     naam: 'Naam',

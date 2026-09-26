@@ -30,9 +30,9 @@ describe('gaNaar', () => {
     gaNaar({ scherm: 'wizard', offerteId: 'a', wizardStap: 4, fout });
     expect(useNavigatie.getState()).toMatchObject({ scherm: 'wizard', offerteId: 'a', wizardStap: 4, fout });
 
-    gaNaar({ scherm: 'instellingen', instellingenTab: 'prijzen' });
+    gaNaar({ scherm: 'instellingen', instellingenTab: 'werkzaamheden' });
     const s = useNavigatie.getState();
-    expect(s).toMatchObject({ scherm: 'instellingen', instellingenTab: 'prijzen' });
+    expect(s).toMatchObject({ scherm: 'instellingen', instellingenTab: 'werkzaamheden' });
     expect([s.offerteId, s.wizardStap, s.fout, s.bezig]).toEqual([
       undefined,
       undefined,

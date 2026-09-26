@@ -16,7 +16,9 @@ import {
   kiesWerkzaamheid,
   materiaalInfo,
   optieInfo,
+  standaardPrijs,
   werkInfo,
+  wisselPerUur,
   type WerkCatalogus,
 } from '@shared/werkzaamheden';
 import { alsFout } from '../../api/roep';
@@ -99,6 +101,7 @@ export function StapWerkzaamheden({
         eenmalig: { label: '', eenheid: 'm²' },
         aantal: m2,
         prijsCent: null,
+        perUur: false,
         notitie: '',
         materialen: [],
         opties: [],
@@ -123,6 +126,7 @@ export function StapWerkzaamheden({
       if (materiaalId === null) {
         invoerSet.werkzaamheden.push({
           ...nieuw,
+          uurprijsCent: null,
           soortenWerk: invoer.soortWerk === null ? [] : [invoer.soortWerk],
           opties: [],
           materialen: [],
@@ -223,6 +227,7 @@ export function StapWerkzaamheden({
           key={w.id}
           werk={w}
           set={set}
+          totaalM2={m2}
           opWijzig={(deel) => zetEen(w.id, deel)}
           opVerwijder={() => zetWerkzaamheden(leesInvoer().werkzaamheden.filter((x) => x.id !== w.id))}
           opSlaOp={(materiaalId) => void slaOp(w.id, materiaalId)}
@@ -256,16 +261,21 @@ export function StapWerkzaamheden({
   );
 }
 
-/** Eén gekozen werkzaamheid: aantal, prijs, materialen, opties, notitie en subtotaal. */
+/**
+ * Eén gekozen werkzaamheid: per eenheid of per uur (OFM-048), aantal, prijs, materialen, opties,
+ * notitie en subtotaal.
+ */
 function WerkKaart({
   werk,
   set,
+  totaalM2,
   opWijzig,
   opVerwijder,
   opSlaOp,
 }: {
   werk: GekozenWerkzaamheid;
   set: WerkzaamhedenSet;
+  totaalM2: number;
   opWijzig: (deel: Partial<GekozenWerkzaamheid>) => void;
   opVerwijder: () => void;
   opSlaOp: (materiaalId: string | null) => void;
@@ -274,6 +284,10 @@ function WerkKaart({
   const item = set.werkzaamheden.find((x) => x.sleutel === werk.sleutel);
   const naam = info.label;
   const eenheid = eenheidNaam[info.eenheid];
+  const standaard = item ? standaardPrijs(item, werk.perUur) : null;
+  const geenUurprijs = werk.perUur && item !== undefined && item.uurprijsCent === null;
+  const prijsHint = geenUurprijs ? undefined : item && standaard === null ? t.geenPrijs : t.prijsHint;
+  const rekenwijzeNaam = `rekenwijze-${werk.id}`;
 
   // Kiesbare materialen: de gekoppelde (niet verborgen) plus wat al gekozen is.
   const gekozenMat = new Set(werk.materialen.flatMap((m) => (m.sleutel === null ? [] : [m.sleutel])));
@@ -322,27 +336,51 @@ function WerkKaart({
         />
       )}
 
+      {item && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="mb-2 font-semibold">{t.rekenwijze(naam)}</legend>
+          <div className="flex flex-wrap gap-x-8">
+            {[false, true].map((perUur) => (
+              <label
+                key={String(perUur)}
+                className="inline-flex min-h-12 cursor-pointer items-center gap-4 self-start pr-2"
+              >
+                <input
+                  type="radio"
+                  name={rekenwijzeNaam}
+                  className="size-7 shrink-0 cursor-pointer accent-accent"
+                  checked={werk.perUur === perUur}
+                  onChange={() => opWijzig(wisselPerUur(werk, item, perUur, totaalM2))}
+                />
+                <span>{perUur ? t.perUur : t.perEenheid(eenheidNaam[item.eenheid])}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <GetalVeld
-          label={t.aantalVan(naam)}
+          label={werk.perUur ? t.urenVan(naam) : t.aantalVan(naam)}
           eenheid={eenheid}
           waarde={werk.aantal}
           opWijzig={(aantal) => opWijzig({ aantal: aantal ?? 0 })}
         />
         <div className="flex flex-col gap-2">
           <GetalVeld
-            label={t.prijsVan(naam)}
+            label={werk.perUur ? t.uurprijsVan(naam) : t.prijsVan(naam)}
             eenheid={`${t.euro} / ${eenheid}`}
-            hint={item && item.prijsCent === null ? t.geenPrijs : t.prijsHint}
+            hint={prijsHint}
+            waarschuwing={geenUurprijs ? t.geenUurprijs : undefined}
             waarde={euro(werk.prijsCent)}
             opWijzig={(prijs) => opWijzig({ prijsCent: cent(prijs) })}
           />
-          {item && item.prijsCent !== werk.prijsCent && (
+          {item && standaard !== werk.prijsCent && (
             <div>
               <Knop
                 label={t.standaardPrijsVan(naam)}
                 icoon={RotateCcw}
-                onClick={() => opWijzig({ prijsCent: item.prijsCent })}
+                onClick={() => opWijzig({ prijsCent: standaard })}
               />
             </div>
           )}

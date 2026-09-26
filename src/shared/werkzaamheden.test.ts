@@ -17,6 +17,10 @@ import {
   materiaalPrijsSleutel,
   optiePrijsSleutel,
   prijsGroep,
+  itemSleutel,
+  standaardPrijs,
+  uurPrijsSleutel,
+  wisselPerUur,
   werkPrijsSleutel,
 } from './werkzaamheden';
 
@@ -173,6 +177,7 @@ describe('info, standaardaantal en kiezen (OFM-044)', () => {
       eenmalig: null,
       aantal: 40,
       prijsCent: null,
+      perUur: false,
       notitie: '',
       materialen: [{ id: 'id2', sleutel: 'pir_80', eenmalig: null, aantal: 40, prijsCent: 1800 }],
       opties: [],
@@ -238,5 +243,55 @@ describe('info, standaardaantal en kiezen (OFM-044)', () => {
       CATALOGUS,
     );
     expect(groep?.subregels[0]?.prijsSleutel).toBeNull();
+  });
+});
+
+describe('uurprijs (OFM-048)', () => {
+  it('uurprijs-sleutel naast de prijs per eenheid; itemSleutel en prijsGroep', () => {
+    expect(uurPrijsSleutel('slopen')).toBe('werk:slopen:uur');
+    expect(prijsGroep('werk:slopen:uur')).toBe('werk');
+    expect(itemSleutel('werk:slopen:uur')).toBe('slopen');
+    expect(itemSleutel('werk:slopen')).toBe('slopen');
+    expect(itemSleutel('optie:slopen:afvalcontainer')).toBe('afvalcontainer');
+    expect(itemSleutel('mat:pir_80')).toBe('pir_80');
+    expect(itemSleutel('werk')).toBe('');
+  });
+
+  it('werkInfo per uur: eenheid uur; standaardPrijs kiest de uurprijs', () => {
+    expect(werkInfo(CATALOGUS, gekozen({ perUur: true }))).toEqual({ label: 'Slopen', eenheid: 'uur' });
+    expect(werkInfo(CATALOGUS, gekozen())).toEqual({ label: 'Slopen', eenheid: 'm²' });
+    const slopen = CATALOGUS.werkzaamheden[0]!;
+    expect(standaardPrijs(slopen, false)).toBe(1200);
+    expect(standaardPrijs(slopen, true)).toBe(4500);
+  });
+
+  it('wisselPerUur: aantal 1 uur en de uurprijs; terug geeft het standaardaantal en de prijs per eenheid', () => {
+    const slopen = CATALOGUS.werkzaamheden[0]!;
+    expect(wisselPerUur(gekozen(), slopen, true, 40)).toEqual({ perUur: true, aantal: 1, prijsCent: 4500 });
+    expect(wisselPerUur(gekozen(), slopen, false, 40)).toEqual({
+      perUur: false,
+      aantal: 40,
+      prijsCent: 1200,
+    });
+    // Geen uurprijs ingesteld: prijs leeg (de wizard meldt dat).
+    const iso = CATALOGUS.werkzaamheden[1]!;
+    expect(wisselPerUur(gekozen(), iso, true, 40).prijsCent).toBeNull();
+    // Zonder item (eenmalig): de prijs blijft staan.
+    expect(wisselPerUur(gekozen({ prijsCent: 999 }), undefined, false, 40)).toEqual({
+      perUur: false,
+      aantal: 1,
+      prijsCent: 999,
+    });
+  });
+
+  it('werkGroepen per uur: eenheid uur en de uurprijs-sleutel op de regel', () => {
+    const [groep] = werkGroepen([gekozen({ perUur: true, aantal: 6, prijsCent: 4500 })], CATALOGUS);
+    expect(groep?.werk).toEqual({
+      omschrijving: 'Slopen',
+      eenheid: 'uur',
+      aantal: 6,
+      prijsCent: 4500,
+      prijsSleutel: 'werk:slopen:uur',
+    });
   });
 });

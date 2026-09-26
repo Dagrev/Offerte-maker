@@ -24,6 +24,11 @@ export interface WerkRegelVoorAgent {
 }
 
 export interface WerkzaamheidVoorAgent extends WerkRegelVoorAgent {
+  /**
+   * OFM-048: prijs per uur. Dan is `aantal` het aantal uren, `eenheid` "uur", `prijsEuro` de uurprijs en
+   * `prijspostId` de uurprijs-post.
+   */
+  perUur: boolean;
   notitie: string;
   materialen: WerkRegelVoorAgent[];
   opties: WerkRegelVoorAgent[];
@@ -107,6 +112,7 @@ export function bouwKlusVoorAgent(bron: KlusBron, opties: KlusOpties = {}): Klus
     );
     return {
       ...alsRegel(g.werk, nr),
+      perUur: invoer.werkzaamheden[i]?.perUur ?? false,
       notitie: filter(g.notitie),
       materialen: subs.slice(0, aantalMaterialen),
       opties: subs.slice(aantalMaterialen),

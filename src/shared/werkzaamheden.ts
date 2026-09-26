@@ -137,13 +137,24 @@ export const WERKZAAMHEDEN_STARTSET: readonly StartWerkzaamheid[] = [
 // ---------- Prijssleutels (één plek voor prijzen, V-13) ----------
 
 export const werkPrijsSleutel = (werkzaamheid: string): string => `werk:${werkzaamheid}`;
+/** OFM-048: de uurprijs van een werkzaamheid staat naast de prijs per eenheid. */
+export const uurPrijsSleutel = (werkzaamheid: string): string => `werk:${werkzaamheid}:uur`;
 export const optiePrijsSleutel = (werkzaamheid: string, optie: string): string =>
   `optie:${werkzaamheid}:${optie}`;
 export const materiaalPrijsSleutel = (materiaal: string): string => `mat:${materiaal}`;
 
 export type PrijsGroep = 'werk' | 'optie' | 'mat';
 
-/** Groep van een prijspost-sleutel; `null` voor de gewone prijslijst (§9.3) en eigen posten. */
+/**
+ * Het item bij een prijspost-sleutel: `werk:slopen:uur` → `slopen`, `optie:slopen:afvalcontainer` →
+ * `afvalcontainer`, `mat:pir_80` → `pir_80`.
+ */
+export function itemSleutel(sleutel: string): string {
+  const delen = sleutel.split(':');
+  return (delen[0] === 'werk' ? delen[1] : delen.at(-1)) ?? '';
+}
+
+/** Groep van een prijspost-sleutel; `null` voor de vaste posten (§9.3) en eigen posten. */
 export function prijsGroep(sleutel: string | null): PrijsGroep | null {
   const voorvoegsel = sleutel?.split(':')[0];
   return voorvoegsel === 'werk' || voorvoegsel === 'optie' || voorvoegsel === 'mat' ? voorvoegsel : null;
@@ -187,16 +198,48 @@ export interface ItemInfo {
 /** Naam van een eenmalig item zonder naam (half ingevuld). */
 export const NAAMLOOS = { werkzaamheid: 'Werkzaamheid', materiaal: 'Materiaal' } as const;
 
-/** Naam en eenheid; een verwijderde sleutel toont zichzelf (per post), zodat er niets wegvalt. */
+/**
+ * Naam en eenheid; een verwijderde sleutel toont zichzelf (per post), zodat er niets wegvalt. Per uur
+ * (OFM-048) is de eenheid altijd `uur`.
+ */
 export function werkInfo(
   catalogus: WerkCatalogus,
-  w: Pick<GekozenWerkzaamheid, 'sleutel' | 'eenmalig'>,
+  w: Pick<GekozenWerkzaamheid, 'sleutel' | 'eenmalig'> & { perUur?: boolean },
 ): ItemInfo {
-  if (w.eenmalig) {
-    return { label: w.eenmalig.label.trim() || NAAMLOOS.werkzaamheid, eenheid: w.eenmalig.eenheid };
-  }
-  const item = catalogus.werkzaamheden.find((x) => x.sleutel === w.sleutel);
-  return item ? { label: item.label, eenheid: item.eenheid } : { label: w.sleutel ?? '', eenheid: 'post' };
+  const info = ((): ItemInfo => {
+    if (w.eenmalig) {
+      return { label: w.eenmalig.label.trim() || NAAMLOOS.werkzaamheid, eenheid: w.eenmalig.eenheid };
+    }
+    const item = catalogus.werkzaamheden.find((x) => x.sleutel === w.sleutel);
+    return item ? { label: item.label, eenheid: item.eenheid } : { label: w.sleutel ?? '', eenheid: 'post' };
+  })();
+  return w.perUur ? { ...info, eenheid: 'uur' } : info;
+}
+
+/** Standaardprijs van een werkzaamheid uit de instellingen (OFM-048): de uurprijs bij per uur. */
+export function standaardPrijs(
+  werk: Pick<Werkzaamheid, 'prijsCent' | 'uurprijsCent'>,
+  perUur: boolean,
+): number | null {
+  return perUur ? werk.uurprijsCent : werk.prijsCent;
+}
+
+/**
+ * Wissel tussen prijs per eenheid en per uur (OFM-048): de prijs wordt de standaardprijs van de nieuwe
+ * keuze, het aantal 1 (uur) resp. het standaardaantal. Zonder item (eenmalig of verwijderd) blijft de
+ * prijs staan.
+ */
+export function wisselPerUur(
+  gekozen: Pick<GekozenWerkzaamheid, 'prijsCent'>,
+  werk: Pick<Werkzaamheid, 'eenheid' | 'prijsCent' | 'uurprijsCent'> | undefined,
+  perUur: boolean,
+  totaalM2: number,
+): Pick<GekozenWerkzaamheid, 'perUur' | 'aantal' | 'prijsCent'> {
+  return {
+    perUur,
+    aantal: perUur ? 1 : standaardAantal(werk?.eenheid ?? 'post', totaalM2),
+    prijsCent: werk ? standaardPrijs(werk, perUur) : gekozen.prijsCent,
+  };
 }
 
 export function materiaalInfo(
@@ -259,6 +302,7 @@ export function kiesWerkzaamheid(
     eenmalig: null,
     aantal,
     prijsCent: werk.prijsCent,
+    perUur: false,
     notitie: '',
     materialen: materiaal ? [kiesMateriaal(materiaal, werk.eenheid, aantal, maakId)] : [],
     opties: [],
@@ -316,7 +360,8 @@ export function werkGroepen(
         eenheid: info.eenheid,
         aantal: w.aantal,
         prijsCent: w.prijsCent,
-        prijsSleutel: w.sleutel === null ? null : werkPrijsSleutel(w.sleutel),
+        prijsSleutel:
+          w.sleutel === null ? null : w.perUur ? uurPrijsSleutel(w.sleutel) : werkPrijsSleutel(w.sleutel),
       },
       notitie: w.notitie.trim(),
       subregels: [...materialen, ...opties],

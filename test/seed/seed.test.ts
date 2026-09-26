@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -100,6 +100,12 @@ describe('vulMetSeed', () => {
     vulMetSeed(a);
     expect(inhoudHash(a)).toBe(hash);
     expect((a.prepare('SELECT COUNT(*) AS n FROM offertes').get() as { n: number }).n).toBe(5000);
-    expect(a.pragma('user_version', { simple: true })).toBe(5);
+    // Hoogste migratienummer (zoals `migreer()`), niet vast: elke nieuwe migratie telt mee.
+    const hoogste = Math.max(
+      ...readdirSync(join(import.meta.dirname, '..', '..', 'src', 'main', 'db', 'migraties'))
+        .filter((n) => /^\d{3}_/.test(n))
+        .map((n) => Number(n.slice(0, 3))),
+    );
+    expect(a.pragma('user_version', { simple: true })).toBe(hoogste);
   });
 });
