@@ -1,85 +1,27 @@
-import type {
-  Aanhef,
-  Afwerking,
-  Bedekking,
-  Hoogte,
-  HuidigeBedekking,
-  Isolatie,
-  Klant,
-  Ondergrond,
-  SoortDak,
-  SoortWerk,
-} from './types';
+import { keuzeLabel, type Keuzes } from './keuzelijsten';
+import type { Aanhef, Klant } from './types';
 
-// Vaste labels voor de waardesets (TDO §9.1), de aanhefregel (§9.2) en klantWeergave (§8.2).
-// Gebruikt door main (prompts, omschrijvingKort), shared (PDF) en renderer (wizard, lijst) (V-16).
-
-export const SOORT_WERK_LABELS: Record<SoortWerk, string> = {
-  nieuw_dak: 'Nieuw dak',
-  dak_vervangen: 'Dak vervangen',
-  reparatie: 'Reparatie',
-  dakgoten: 'Dakgoten',
-  isolatie: 'Isolatie',
-  onderhoud: 'Onderhoud',
-};
-
-export const SOORT_DAK_LABELS: Record<SoortDak, string> = {
-  plat: 'plat dak',
-  hellend: 'hellend dak',
-};
-
-/** Vast label per bedekking. Bij `anders` alleen een tegeltekst; gebruik `labelBedekking` voor inhoud. */
-export const BEDEKKING_LABELS: Record<Bedekking, string> = {
-  epdm_11: 'EPDM 1,1 mm',
-  epdm_15: 'EPDM 1,5 mm',
-  resitrix: 'Resitrix',
-  bitumen: 'Bitumen',
-  anders: 'Anders',
-};
-
-export const HUIDIGE_BEDEKKING_LABELS: Record<HuidigeBedekking, string> = {
-  bitumen: 'Bitumen',
-  epdm: 'EPDM',
-  grind_op_bitumen: 'Grind op bitumen',
-  onbekend: 'Weet ik niet',
-};
-
-export const ONDERGROND_LABELS: Record<Ondergrond, string> = {
-  hout: 'Hout',
-  beton: 'Beton',
-  staal: 'Staal',
-  onbekend: 'Weet ik niet',
-};
-
-/** Vast label per isolatie. Bij `anders` alleen een tegeltekst; gebruik `labelIsolatie` voor inhoud. */
-export const ISOLATIE_LABELS: Record<Isolatie, string> = {
-  geen: 'Geen',
-  '80': '80 mm (Rc 3,5)',
-  '100': '100 mm',
-  '120': '120 mm',
-  anders: 'Anders',
-};
-
-export const AFWERKING_LABELS: Record<Afwerking, string> = {
-  geen: 'Geen',
-  grind: 'Grind',
-  sedum: 'Sedum',
-};
-
-export const HOOGTE_LABELS: Record<Hoogte, string> = {
-  '1': 'Begane grond / 1 bouwlaag',
-  '2': '2 bouwlagen',
-  '3plus': '3 of meer bouwlagen',
-};
+// Labels (TDO §9.1). De labels van de keuzelijsten komen sinds OFM-034 uit de database
+// (`keuzeopties`), doorgegeven als `Keuzes`; de startwaarden staan in `keuzelijsten.ts`. Hier staan de
+// afgeleide labels, de aanhefregel (§9.2) en klantWeergave (§8.2). Gebruikt door main, shared (PDF) en
+// renderer (V-16).
 
 /** Label van de bedekking; bij `anders` de ingevulde tekst (leeg als niets ingevuld). */
-export function labelBedekking(bedekking: Bedekking, bedekkingAnders: string): string {
-  return bedekking === 'anders' ? bedekkingAnders.trim() : BEDEKKING_LABELS[bedekking];
+export function labelBedekking(
+  keuzes: Pick<Keuzes, 'bedekking'>,
+  bedekking: string,
+  bedekkingAnders: string,
+): string {
+  return bedekking === 'anders' ? bedekkingAnders.trim() : keuzeLabel(keuzes, 'bedekking', bedekking);
 }
 
 /** Label van de isolatie; bij `anders` `<n> mm` (leeg als er geen dikte is ingevuld). */
-export function labelIsolatie(isolatie: Isolatie, isolatieAndersMm: number | null): string {
-  if (isolatie !== 'anders') return ISOLATIE_LABELS[isolatie];
+export function labelIsolatie(
+  keuzes: Pick<Keuzes, 'isolatie'>,
+  isolatie: string,
+  isolatieAndersMm: number | null,
+): string {
+  if (isolatie !== 'anders') return keuzeLabel(keuzes, 'isolatie', isolatie);
   return isolatieAndersMm === null ? '' : `${isolatieAndersMm} mm`;
 }
 

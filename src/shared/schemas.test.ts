@@ -32,7 +32,8 @@ const legeKlusInvoer: KlusInvoer = {
   afwerking: 'geen',
   hoogte: '1',
   steigerNodig: false,
-  garantieJaren: 10,
+  garantieJaren: '10',
+  extraAantallen: {},
   gewensteUitvoering: '',
   overig: '',
 };

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { maakInvoer, maakKlant } from '../../../test/privacy/testset';
 import { bouwKlusVoorAgent, gebruikersTekst } from './klusVoorAgent';
 
@@ -34,12 +35,13 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
         afwerking: 'grind',
         hoogte: '3plus',
         steigerNodig: true,
-        garantieJaren: 20,
+        garantieJaren: '20',
         gewensteUitvoering: 'Na de bouwvak',
         overig: 'Geen bijzonderheden',
       }),
       klant,
       offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
     });
     expect(klus).toEqual({
       soortWerk: 'Nieuw dak',
@@ -61,10 +63,11 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       noodoverloopAantal: 1,
       doorvoerAantal: 3,
       lichtkoepelAantal: 1,
+      extras: [],
       afwerking: 'Grind',
       hoogte: '3 of meer bouwlagen',
       steigerNodig: true,
-      garantieJaren: 20,
+      garantie: '20 jaar verzekerde garantie',
       gewensteUitvoering: 'Na de bouwvak',
       overig: 'Geen bijzonderheden',
       totaalM2: 34.8,
@@ -87,6 +90,7 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       }),
       klant,
       offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
     });
     expect(klus).toMatchObject({
       soortWerk: null,
@@ -111,6 +115,7 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       }),
       klant,
       offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
     };
     const klus = bouwKlusVoorAgent(bron);
     expect(gebruikersTekst(klus)).toEqual([
@@ -124,6 +129,32 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
     expect(ongefilterd.dakvlakken[0]?.naam).toBe('Schuur Vries');
   });
 
+  it("OFM-034: labels uit de keuzelijsten; zelf toegevoegde extra's met naam en aantal", () => {
+    const keuzes = {
+      ...KEUZE_STARTSET,
+      soortWerk: [{ sleutel: 'reparatie', label: 'Lekkage verhelpen' }],
+      extras: [...KEUZE_STARTSET.extras, { sleutel: 'dakkapel', label: 'Dakkapel aansluiten' }],
+      garantie: [...KEUZE_STARTSET.garantie, { sleutel: '15_jaar', label: '15 jaar' }],
+    };
+    const klus = bouwKlusVoorAgent({
+      invoer: maakInvoer({
+        soortWerk: 'reparatie',
+        hwaAantal: 1,
+        extraAantallen: { dakkapel: 2 },
+        garantieJaren: '15_jaar',
+      }),
+      klant,
+      offertedatum: '2026-09-25',
+      keuzes,
+    });
+    expect(klus).toMatchObject({
+      soortWerk: 'Lekkage verhelpen',
+      hwaAantal: 1,
+      extras: [{ naam: 'Dakkapel aansluiten', aantal: 2 }],
+      garantie: '15 jaar',
+    });
+  });
+
   it('klantobject: alleen plaatshouders en vlaggen', () => {
     const bedrijf = maakKlant({
       aanhef: 'bedrijf',
@@ -132,7 +163,12 @@ describe('bouwKlusVoorAgent (§10.5, V-26)', () => {
       heeftWerkadres: true,
       werkadres: { straatHuisnummer: 'Industrieweg 5', postcode: '', plaats: 'Eindhoven' },
     });
-    const klus = bouwKlusVoorAgent({ invoer: maakInvoer(), klant: bedrijf, offertedatum: '2026-09-25' });
+    const klus = bouwKlusVoorAgent({
+      invoer: maakInvoer(),
+      klant: bedrijf,
+      offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
+    });
     expect(klus.klant).toEqual({
       naam: '[KLANT_NAAM]',
       isBedrijf: true,

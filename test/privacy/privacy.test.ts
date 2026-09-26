@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { PRIJS_STARTSET } from '@shared/prijsStartset';
 import { standaardInstelling } from '@shared/schemas';
 import type { Klant, OfferteInhoud, Prijspost } from '@shared/types';
@@ -65,7 +66,12 @@ interface Opdracht {
 }
 
 function bouwOpdracht(geval: Privacygeval): Opdracht {
-  const klus = bouwKlusVoorAgent({ invoer: geval.invoer, klant: geval.klant, offertedatum: '2026-09-25' });
+  const klus = bouwKlusVoorAgent({
+    invoer: geval.invoer,
+    klant: geval.klant,
+    offertedatum: '2026-09-25',
+    keuzes: KEUZE_STARTSET,
+  });
   const json = JSON.stringify(klus, null, 2);
   const delen = gebruikersTekst(klus);
   const opdracht = bouwOpdrachtMaken({
@@ -177,6 +183,7 @@ describe('privacytestset (NFE-008)', () => {
         invoer: { ...geval.invoer, gewensteUitvoering: '', overig: '', bedekkingAnders: '', dakvlakken: [] },
         klant: geval.klant,
         offertedatum: '2026-09-25',
+        keuzes: KEUZE_STARTSET,
       });
       expect(JSON.stringify(zonderVrijeTekst)).not.toMatch(
         /\b(?:Dhr|Mevr|Fam)\.|Geachte|heer|mevrouw|familie/i,
@@ -186,7 +193,7 @@ describe('privacytestset (NFE-008)', () => {
 
     it('zonder filter blokkeert de eindcontrole zodra er een klantgegeven in staat (FE-033)', () => {
       const klus = bouwKlusVoorAgent(
-        { invoer: geval.invoer, klant: geval.klant, offertedatum: '2026-09-25' },
+        { invoer: geval.invoer, klant: geval.klant, offertedatum: '2026-09-25', keuzes: KEUZE_STARTSET },
         { filteren: false },
       );
       const ruw = [...gebruikersTekst(klus), geval.instructie ?? ''].join('\n');

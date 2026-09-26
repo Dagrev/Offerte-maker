@@ -1,9 +1,11 @@
 import { AppFout } from '@shared/fouten';
+import { keuzeLabel, type Keuzes } from '@shared/keuzelijsten';
 import { aanhefRegel } from '@shared/labels';
 import type { PdfModel } from '@shared/pdf-template/render';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { Bedrijf, OfferteDetail, Opmaak, Teksten } from '@shared/types';
 import { haalInstelling } from '../db/repo/instellingen';
+import { haalKeuzes } from '../db/repo/keuzeopties';
 import { haalOfferte } from '../db/repo/offertesInvoer';
 import { logoDataUri } from '../instellingen/beheer';
 import { fontCss } from './fonts';
@@ -18,9 +20,25 @@ export interface PdfModelBron {
   logoDataUri: string | null;
   opmaak: Opmaak;
   teksten: Teksten;
+  /** Keuzelijsten (OFM-034), voor de garantietekst van een zelf toegevoegde garantie. */
+  keuzes: Pick<Keuzes, 'garantie'>;
   fontCss: string;
   /** Nummer zoals het op de offerte komt; standaard `detail.nummer` (`null` → CONCEPT). */
   nummer?: string | null | undefined;
+}
+
+/**
+ * Garantietekst (§9.4): de standaardteksten bij 10 en 20 jaar; bij een zelf toegevoegde garantie
+ * (OFM-034) een vaste zin met het label van die keuze.
+ */
+export function garantieTekst(
+  garantie: string,
+  teksten: Pick<Teksten, 'garantie10' | 'garantie20'>,
+  keuzes: Pick<Keuzes, 'garantie'>,
+): string {
+  if (garantie === '10') return teksten.garantie10;
+  if (garantie === '20') return teksten.garantie20;
+  return `Op de uitgevoerde werkzaamheden geven wij garantie: ${keuzeLabel(keuzes, 'garantie', garantie)}.`;
 }
 
 /** Pure samenstelling; gooit `VALIDATIE` als de offerte nog geen inhoud heeft. */
@@ -41,7 +59,7 @@ export function stelPdfModelSamen(bron: PdfModelBron): PdfModel {
     aanhefregel: aanhefRegel(detail.klant),
     inhoud: detail.inhoud,
     totalen: detail.totalen,
-    garantietekst: detail.invoer.garantieJaren === 20 ? teksten.garantie20 : teksten.garantie10,
+    garantietekst: garantieTekst(detail.invoer.garantieJaren, teksten, bron.keuzes),
     betalingsvoorwaarden: teksten.betalingsvoorwaarden,
     geldigheidDagen: teksten.geldigheidDagen,
     voetnoot: teksten.voetnoot,
@@ -61,6 +79,7 @@ export function pdfModelVoorOfferte(id: string, opties: { nummer?: string | null
     logoDataUri: logoDataUri(bedrijf.logoBestandId),
     opmaak,
     teksten: haalInstelling('teksten'),
+    keuzes: haalKeuzes(),
     fontCss: fontCss(opmaak.lettertype),
     ...opties,
   });

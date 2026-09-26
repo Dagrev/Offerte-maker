@@ -14,6 +14,7 @@ export const instellingen = {
     opmaak: 'Opmaak',
     teksten: 'Teksten',
     prijzen: 'Prijzen',
+    keuzelijsten: 'Keuzelijsten',
     voorbeelden: 'Voorbeelden',
     claudeKoppeling: 'Claude-koppeling',
     privacylog: 'Wat is naar Claude gestuurd',

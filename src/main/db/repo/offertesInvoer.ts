@@ -14,6 +14,7 @@ import { klantSchema, klusInvoerSchema, offerteInhoudSchema, statusSchema } from
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { invullen } from '../../privacy/invullen';
+import { controleerKeuzes, haalKeuzes } from './keuzeopties';
 import { database } from '../verbinding';
 
 // Offerte aanmaken, ophalen en de wizardinvoer bewaren (TDO §6.2, §6.3, §8.2, V-12). Eigenaar: OFM-010.
@@ -86,7 +87,7 @@ export function maakOfferte(opties: NieuweOfferte, nu: Date = new Date()): strin
       stap,
       JSON.stringify(klant),
       JSON.stringify(invoer),
-      omschrijvingKort(invoer),
+      omschrijvingKort(invoer, haalKeuzes()),
       zoektekstVan(klant, null),
       tijd,
       tijd,
@@ -149,7 +150,10 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
     if (rij.nummer !== null || heeftPdf) throw new AppFout('VALIDATIE', MELDING_AL_DEFINITIEF);
 
     const klant = w.klant ? normaliseerKlant(w.klant) : klantSchema.parse(JSON.parse(rij.klant_json));
-    const invoer = w.invoer ?? klusInvoerSchema.parse(JSON.parse(rij.invoer_json));
+    const opgeslagen = klusInvoerSchema.parse(JSON.parse(rij.invoer_json));
+    // OFM-034: alleen bestaande keuzes (of de keuze die er al stond).
+    if (w.invoer) controleerKeuzes(w.invoer, opgeslagen);
+    const invoer = w.invoer ?? opgeslagen;
     const offertedatum = w.offertedatum ?? rij.offertedatum;
     const geldigTot =
       w.offertedatum !== undefined ? berekenGeldigTot(w.offertedatum, geldigheidDagen) : rij.geldig_tot;
@@ -164,7 +168,7 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
       w.wizardStap ?? rij.wizard_stap,
       offertedatum,
       geldigTot,
-      omschrijvingKort(invoer),
+      omschrijvingKort(invoer, haalKeuzes()),
       zoektekstVan(klant, rij.nummer),
       nu.toISOString(),
       w.id,

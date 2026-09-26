@@ -1,0 +1,188 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { expect, test, type Page } from '@playwright/test';
+import { extractText } from 'unpdf';
+import { nl } from '../../src/renderer/src/teksten/nl';
+import {
+  apiData,
+  maakTestMappen,
+  offerteIdVan,
+  overslaanWelkom,
+  sluitApp,
+  startApp,
+  type GestarteApp,
+  type TestMappen,
+} from '../helpers/e2e';
+
+// OFM-034: een keuze toevoegen, hernoemen en verbergen onder Instellingen › Keuzelijsten, en dat
+// terugzien in de wizard, de lijst en op de PDF (via "Maak zonder Claude": titel, regel en garantie).
+
+let mappen: TestMappen;
+let gestart: GestarteApp | undefined;
+
+test.beforeEach(() => {
+  mappen = maakTestMappen();
+});
+test.afterEach(async () => {
+  if (gestart) await sluitApp(gestart.app);
+  gestart = undefined;
+  mappen.opruimen();
+});
+
+const k = nl.keuzelijsten;
+const w = nl.wizard;
+const knop = (page: Page, naam: string) => page.getByRole('button', { name: naam, exact: true });
+
+async function kiesLijst(page: Page, lijst: keyof typeof k.lijst): Promise<void> {
+  await knop(page, k.lijst[lijst]).click();
+  await expect(page.getByRole('heading', { name: k.lijst[lijst], level: 2 })).toBeVisible();
+}
+
+async function voegToe(page: Page, label: string): Promise<void> {
+  await page.getByLabel(k.nieuw, { exact: true }).fill(label);
+  await knop(page, k.toevoegen).click();
+  await expect(page.getByLabel(k.naamVan(label), { exact: true })).toBeVisible();
+}
+
+test('toevoegen, hernoemen en verbergen: zichtbaar in wizard, lijst en PDF', async () => {
+  // Statusfout (niet ingelogd): dan staat "Maak zonder Claude" in stap 4 (V-09).
+  gestart = await startApp(mappen, { modus: 'niet-ingelogd' });
+  const { page } = gestart;
+  await overslaanWelkom(page);
+
+  // Instellingen › Keuzelijsten.
+  await knop(page, nl.overzicht.instellingen).click();
+  await knop(page, nl.instellingen.tab.keuzelijsten).click();
+  await expect(page.getByRole('heading', { name: k.lijst.soortWerk, level: 2 })).toBeVisible();
+
+  // Hernoemen (soort werk): bewaart vanzelf.
+  const nieuwDak = page.getByLabel(k.naamVan('Nieuw dak'), { exact: true });
+  await nieuwDak.fill('Compleet nieuw dak');
+  await expect(page.getByText(nl.componenten.bewaard)).toBeVisible();
+
+  // Toevoegen en verbergen (bedekking); toevoegen (garantie).
+  await kiesLijst(page, 'bedekking');
+  await voegToe(page, 'Leien');
+  await knop(page, k.verberg('Resitrix')).click();
+  await expect(knop(page, k.toon('Resitrix'))).toBeVisible();
+  await kiesLijst(page, 'garantie');
+  await voegToe(page, '15 jaar');
+  // De standaardkeuze (10 jaar) kan niet verborgen of verwijderd worden.
+  await expect(knop(page, k.verberg('10 jaar'))).toHaveCount(0);
+
+  const lijsten = await apiData(page, 'keuzelijstenHaal');
+  expect(lijsten.bedekking.find((o) => o.label === 'Leien')).toMatchObject({
+    sleutel: 'leien',
+    verborgen: false,
+  });
+  expect(lijsten.bedekking.find((o) => o.sleutel === 'resitrix')?.verborgen).toBe(true);
+  // De nieuwe bedekking heeft een post zonder prijs in de prijslijst.
+  const posten = await apiData(page, 'prijzenLijst');
+  expect(posten.find((p) => p.sleutel === 'leien')).toMatchObject({ omschrijving: 'Leien', prijsCent: null });
+
+  // Wizard.
+  await knop(page, nl.instellingen.terug).click();
+  await knop(page, nl.overzicht.nieuweOfferte).click();
+  await page.getByLabel(w.klant.naam, { exact: true }).fill('Bakker');
+  await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
+  await knop(page, w.volgende).click();
+  await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
+  await expect(knop(page, 'Leien')).toBeVisible();
+  await expect(knop(page, 'Resitrix')).toHaveCount(0);
+  await expect(knop(page, 'Nieuw dak')).toHaveCount(0);
+  await knop(page, 'Compleet nieuw dak').click();
+  await knop(page, 'Plat dak').click();
+  await page.getByLabel(w.dak.lengte, { exact: true }).fill('8');
+  await page.getByLabel(w.dak.breedte, { exact: true }).fill('5');
+  await knop(page, 'Leien').click();
+  await knop(page, w.volgende).click();
+  await expect(page.getByRole('heading', { name: `3. ${w.stappen[2]}` })).toBeVisible();
+  await knop(page, '15 jaar').click();
+  await knop(page, w.volgende).click();
+  await expect(page.getByRole('heading', { name: `4. ${w.stappen[3]}` })).toBeVisible();
+  const samenvatting = page.locator('dl');
+  await expect(samenvatting).toContainText('Compleet nieuw dak');
+  await expect(samenvatting).toContainText('Leien');
+  await expect(samenvatting).toContainText('15 jaar');
+
+  // Maak zonder Claude → detail → definitief.
+  await knop(page, w.maakZonderClaude).click();
+  await expect(page.getByRole('heading', { name: nl.detail.controleerEven })).toBeVisible({
+    timeout: 15_000,
+  });
+  const id = await offerteIdVan(page, 'Bakker');
+  const detail = await apiData(page, 'offerteHaal', { id });
+  expect(detail.inhoud?.titel).toBe('Offerte compleet nieuw dak plat dak');
+  expect(detail.inhoud?.regels.map((r) => r.omschrijving)).toContain('Leien');
+  await knop(page, nl.detail.maakDefinitief).click();
+  await expect(knop(page, nl.detail.openPdf)).toBeVisible({ timeout: 20_000 });
+
+  const map = join(mappen.docs, '2026');
+  const pdf = readdirSync(map).find((n) => n.endsWith('.pdf'));
+  expect(pdf).toBeDefined();
+  const { text } = await extractText(new Uint8Array(readFileSync(join(map, pdf ?? ''))), {
+    mergePages: true,
+  });
+  const tekst = text.replace(/\s+/g, ' ');
+  expect(tekst).toContain('Offerte compleet nieuw dak plat dak');
+  expect(tekst).toContain('Leien');
+  expect(tekst).toContain('Op de uitgevoerde werkzaamheden geven wij garantie: 15 jaar.');
+
+  // Hernoemen werkt ook achteraf door in de lijst (korte omschrijving).
+  await apiData(page, 'keuzelijstenBewaar', {
+    lijst: 'bedekking',
+    opties: (await apiData(page, 'keuzelijstenHaal')).bedekking.map((o) => ({
+      id: o.id,
+      label: o.sleutel === 'leien' ? 'Natuurleien' : o.label,
+      verborgen: o.verborgen,
+    })),
+  });
+  const [item] = await apiData(page, 'overzichtZoek', { tekst: 'Bakker' });
+  expect(item?.omschrijvingKort).toBe('Compleet nieuw dak · Natuurleien · 40 m²');
+
+  expect(gestart.paginaFouten).toEqual([]);
+});
+
+test('een verborgen keuze blijft zichtbaar (grijs) in een offerte die hem al had; verwijderen kan dan niet', async () => {
+  gestart = await startApp(mappen);
+  const { page } = gestart;
+  await overslaanWelkom(page);
+  const { id } = await apiData(page, 'offerteNieuw', {});
+  const detail = await apiData(page, 'offerteHaal', { id });
+  await apiData(page, 'offerteBewaarInvoer', {
+    id,
+    klant: { ...detail.klant, naam: 'De Wit', adres: { ...detail.klant.adres, plaats: 'Best' } },
+    invoer: { ...detail.invoer, soortWerk: 'onderhoud' },
+    wizardStap: 2,
+  });
+  const lijsten = await apiData(page, 'keuzelijstenHaal');
+  expect(lijsten.soortWerk.find((o) => o.sleutel === 'onderhoud')?.inGebruik).toBe(true);
+  await apiData(page, 'keuzelijstenBewaar', {
+    lijst: 'soortWerk',
+    opties: lijsten.soortWerk.map((o) => ({
+      id: o.id,
+      label: o.label,
+      verborgen: o.sleutel === 'onderhoud',
+    })),
+  });
+
+  // Verwijderen via de tab: melding "staat nog in een offerte" met alleen verbergen.
+  await knop(page, nl.overzicht.instellingen).click();
+  await knop(page, nl.instellingen.tab.keuzelijsten).click();
+  await knop(page, k.verwijder('Onderhoud')).click();
+  await expect(page.getByText(k.inGebruik('Onderhoud'))).toBeVisible();
+  await knop(page, k.sluiten).click();
+  await knop(page, nl.instellingen.terug).click();
+
+  // Wizard van die offerte: Onderhoud staat er nog, gekozen en gemarkeerd.
+  await page.reload();
+  await page.getByRole('listitem').filter({ hasText: 'De Wit' }).click();
+  await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
+  const onderhoud = page.getByRole('button', { name: /^Onderhoud/ });
+  await expect(onderhoud).toHaveAttribute('aria-pressed', 'true');
+  await expect(onderhoud).toContainText(nl.componenten.nietMeerInLijst);
+  // Een andere keuze kiezen mag; daarna is Onderhoud weg uit de tegels.
+  await knop(page, 'Reparatie').click();
+  await expect(page.getByRole('button', { name: /^Onderhoud/ })).toHaveCount(0);
+  expect(gestart.paginaFouten).toEqual([]);
+});

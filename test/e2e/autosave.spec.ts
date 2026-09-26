@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SOORT_DAK_LABELS } from '../../src/shared/labels';
+import { KEUZE_STARTSET } from '../../src/shared/keuzelijsten';
 import { nl } from '../../src/renderer/src/teksten/nl';
 import {
   apiData,
@@ -39,7 +39,8 @@ test('invoer overleeft een harde kill en het concept opent op stap 2', async () 
   await page.getByLabel(w.klant.plaats, { exact: true }).fill('Veldhoven');
   await page.getByRole('button', { name: w.volgende, exact: true }).click();
   await expect(page.getByRole('heading', { name: `2. ${w.stappen[1]}` })).toBeVisible();
-  const plat = SOORT_DAK_LABELS.plat.charAt(0).toUpperCase() + SOORT_DAK_LABELS.plat.slice(1);
+  const platLabel = KEUZE_STARTSET.soortDak[0]?.label ?? '';
+  const plat = platLabel.charAt(0).toUpperCase() + platLabel.slice(1);
   await page.getByRole('button', { name: plat, exact: true }).click();
   await page.getByLabel(w.dak.lengte, { exact: true }).fill('8');
   await page.getByLabel(w.dak.breedte, { exact: true }).fill('5');

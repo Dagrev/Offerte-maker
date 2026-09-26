@@ -7,6 +7,7 @@ import { bezig } from './bezig';
 import { detail } from './detail';
 import { bewerken } from './bewerken';
 import { instellingen } from './instellingen';
+import { keuzelijsten } from './keuzelijsten';
 import { voorbeelden } from './voorbeelden';
 import { claudeKoppeling } from './claudeKoppeling';
 import { privacylog } from './privacylog';
@@ -29,6 +30,7 @@ export const nl = {
   detail,
   bewerken,
   instellingen,
+  keuzelijsten,
   voorbeelden,
   claudeKoppeling,
   privacylog,

@@ -6,6 +6,7 @@ export const queryKeys = {
   offerte: (id: string) => ['offerte', id] as const,
   instellingen: () => ['instellingen'] as const,
   prijzen: () => ['prijzen'] as const,
+  keuzelijsten: () => ['keuzelijsten'] as const,
   voorbeelden: () => ['voorbeelden'] as const,
   claudeStatus: () => ['claudeStatus'] as const,
 };

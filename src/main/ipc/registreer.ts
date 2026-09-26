@@ -10,6 +10,7 @@ import { appHandlers } from './app';
 import { backupHandlers } from './backup';
 import { claudeHandlers } from './claude';
 import { instellingenHandlers } from './instellingen';
+import { keuzelijstenHandlers } from './keuzelijsten';
 import { offerteAgentHandlers } from './offerteAgent';
 import { offerteBeheerHandlers } from './offerteBeheer';
 import { offerteDefinitiefHandlers } from './offerteDefinitief';
@@ -45,6 +46,7 @@ export const alleHandlers: AlleHandlers = {
   ...offerteDefinitiefHandlers,
   ...offerteBeheerHandlers,
   ...instellingenHandlers,
+  ...keuzelijstenHandlers,
   ...prijzenHandlers,
   ...voorbeeldenHandlers,
   ...claudeHandlers,

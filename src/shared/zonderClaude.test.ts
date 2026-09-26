@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KEUZE_STARTSET, type Keuzes } from './keuzelijsten';
 import { legeKlusInvoer } from './nieuweOfferte';
 import { PRIJS_STARTSET } from './prijsStartset';
 import type { KlusInvoer, Prijspost } from './types';
@@ -35,7 +36,10 @@ function invoer(deel: Partial<KlusInvoer> = {}): KlusInvoer {
 }
 
 const sleutels = (i: KlusInvoer) =>
-  planRegels(i).map((p) => ('sleutel' in p ? p.sleutel : `eigen:${p.eigen}`));
+  planRegels(i, KEUZE_STARTSET).map((p) => ('sleutel' in p ? p.sleutel : `eigen:${p.eigen}`));
+/** Alleen sleutel en aantal (label en eenheid zijn de terugval voor zelf toegevoegde opties). */
+const kaal = (i: KlusInvoer, keuzes: Keuzes = KEUZE_STARTSET) =>
+  planRegels(i, keuzes).map((p) => ('sleutel' in p ? { sleutel: p.sleutel, aantal: p.aantal } : p));
 const TEKSTEN = { inleiding: 'Inleiding', afsluiting: 'Afsluiting' };
 let n = 0;
 const maakId = () => `r${++n}`;
@@ -58,9 +62,9 @@ describe('planRegels (§9.5)', () => {
       lichtkoepelAantal: 1,
       afwerking: 'grind',
       steigerNodig: true,
-      garantieJaren: 20,
+      garantieJaren: '20',
     });
-    expect(planRegels(i)).toEqual([
+    expect(kaal(i)).toEqual([
       { sleutel: 'sloop', aantal: 34.75 },
       { sleutel: 'dampremmer', aantal: 34.75 },
       { sleutel: 'isolatie_100', aantal: 34.75 },
@@ -111,10 +115,9 @@ describe('planRegels (§9.5)', () => {
   });
 
   it('afwerking sedum; garantie 10 geeft geen garantiepost; nul-aantallen vallen weg', () => {
-    expect(sleutels(invoer({ afwerking: 'sedum', garantieJaren: 10, hwaAantal: 0, daktrimM1: 0 }))).toEqual([
-      'sedum',
-      'voorrijkosten',
-    ]);
+    expect(sleutels(invoer({ afwerking: 'sedum', garantieJaren: '10', hwaAantal: 0, daktrimM1: 0 }))).toEqual(
+      ['sedum', 'voorrijkosten'],
+    );
   });
 });
 
@@ -126,7 +129,7 @@ describe('titelZonderClaude (V-09)', () => {
     ['dak_vervangen', 'plat', 'Offerte dak vervangen plat dak'],
     ['nieuw_dak', 'hellend', 'Offerte nieuw dak hellend dak'],
   ] as const)('%s + %s → %s', (soortWerk, soortDak, titel) => {
-    expect(titelZonderClaude({ soortWerk, soortDak })).toBe(titel);
+    expect(titelZonderClaude({ soortWerk, soortDak }, KEUZE_STARTSET)).toBe(titel);
   });
 });
 
@@ -134,6 +137,7 @@ describe('maakInhoudZonderClaude (V-09, V-27)', () => {
   it('post mét prijs: prijslijst, prijs/eenheid/btw van de post, geen controlepunt', () => {
     const inhoud = maakInhoudZonderClaude({
       invoer: invoer({ isolatie: 'geen', afwerking: 'geen' }),
+      keuzes: KEUZE_STARTSET,
       postOpSleutel: posten({ voorrijkosten: 4500 }),
       teksten: TEKSTEN,
       maakId,
@@ -161,6 +165,7 @@ describe('maakInhoudZonderClaude (V-09, V-27)', () => {
         isolatieAndersMm: 140,
         afwerking: 'geen',
       }),
+      keuzes: KEUZE_STARTSET,
       postOpSleutel: posten({ voorrijkosten: 4500 }, ['sloop']),
       teksten: TEKSTEN,
       maakId,
@@ -191,7 +196,7 @@ describe('maakInhoudZonderClaude (V-09, V-27)', () => {
   });
 
   it('teksten volgens §9.5', () => {
-    const basis = { postOpSleutel: posten(), teksten: TEKSTEN, maakId };
+    const basis = { keuzes: KEUZE_STARTSET, postOpSleutel: posten(), teksten: TEKSTEN, maakId };
     const met = maakInhoudZonderClaude({
       ...basis,
       invoer: invoer({
@@ -214,9 +219,76 @@ describe('maakInhoudZonderClaude (V-09, V-27)', () => {
   it('zonder maakId unieke regel-id’s', () => {
     const inhoud = maakInhoudZonderClaude({
       invoer: invoer({ steigerNodig: true }),
+      keuzes: KEUZE_STARTSET,
       postOpSleutel: posten(),
       teksten: TEKSTEN,
     });
     expect(new Set(inhoud.regels.map((r) => r.id)).size).toBe(inhoud.regels.length);
+  });
+});
+
+describe('zelf toegevoegde keuzes (OFM-034)', () => {
+  const keuzes: Keuzes = {
+    ...KEUZE_STARTSET,
+    soortWerk: [{ sleutel: 'nieuw_dak', label: 'Compleet nieuw dak' }],
+    bedekking: [...KEUZE_STARTSET.bedekking, { sleutel: 'leien', label: 'Leien' }],
+    isolatie: [...KEUZE_STARTSET.isolatie, { sleutel: '160_mm', label: '160 mm' }],
+    extras: [{ sleutel: 'dakkapel', label: 'Dakkapel aansluiten' }, ...KEUZE_STARTSET.extras],
+    afwerking: [...KEUZE_STARTSET.afwerking, { sleutel: 'tegels', label: 'Tegels' }],
+    garantie: [...KEUZE_STARTSET.garantie, { sleutel: '15_jaar', label: '15 jaar' }],
+  };
+
+  it("posten op de nieuwe sleutel; extra's in de volgorde van de lijst; nieuwe garantie zonder post", () => {
+    const i = invoer({
+      bedekking: 'leien',
+      isolatie: '160_mm',
+      hwaAantal: 2,
+      extraAantallen: { dakkapel: 1 },
+      afwerking: 'tegels',
+      garantieJaren: '15_jaar',
+    });
+    expect(kaal(i, keuzes)).toEqual([
+      { sleutel: 'dampremmer', aantal: 34.75 },
+      { sleutel: '160_mm', aantal: 34.75 },
+      { sleutel: 'leien', aantal: 34.75 },
+      { sleutel: 'dakkapel', aantal: 1 },
+      { sleutel: 'hwa', aantal: 2 },
+      { sleutel: 'tegels', aantal: 34.75 },
+      { sleutel: 'voorrijkosten', aantal: 1 },
+    ]);
+  });
+
+  it('zonder post: het label als omschrijving, met de eenheid van de lijst', () => {
+    const inhoud = maakInhoudZonderClaude({
+      invoer: invoer({ bedekking: 'leien', isolatie: '160_mm', extraAantallen: { dakkapel: 2 } }),
+      keuzes,
+      postOpSleutel: posten(),
+      teksten: TEKSTEN,
+      maakId,
+    });
+    expect(inhoud.regels.map((r) => [r.omschrijving, r.eenheid])).toEqual([
+      ['Dampremmende laag', 'm²'],
+      ['Isolatie 160 mm', 'm²'],
+      ['Leien', 'm²'],
+      ['Dakkapel aansluiten', 'stuk'],
+      ['Voorrijkosten', 'post'],
+    ]);
+  });
+
+  it('titel met het hernoemde label', () => {
+    expect(titelZonderClaude({ soortWerk: 'nieuw_dak', soortDak: 'plat' }, keuzes)).toBe(
+      'Offerte compleet nieuw dak plat dak',
+    );
+  });
+
+  it('extra die niet meer in de lijst staat valt niet weg (label = sleutel)', () => {
+    const inhoud = maakInhoudZonderClaude({
+      invoer: invoer({ extraAantallen: { weg: 3 } }),
+      keuzes: KEUZE_STARTSET,
+      postOpSleutel: posten(),
+      teksten: TEKSTEN,
+      maakId,
+    });
+    expect(inhoud.regels[0]).toMatchObject({ omschrijving: 'weg', aantalHonderdsten: 300, eenheid: 'stuk' });
   });
 });

@@ -1,3 +1,4 @@
+import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { describe, expect, it } from 'vitest';
 import { maakInvoer, maakKlant } from '../../../test/privacy/testset';
 import { anonimiseer } from './anonimiseer';
@@ -48,6 +49,7 @@ describe('controleer (§11.3)', () => {
       invoer: maakInvoer({ ondergrond: 'staal', overig: 'Graag voor de winter' }),
       klant: staal,
       offertedatum: '2026-09-25',
+      keuzes: KEUZE_STARTSET,
     });
     expect(klus.ondergrond).toBe('Staal');
     expect(controleer(gebruikersTekst(klus).join('\n'), bouwPiiSet(staal))).toEqual({ ok: true });
@@ -55,7 +57,12 @@ describe('controleer (§11.3)', () => {
 
   it('FE-033: ongefilterde payload met een klantgegeven blokkeert, los van het filter', () => {
     const klus = bouwKlusVoorAgent(
-      { invoer: maakInvoer({ overig: 'Bel Jansen' }), klant, offertedatum: '2026-09-25' },
+      {
+        invoer: maakInvoer({ overig: 'Bel Jansen' }),
+        klant,
+        offertedatum: '2026-09-25',
+        keuzes: KEUZE_STARTSET,
+      },
       { filteren: false },
     );
     expect(klus.overig).toBe('Bel Jansen');

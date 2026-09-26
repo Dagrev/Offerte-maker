@@ -7,6 +7,7 @@ import { berekenGeldigTot } from '@shared/periode';
 import { klantSchema, klusInvoerSchema } from '@shared/schemas';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { Klant } from '@shared/types';
+import { haalKeuzes } from './keuzeopties';
 import { database, type Db } from '../verbinding';
 
 // Definitief maken en PDF-bestanden (TDO §8.1, §12.3, V-01, V-12). Eigenaar: OFM-015.
@@ -124,7 +125,7 @@ export function legDefinitiefVast(
     ).run(
       berekenGeldigTot(rij.offertedatum, geldigheidDagen),
       zoektekstVan(klant, plan.nummer),
-      omschrijvingKort(invoer),
+      omschrijvingKort(invoer, haalKeuzes()),
       tijd,
       plan.id,
     );

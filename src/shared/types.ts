@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { FoutCode, Resultaat } from './fouten';
 import type { ApiNaam, Kanaal } from './ipcKanalen';
+import type { KeuzeLijst } from './keuzelijsten';
 import type * as s from './schemas';
 
 // Domeintypes, afgeleid uit de schema's (TDO §5, §6.3, §4.3, V-15). De schema's zijn de bron.
@@ -8,6 +9,7 @@ import type * as s from './schemas';
 export type { FoutCode, FoutActie, Fout, Resultaat } from './fouten';
 export type { Kanaal } from './ipcKanalen';
 export type { InstellingSleutel } from './schemas';
+export type { KeuzeLijst, Keuzes } from './keuzelijsten';
 
 // §5
 export type Aanhef = z.infer<typeof s.aanhefSchema>;
@@ -21,6 +23,7 @@ export type Ondergrond = z.infer<typeof s.ondergrondSchema>;
 export type Isolatie = z.infer<typeof s.isolatieSchema>;
 export type Afwerking = z.infer<typeof s.afwerkingSchema>;
 export type Hoogte = z.infer<typeof s.hoogteSchema>;
+export type Garantie = z.infer<typeof s.garantieSchema>;
 export type Dakvlak = z.infer<typeof s.dakvlakSchema>;
 export type KlusInvoer = z.infer<typeof s.klusInvoerSchema>;
 export type Eenheid = z.infer<typeof s.eenheidSchema>;
@@ -46,6 +49,9 @@ export type Instellingen = z.infer<typeof s.instellingenSchema>;
 
 // V-15 en overige
 export type Prijspost = z.infer<typeof s.prijspostSchema>;
+export type Keuzeoptie = z.infer<typeof s.keuzeoptieSchema>;
+/** Uitvoer van `keuzelijsten:haal`: per lijst de opties in volgorde (OFM-034). */
+export type Keuzelijsten = Record<KeuzeLijst, Keuzeoptie[]>;
 export type VoorbeeldStatus = z.infer<typeof s.voorbeeldStatusSchema>;
 export type VoorbeeldItem = z.infer<typeof s.voorbeeldItemSchema>;
 export type ClaudeStatus = z.infer<typeof s.claudeStatusSchema>;
@@ -97,6 +103,9 @@ export interface KanaalUitvoer {
   'instellingen:kiesLogo': { gekozen: boolean };
   'instellingen:verwijderLogo': null;
   'instellingen:opmaakVoorbeeld': { html: string };
+  'keuzelijsten:haal': Keuzelijsten;
+  'keuzelijsten:bewaar': Keuzeoptie[];
+  'keuzelijsten:herstel': null;
   'prijzen:lijst': Prijspost[];
   'prijzen:bewaar': { id: string };
   'prijzen:verwijder': null;

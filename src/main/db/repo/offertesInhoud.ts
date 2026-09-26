@@ -7,6 +7,7 @@ import { klantSchema, klusInvoerSchema, offerteInhoudSchema } from '@shared/sche
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
 import type { Klant, KlusInvoer, OfferteInhoud } from '@shared/types';
 import { terugNaarPlaatshouders } from '../../privacy/invullen';
+import { haalKeuzes } from './keuzeopties';
 import { database } from '../verbinding';
 
 // Inhoud en versies van een offerte (TDO §4.2, §10.7 stap 7). Eigenaar: OFM-013; OFM-014 (handmatig
@@ -96,7 +97,7 @@ export function bewaarNieuweVersie(v: NieuweVersie, nu: Date = new Date()): { ve
     ).run(
       inhoudJson,
       totaal,
-      omschrijvingKort(invoer),
+      omschrijvingKort(invoer, haalKeuzes()),
       v.wizardStap ?? rij.wizard_stap,
       v.gewijzigdNaDefinitief ? 1 : 0,
       tijd,

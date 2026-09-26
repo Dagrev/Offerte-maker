@@ -5,6 +5,7 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { berekenTotalen } from '@shared/calc/bedragen';
 import { formatEuro } from '@shared/formatteer';
+import { KEUZE_STARTSET } from '@shared/keuzelijsten';
 import { gelePunten } from '@shared/offerteBewerken';
 import type { Resultaat } from '@shared/fouten';
 import type { Klant, KlusInvoer, OfferteDetail, OfferteInhoud } from '@shared/types';
@@ -35,7 +36,7 @@ const { zetTesthakenVoorTest } = await import('../testhaken');
 const { maakIpcHandler } = await import('./registreer');
 const { offerteInvoerHandlers } = await import('./offerteInvoer');
 const { offerteInhoudHandlers } = await import('./offerteInhoud');
-const { stelPdfModelSamen } = await import('../pdf/pdfModel');
+const { garantieTekst, stelPdfModelSamen } = await import('../pdf/pdfModel');
 const { haalInstelling, bewaarInstelling } = await import('../db/repo/instellingen');
 
 let db: TestDatabase;
@@ -304,7 +305,7 @@ describe('offerte:bewaarInhoud (§11.4, §12.3, V-05, V-12)', () => {
 
 describe('offerte:voorbeeldHtml (§12.3 stap 1, §12.5)', () => {
   it('levert HTML in modus voorbeeld met ingevulde inhoud, aanhef, garantie en concept', async () => {
-    const id = offerteMetInhoud(metWerkadres, agentInhoud(), maakInvoer({ garantieJaren: 20 }));
+    const id = offerteMetInhoud(metWerkadres, agentInhoud(), maakInvoer({ garantieJaren: '20' }));
     bewaarInstelling('bedrijf', { ...haalInstelling('bedrijf'), naam: 'Dakwerken Test', kvk: '12345678' });
     const { html } = data(await voorbeeldIpc(evt, { id }));
     expect(html).toContain('Geachte heer Jansen,');
@@ -335,6 +336,7 @@ describe('stelPdfModelSamen', () => {
       logoDataUri: null,
       opmaak: haalInstelling('opmaak'),
       teksten: haalInstelling('teksten'),
+      keuzes: KEUZE_STARTSET,
       fontCss: '',
     };
     const model = stelPdfModelSamen(bron);
@@ -345,5 +347,15 @@ describe('stelPdfModelSamen', () => {
     expect(model.totalen).toEqual(detail.totalen);
     expect(stelPdfModelSamen({ ...bron, nummer: '2026-007B' }).nummer).toBe('2026-007B');
     expect(stelPdfModelSamen({ ...bron, nummer: null }).nummer).toBeNull();
+  });
+
+  it('garantietekst per keuze: 10, 20 en een zelf toegevoegde garantie (OFM-034)', () => {
+    const teksten = { garantie10: 'Tien', garantie20: 'Twintig' };
+    const keuzes = { garantie: [{ sleutel: '15_jaar', label: '15 jaar' }] };
+    expect(garantieTekst('10', teksten, keuzes)).toBe('Tien');
+    expect(garantieTekst('20', teksten, keuzes)).toBe('Twintig');
+    expect(garantieTekst('15_jaar', teksten, keuzes)).toBe(
+      'Op de uitgevoerde werkzaamheden geven wij garantie: 15 jaar.',
+    );
   });
 });

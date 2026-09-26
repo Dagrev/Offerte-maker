@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 import { berekenTotalen } from '../src/shared/calc/bedragen';
+import { KEUZE_LIJSTEN, KEUZE_STARTSET } from '../src/shared/keuzelijsten';
 import { legeKlant, legeKlusInvoer, zoektekstVan } from '../src/shared/nieuweOfferte';
 import { formatNummer } from '../src/shared/nummering';
 import { omschrijvingKort } from '../src/shared/omschrijvingKort';
@@ -166,6 +167,15 @@ export function zorgVoorSchema(db: Database.Database): void {
         (index + 1) * 10,
       );
     });
+    // Zelfde startset als `voegKeuzeStartsetIn()` (OFM-034).
+    const keuze = db.prepare(
+      'INSERT INTO keuzeopties (id, lijst, sleutel, label, volgorde, verborgen, standaard) VALUES (?, ?, ?, ?, ?, 0, 1)',
+    );
+    for (const lijst of KEUZE_LIJSTEN) {
+      KEUZE_STARTSET[lijst].forEach((o, index) => {
+        keuze.run(`start-${lijst}-${o.sleutel}`, lijst, o.sleutel, o.label, (index + 1) * 10);
+      });
+    }
     db.pragma(`user_version = ${bestanden.length}`);
   })();
 }
@@ -328,7 +338,7 @@ export function vulMetSeed(
         JSON.stringify(o.invoer),
         inhoudJson,
         berekenTotalen(o.inhoud.regels).totaalCent,
-        omschrijvingKort(o.invoer),
+        omschrijvingKort(o.invoer, KEUZE_STARTSET),
         zoektekstVan(o.klant, nr?.nummer ?? null),
         tijdstip,
         tijdstip,

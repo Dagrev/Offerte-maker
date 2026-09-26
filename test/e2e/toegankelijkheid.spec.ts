@@ -131,7 +131,14 @@ test('alle schermen: axe zonder fouten, font ≥ 18 px, klikdoelen ≥ 48 px', a
   // Instellingen: alle tabs en alle subtabs van Geavanceerd.
   const ti = nl.instellingen;
   await knop(page, nl.overzicht.instellingen).click();
-  const hoofdtabs: InstellingenTab[] = ['bedrijf', 'opmaak', 'teksten', 'prijzen', 'voorbeelden'];
+  const hoofdtabs: InstellingenTab[] = [
+    'bedrijf',
+    'opmaak',
+    'teksten',
+    'prijzen',
+    'keuzelijsten',
+    'voorbeelden',
+  ];
   for (const tab of hoofdtabs) {
     await knop(page, ti.tab[tab]).click();
     await expect(knop(page, ti.tab[tab])).toHaveAttribute('aria-pressed', 'true');

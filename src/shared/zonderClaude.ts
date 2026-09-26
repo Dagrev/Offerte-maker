@@ -1,5 +1,6 @@
 import { aantalNaarHonderdsten, totaalM2 } from './calc/bedragen';
-import { SOORT_DAK_LABELS, SOORT_WERK_LABELS, labelIsolatie } from './labels';
+import { extraInMeters, extrasMetAantal, keuzeLabel, prijsSleutel, type Keuzes } from './keuzelijsten';
+import { labelIsolatie } from './labels';
 import { PRIJS_STARTSET } from './prijsStartset';
 import type { Eenheid, KlusInvoer, OfferteInhoud, Offerteregel, Prijspost } from './types';
 
@@ -15,6 +16,8 @@ export function vulPrijsIn(omschrijving: string): string {
 
 export interface ZonderClaudeBron {
   invoer: KlusInvoer;
+  /** Keuzelijsten uit de database (OFM-034): labels, en de volgorde van de extra's. */
+  keuzes: Keuzes;
   /** Prijspost op startset-sleutel (§9.3); `null` als de post is verwijderd. */
   postOpSleutel: (sleutel: string) => Prijspost | null;
   teksten: { inleiding: string; afsluiting: string };
@@ -23,43 +26,69 @@ export interface ZonderClaudeBron {
 }
 
 /** Titel volgens V-09: `Offerte` + soort werk (kleine letters) + soort dak, niet-gekozen delen weg. */
-export function titelZonderClaude(invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak'>): string {
+export function titelZonderClaude(
+  invoer: Pick<KlusInvoer, 'soortWerk' | 'soortDak'>,
+  keuzes: Pick<Keuzes, 'soortWerk' | 'soortDak'>,
+): string {
   const delen = ['Offerte'];
-  if (invoer.soortWerk) delen.push(SOORT_WERK_LABELS[invoer.soortWerk].toLowerCase());
-  if (invoer.soortDak) delen.push(SOORT_DAK_LABELS[invoer.soortDak]);
+  if (invoer.soortWerk) delen.push(keuzeLabel(keuzes, 'soortWerk', invoer.soortWerk).toLowerCase());
+  if (invoer.soortDak) delen.push(keuzeLabel(keuzes, 'soortDak', invoer.soortDak));
   return delen.join(' ');
 }
 
-/** Eén te maken regel: een startpost (op sleutel) of een eigen regel, met een aantal in eenheden. */
-type Plan = { sleutel: string; aantal: number } | { eigen: string; eenheid: Eenheid; aantal: number };
+/**
+ * Eén te maken regel: een post (op sleutel) of een eigen regel, met een aantal in eenheden. `label` is
+ * de omschrijving als er geen post (meer) is en de sleutel niet uit de startset komt (OFM-034).
+ */
+type Plan =
+  | { sleutel: string; aantal: number; label?: string; eenheid?: Eenheid }
+  | { eigen: string; eenheid: Eenheid; aantal: number };
 
-/** De regels in de volgorde en met de aantallen van de tabel in §9.5. */
-export function planRegels(invoer: KlusInvoer): Plan[] {
+/**
+ * De regels in de volgorde en met de aantallen van de tabel in §9.5. Opties die de gebruiker zelf aan
+ * een keuzelijst toevoegde (OFM-034) gebruiken de prijspost met dezelfde sleutel; extra's volgen de
+ * volgorde van hun keuzelijst.
+ */
+export function planRegels(invoer: KlusInvoer, keuzes: Keuzes): Plan[] {
   const m2 = totaalM2(invoer.dakvlakken);
   const plan: Plan[] = [];
   if (invoer.slopenEnAfvoeren) plan.push({ sleutel: 'sloop', aantal: m2 });
   if (invoer.isolatie !== 'geen') plan.push({ sleutel: 'dampremmer', aantal: m2 });
   if (invoer.isolatie === 'anders') {
-    const dikte = labelIsolatie('anders', invoer.isolatieAndersMm);
+    const dikte = labelIsolatie(keuzes, 'anders', invoer.isolatieAndersMm);
     plan.push({ eigen: dikte ? `Isolatie ${dikte}` : 'Isolatie', eenheid: 'm²', aantal: m2 });
   } else if (invoer.isolatie !== 'geen') {
-    plan.push({ sleutel: `isolatie_${invoer.isolatie}`, aantal: m2 });
+    plan.push({
+      sleutel: prijsSleutel('isolatie', invoer.isolatie),
+      aantal: m2,
+      label: `Isolatie ${labelIsolatie(keuzes, invoer.isolatie, null)}`,
+      eenheid: 'm²',
+    });
   }
   if (invoer.bedekking === 'anders') {
     plan.push({ eigen: invoer.bedekkingAnders.trim() || 'Dakbedekking', eenheid: 'm²', aantal: m2 });
   } else if (invoer.bedekking !== null) {
-    plan.push({ sleutel: invoer.bedekking, aantal: m2 });
+    plan.push({
+      sleutel: invoer.bedekking,
+      aantal: m2,
+      label: keuzeLabel(keuzes, 'bedekking', invoer.bedekking),
+      eenheid: 'm²',
+    });
   }
-  if (invoer.daktrimM1 > 0) plan.push({ sleutel: 'daktrim', aantal: invoer.daktrimM1 });
-  if (invoer.dakgootM1 > 0) plan.push({ sleutel: 'dakgoot_epdm', aantal: invoer.dakgootM1 });
-  if (invoer.hwaAantal > 0) plan.push({ sleutel: 'hwa', aantal: invoer.hwaAantal });
-  if (invoer.noodoverloopAantal > 0)
-    plan.push({ sleutel: 'noodoverloop', aantal: invoer.noodoverloopAantal });
-  if (invoer.doorvoerAantal > 0) plan.push({ sleutel: 'doorvoer', aantal: invoer.doorvoerAantal });
-  if (invoer.lichtkoepelAantal > 0) plan.push({ sleutel: 'lichtkoepel', aantal: invoer.lichtkoepelAantal });
-  if (invoer.afwerking !== 'geen') plan.push({ sleutel: invoer.afwerking, aantal: m2 });
+  for (const extra of extrasMetAantal(invoer, keuzes)) {
+    const eenheid = extraInMeters(extra.sleutel) ? 'm¹' : 'stuk';
+    plan.push({ sleutel: extra.sleutel, aantal: extra.aantal, label: extra.label, eenheid });
+  }
+  if (invoer.afwerking !== 'geen') {
+    plan.push({
+      sleutel: invoer.afwerking,
+      aantal: m2,
+      label: keuzeLabel(keuzes, 'afwerking', invoer.afwerking),
+      eenheid: 'm²',
+    });
+  }
   if (invoer.steigerNodig) plan.push({ sleutel: 'steiger', aantal: 1 });
-  if (invoer.garantieJaren === 20) plan.push({ sleutel: 'verzekerde_garantie', aantal: 1 });
+  if (invoer.garantieJaren === '20') plan.push({ sleutel: 'verzekerde_garantie', aantal: 1 });
   plan.push({ sleutel: 'voorrijkosten', aantal: 1 });
   return plan;
 }
@@ -74,7 +103,7 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
   const maakId = bron.maakId ?? (() => crypto.randomUUID());
   const controlepunten: string[] = [];
 
-  const regels = planRegels(bron.invoer).map((p): Offerteregel => {
+  const regels = planRegels(bron.invoer, bron.keuzes).map((p): Offerteregel => {
     const aantalHonderdsten = aantalNaarHonderdsten(p.aantal);
     const post = 'sleutel' in p ? bron.postOpSleutel(p.sleutel) : null;
     if (post && post.prijsCent !== null) {
@@ -90,8 +119,9 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
       };
     }
     const start = 'sleutel' in p ? PRIJS_STARTSET.find((s) => s.sleutel === p.sleutel) : undefined;
-    const omschrijving = post?.omschrijving ?? start?.omschrijving ?? ('eigen' in p ? p.eigen : '');
-    const eenheid = post?.eenheid ?? start?.eenheid ?? ('eigen' in p ? p.eenheid : 'post');
+    const omschrijving =
+      post?.omschrijving ?? start?.omschrijving ?? ('eigen' in p ? p.eigen : (p.label ?? p.sleutel));
+    const eenheid = post?.eenheid ?? start?.eenheid ?? p.eenheid ?? 'post';
     controlepunten.push(vulPrijsIn(omschrijving));
     return {
       id: maakId(),
@@ -106,7 +136,7 @@ export function maakInhoudZonderClaude(bron: ZonderClaudeBron): OfferteInhoud {
   });
 
   return {
-    titel: titelZonderClaude(bron.invoer),
+    titel: titelZonderClaude(bron.invoer, bron.keuzes),
     inleiding: bron.teksten.inleiding,
     werkomschrijving: regels.map((r) => r.omschrijving),
     regels,

@@ -5,6 +5,8 @@ export interface TegelOptie<T extends string> {
   waarde: T;
   label: string;
   icoon: LucideIcon;
+  /** Verborgen of verwijderde keuze die deze offerte nog heeft (OFM-034): grijs getoond. */
+  verborgen?: boolean;
 }
 
 export interface TegelKeuzeProps<T extends string> {
@@ -26,7 +28,7 @@ export function TegelKeuze<T extends string>({ label, opties, waarde, opKies, hi
       <legend className="mb-3 font-semibold">{label}</legend>
       {hint && <p className="text-tekst-zacht">{hint}</p>}
       <div className="flex flex-wrap gap-4">
-        {opties.map(({ waarde: optie, label: optieLabel, icoon: Icoon }) => {
+        {opties.map(({ waarde: optie, label: optieLabel, icoon: Icoon, verborgen = false }) => {
           const gekozen = optie === waarde;
           return (
             <button
@@ -37,6 +39,7 @@ export function TegelKeuze<T extends string>({ label, opties, waarde, opKies, hi
               className={
                 'relative flex min-h-24 min-w-40 flex-col items-center justify-center gap-2 ' +
                 'rounded-knop bg-achtergrond px-4 py-3 text-center font-semibold ' +
+                (verborgen ? 'border-dashed opacity-60 ' : '') +
                 (gekozen
                   ? 'border-3 border-accent text-accent'
                   : 'border-2 border-rand text-tekst hover:border-accent')
@@ -44,6 +47,7 @@ export function TegelKeuze<T extends string>({ label, opties, waarde, opKies, hi
             >
               <Icoon aria-hidden="true" className="size-8" />
               <span>{optieLabel}</span>
+              {verborgen && <span className="text-sm font-normal">{nl.componenten.nietMeerInLijst}</span>}
               {gekozen && (
                 <span className="absolute top-1.5 right-1.5 rounded-full bg-accent p-0.5 text-white">
                   <Check aria-hidden="true" className="size-4" strokeWidth={3} />

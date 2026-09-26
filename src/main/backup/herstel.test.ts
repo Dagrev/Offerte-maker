@@ -20,7 +20,8 @@ const { dagelijkseBackup, isIntact, lijstBackups, maakBackup, ruimOp, tijdstipVa
 const { zetTerug } = await import('./herstel');
 const { haalInstelling } = await import('../db/repo/instellingen');
 const { database } = await import('../db/verbinding');
-const { SCHEMA_VERSIE } = await import('../db/migraties');
+const { SCHEMA_VERSIE, migreer } = await import('../db/migraties');
+const { openDatabase } = await import('../db/verbinding');
 
 let t: TestDatabase;
 let map: string;
@@ -149,6 +150,38 @@ describe('zetTerug (§14.2, V-19, FE-101)', () => {
     expect(voorHerstel).toBeDefined();
     expect(aantalOffertes(join(map, voorHerstel ?? ''))).toBe(3);
     expect(isIntact(join(map, voorHerstel ?? ''))).toBe(true);
+  });
+
+  it('OFM-034: back-up met schemaversie 1 wordt teruggezet; bij de herstart draait migratie 002 opnieuw', async () => {
+    const bestand = await maakBackup('handmatig', {
+      db: t.db,
+      backupMap: map,
+      nu: new Date(2026, 8, 1, 9, 0, 0),
+    });
+    // Maak er een back-up van vóór OFM-034 van: zonder keuzeopties, garantie als getal, versie 1.
+    const kopie = new Database(join(map, bestand));
+    kopie.exec('DROP TABLE keuzeopties');
+    kopie
+      .prepare(
+        `INSERT INTO offertes (id, offertedatum, geldig_tot, klant_json, invoer_json, aangemaakt_op, bijgewerkt_op)
+         VALUES ('oud', '2026-09-01', '2026-10-01', '{}', '{"garantieJaren":20,"isolatie":"geen"}', 'x', 'x')`,
+      )
+      .run();
+    kopie.pragma('user_version = 1');
+    kopie.close();
+
+    await zetTerug(bestand, { herstart: vi.fn() });
+    const db = openDatabase(t.pad);
+    try {
+      expect(await migreer(db, { backup: () => Promise.resolve() })).toMatchObject({ van: 1, naar: 2 });
+      const invoer = db.prepare("SELECT invoer_json FROM offertes WHERE id = 'oud'").get() as {
+        invoer_json: string;
+      };
+      expect(JSON.parse(invoer.invoer_json)).toEqual({ garantieJaren: '20', isolatie: 'geen' });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM keuzeopties').get()).toEqual({ n: 40 });
+    } finally {
+      db.close();
+    }
   });
 
   it('de gekozen back-up mag de oudste van 30 zijn (opruimen raakt hem niet vóór het kopiëren)', async () => {
