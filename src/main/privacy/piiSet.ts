@@ -174,7 +174,9 @@ export function zoekpatroon(pii: PiiWaarde, globaal = true): RegExp {
   const g = globaal ? 'g' : '';
   if (pii.soort === 'telefoon') {
     const [eerste = '', ...rest] = pii.waarde;
-    const begin = eerste === '0' ? `(?:\\+${SCHEIDING}31|0031|0)` : eerste;
+    // NL (`0…`): ook als `+31`/`0031`. Buitenlands (OFM-030, E.164 `+32…`): met of zonder `+`/`00`.
+    const begin =
+      eerste === '0' ? `(?:\\+${SCHEIDING}31|0031|0)` : `(?:\\+${SCHEIDING}|00)?${escape(eerste)}`;
     const lijf = rest.map((c) => SCHEIDING + c).join('');
     return new RegExp(`(?<![\\d+])\\(?${begin}${lijf}(?!\\d)`, `${g}u`);
   }

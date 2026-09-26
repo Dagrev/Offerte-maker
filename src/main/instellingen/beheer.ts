@@ -5,6 +5,8 @@ import { AppFout } from '@shared/fouten';
 import { renderOfferteHtml } from '@shared/pdf-template/render';
 import { opmaakVoorbeeldModel } from '@shared/pdf-template/voorbeeldData';
 import { bestandTeGroot } from '@shared/teksten/fouten';
+import { BEDRIJF_VELDNAMEN, validatieMelding } from '@shared/teksten/validatie';
+import { controleerBedrijfVelden } from '@shared/validatie';
 import type { Instellingen, KanaalInvoer, Opmaak } from '@shared/types';
 import { legeStatusCache } from '../agent/claudeStatus';
 import { synchroniseerWerkmap } from '../agent/werkmap';
@@ -59,7 +61,11 @@ export function haalInstellingen(): Instellingen {
 export async function bewaarInstellingen(invoer: KanaalInvoer<'instellingen:bewaar'>): Promise<null> {
   switch (invoer.sleutel) {
     case 'bedrijf': {
-      const bedrijf = { ...invoer.waarde, logoBestandId: haalInstelling('bedrijf').logoBestandId };
+      // OFM-030: geldig en genormaliseerd; een ongeldige waarde die al zo opgeslagen stond mag blijven.
+      const vorige = haalInstelling('bedrijf');
+      const { waarde, fouten } = controleerBedrijfVelden(invoer.waarde, vorige);
+      if (fouten.length > 0) throw new AppFout('VALIDATIE', validatieMelding(fouten, BEDRIJF_VELDNAMEN));
+      const bedrijf = { ...waarde, logoBestandId: vorige.logoBestandId };
       bewaarInstelling('bedrijf', bedrijf);
       await herRedigeerVoorbeelden(bedrijf);
       synchroniseerWerkmap();

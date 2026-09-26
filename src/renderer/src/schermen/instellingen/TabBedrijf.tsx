@@ -1,6 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ImagePlus, Trash2 } from 'lucide-react';
+import { VALIDATIE_FOUTEN } from '@shared/teksten/validatie';
 import type { Instellingen } from '@shared/types';
+import {
+  bewaarbaarBedrijf,
+  controleerEmail,
+  controleerPostcode,
+  controleerStraatHuisnummer,
+  controleerTelefoon,
+  ongeldigeBedrijfVelden,
+  type BedrijfVeld,
+  type Controle,
+} from '@shared/validatie';
 import { bewaarInstelling, useLogo } from '../../api/instellingen';
 import { alsFout } from '../../api/roep';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
@@ -31,6 +42,15 @@ const VELDEN: { sleutel: Sleutel; breed?: boolean; type?: string; autoComplete?:
   { sleutel: 'iban', breed: true },
 ];
 
+/** Gecontroleerde velden (OFM-030) met de controle die ook de genormaliseerde waarde geeft. */
+const CONTROLES: Record<BedrijfVeld, (invoer: string) => Controle> = {
+  adres: controleerStraatHuisnummer,
+  postcode: controleerPostcode,
+  telefoon: controleerTelefoon,
+  email: controleerEmail,
+};
+const isGecontroleerd = (sleutel: Sleutel): sleutel is BedrijfVeld => sleutel in CONTROLES;
+
 function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
   const { logoBestandId: _id, logoDataUri: _logo, ...rest } = b;
   void _id;
@@ -41,6 +61,10 @@ function naarForm(b: Instellingen['bedrijf']): BedrijfForm {
 /**
  * Tab Bedrijf (FE-070): bedrijfsgegevens en logo; elk veld bewaart vanzelf (FE-075). `opWijzig` is
  * voor het welkomstscherm (OFM-023), dat ontbrekende gegevens meldt bij het verlaten van stap 1 (OFM-029).
+ *
+ * OFM-030: adres, postcode, telefoon en e-mail worden gecontroleerd. Een ongeldig veld krijgt na het
+ * verlaten een rode melding en wordt niet bewaard (de laatst bewaarde waarde gaat mee); de andere
+ * velden wel. Een geldige waarde wordt bij het verlaten netjes gezet (`1234 AB`, `+31612345678`).
  */
 export function TabBedrijf({
   instellingen,
@@ -51,12 +75,31 @@ export function TabBedrijf({
 }) {
   const [form, setForm] = useState<BedrijfForm>(() => naarForm(instellingen.bedrijf));
   const bewaren = useAutoBewaar((waarde: BedrijfForm) => bewaarInstelling({ sleutel: 'bedrijf', waarde }));
+  const bewaardRef = useRef(form);
+  const [aangeraakt, setAangeraakt] = useState<ReadonlySet<Sleutel>>(new Set());
+  const ongeldig = ongeldigeBedrijfVelden(form);
 
   const wijzig = (sleutel: Sleutel, waarde: string) => {
     const nieuw = { ...form, [sleutel]: waarde };
     setForm(nieuw);
-    bewaren.wijzig(nieuw);
+    bewaardRef.current = bewaarbaarBedrijf(nieuw, bewaardRef.current);
+    bewaren.wijzig(bewaardRef.current);
     opWijzig?.(nieuw);
+  };
+
+  const verlaat = (sleutel: Sleutel) => {
+    if (isGecontroleerd(sleutel)) {
+      setAangeraakt((a) => (a.has(sleutel) ? a : new Set(a).add(sleutel)));
+      const c = CONTROLES[sleutel](form[sleutel]);
+      if (c.geldig && c.waarde !== form[sleutel]) wijzig(sleutel, c.waarde);
+    }
+    bewaren.bewaarNu();
+  };
+
+  const foutVan = (sleutel: Sleutel) => {
+    if (!isGecontroleerd(sleutel) || !aangeraakt.has(sleutel)) return undefined;
+    const soort = ongeldig[sleutel];
+    return soort ? VALIDATIE_FOUTEN[soort] : undefined;
   };
 
   return (
@@ -75,7 +118,8 @@ export function TabBedrijf({
                 label={t[sleutel]}
                 waarde={form[sleutel]}
                 opWijzig={(w) => wijzig(sleutel, w)}
-                onBlur={bewaren.bewaarNu}
+                onBlur={() => verlaat(sleutel)}
+                fout={foutVan(sleutel)}
                 type={type}
                 autoComplete={autoComplete}
                 spellCheck={false}

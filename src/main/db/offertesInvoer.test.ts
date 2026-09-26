@@ -38,7 +38,7 @@ const klant: Klant = {
   naam: 'P. Jansen',
   bedrijfsnaam: 'Jansen Bouw B.V.',
   adres: { straatHuisnummer: 'Kerkstraat 1', postcode: '5611 AB', plaats: 'Eindhoven' },
-  telefoon: '040 123 45 67',
+  telefoon: '+31401234567', // al genormaliseerd (OFM-030)
 };
 
 function invoerMetVlakken(): KlusInvoer {
@@ -237,6 +237,50 @@ describe('bewaarInvoer (offerte:bewaarInvoer)', () => {
     expect(haalOfferte(id).klant.werkadres).toEqual({ straatHuisnummer: '', postcode: '', plaats: '' });
     bewaarInvoer({ id, klant: { ...klant, heeftWerkadres: true, werkadres: werk } }, 30, NU);
     expect(haalOfferte(id).klant.werkadres).toEqual(werk);
+  });
+
+  it('OFM-030: normaliseert postcode, telefoon en e-mail bij bewaren', () => {
+    const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+    bewaarInvoer(
+      {
+        id,
+        klant: {
+          ...klant,
+          adres: { ...klant.adres, postcode: '5611ab' },
+          telefoon: '06-12345678',
+          email: 'Jan@Voorbeeld.NL',
+        },
+      },
+      30,
+      NU,
+    );
+    expect(haalOfferte(id).klant).toMatchObject({
+      adres: { postcode: '5611 AB' },
+      telefoon: '+31612345678',
+      email: 'jan@voorbeeld.nl',
+    });
+  });
+
+  it('OFM-030: weigert een ongeldige waarde met de veldnaam; een oude opgeslagen waarde mag blijven', () => {
+    const id = maakOfferte({ vandaag: '2026-09-25', geldigheidDagen: 30 }, NU);
+    let fout: unknown;
+    try {
+      bewaarInvoer({ id, klant: { ...klant, adres: { ...klant.adres, postcode: '12345' } } }, 30, NU);
+    } catch (e) {
+      fout = e;
+    }
+    expect(fout).toBeInstanceOf(AppFout);
+    expect((fout as AppFout).code).toBe('VALIDATIE');
+    expect((fout as AppFout).melding).toMatch(/^Postcode van de klant: Een postcode bestaat uit/);
+
+    // Oude offerte (van vóór OFM-030) met een ongeldige waarde: blijft te bewerken.
+    const oud = { ...klant, telefoon: 'bel via kantoor' };
+    t.db.prepare('UPDATE offertes SET klant_json = ? WHERE id = ?').run(JSON.stringify(oud), id);
+    bewaarInvoer({ id, klant: { ...oud, naam: 'Anders' } }, 30, NU);
+    expect(haalOfferte(id).klant).toMatchObject({ naam: 'Anders', telefoon: 'bel via kantoor' });
+    expect(() => bewaarInvoer({ id, klant: { ...oud, telefoon: 'bel mij' } }, 30, NU)).toThrow(
+      /Telefoon van de klant/,
+    );
   });
 
   it('weigert als de offerte al definitief is (nummer of PDF)', () => {

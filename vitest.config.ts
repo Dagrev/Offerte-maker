@@ -27,6 +27,7 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         'src/shared/calc/**': { branches: 100 },
+        'src/shared/validatie.ts': { branches: 100 },
       },
     },
   },

@@ -12,6 +12,8 @@ import { omschrijvingKort } from '@shared/omschrijvingKort';
 import { berekenGeldigTot } from '@shared/periode';
 import { klantSchema, klusInvoerSchema, offerteInhoudSchema, statusSchema } from '@shared/schemas';
 import { VALIDATIE_MELDINGEN } from '@shared/teksten/fouten';
+import { KLANT_VELDNAMEN, validatieMelding } from '@shared/teksten/validatie';
+import { controleerKlantVelden } from '@shared/validatie';
 import type { Klant, KlusInvoer, OfferteDetail } from '@shared/types';
 import { invullen } from '../../privacy/invullen';
 import { controleerKeuzes, haalKeuzes } from './keuzeopties';
@@ -130,6 +132,16 @@ export function haalOfferte(id: string): OfferteDetail {
   };
 }
 
+/**
+ * OFM-030: postcode, straat en huisnummer, telefoon en e-mail geldig en genormaliseerd; een ongeldige
+ * waarde die al zo opgeslagen stond (oude offerte) mag blijven staan. Anders `VALIDATIE` met de veldnaam.
+ */
+function gecontroleerdeKlant(klant: Klant, opgeslagen: Klant): Klant {
+  const { waarde, fouten } = controleerKlantVelden(klant, opgeslagen);
+  if (fouten.length > 0) throw new AppFout('VALIDATIE', validatieMelding(fouten, KLANT_VELDNAMEN));
+  return normaliseerKlant(waarde);
+}
+
 export interface InvoerWijziging {
   id: string;
   klant?: Klant | undefined;
@@ -149,7 +161,8 @@ export function bewaarInvoer(w: InvoerWijziging, geldigheidDagen: number, nu: Da
     const heeftPdf = db.prepare('SELECT 1 FROM pdf_bestanden WHERE offerte_id = ? LIMIT 1').get(w.id);
     if (rij.nummer !== null || heeftPdf) throw new AppFout('VALIDATIE', MELDING_AL_DEFINITIEF);
 
-    const klant = w.klant ? normaliseerKlant(w.klant) : klantSchema.parse(JSON.parse(rij.klant_json));
+    const opgeslagenKlant = klantSchema.parse(JSON.parse(rij.klant_json));
+    const klant = w.klant ? gecontroleerdeKlant(w.klant, opgeslagenKlant) : opgeslagenKlant;
     const opgeslagen = klusInvoerSchema.parse(JSON.parse(rij.invoer_json));
     // OFM-034: alleen bestaande keuzes (of de keuze die er al stond).
     if (w.invoer) controleerKeuzes(w.invoer, opgeslagen);

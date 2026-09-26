@@ -192,4 +192,17 @@ describe('zoekpatroon', () => {
     const zonderNul: PiiWaarde = { ...tel, waarde: '3212345678' };
     expect(zoekpatroon(zonderNul, false).test('32 1234 5678')).toBe(true);
   });
+
+  it('OFM-030: genormaliseerd nummer (E.164) herkend in beide schrijfwijzen', () => {
+    const [nl] = bouwPiiSet(maakKlant({ telefoon: '+31612345678' })).filter((p) => p.soort === 'telefoon');
+    expect(nl?.waarde).toBe('0612345678');
+    for (const t of ['+31612345678', '+31 6 12345678', '06-12345678', '06 1234 5678', '0031612345678']) {
+      expect(zoekpatroon(nl!, false).test(`bel ${t} gerust`), t).toBe(true);
+    }
+    const [be] = bouwPiiSet(maakKlant({ telefoon: '+32470123456' })).filter((p) => p.soort === 'telefoon');
+    for (const t of ['+32470123456', '+32 470 12 34 56', '0032 470 123456', '32470123456']) {
+      expect(zoekpatroon(be!, false).test(`bel ${t} gerust`), t).toBe(true);
+    }
+    expect(zoekpatroon(be!, false).test('132470123456')).toBe(false);
+  });
 });

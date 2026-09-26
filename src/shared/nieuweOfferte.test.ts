@@ -88,14 +88,11 @@ describe('controleerKlant (FE-024, V-16)', () => {
     email: 'a@b.nl',
   };
 
-  it('geldige klant: geen fouten of waarschuwingen', () => {
-    expect(controleerKlant(geldig)).toEqual({ fouten: {}, waarschuwingen: {} });
+  it('geldige klant: geen fouten', () => {
+    expect(controleerKlant(geldig)).toEqual({ fouten: {}, ongeldig: {} });
     expect(klantCompleet(geldig)).toBe(true);
     expect(controleerKlant({ ...geldig, email: '', adres: { ...geldig.adres, postcode: '5611ab' } })).toEqual(
-      {
-        fouten: {},
-        waarschuwingen: {},
-      },
+      { fouten: {}, ongeldig: {} },
     );
   });
 
@@ -105,22 +102,23 @@ describe('controleerKlant (FE-024, V-16)', () => {
     expect(klantCompleet({ ...geldig, naam: '' })).toBe(false);
   });
 
-  it('postcode 12345 en een raar e-mailadres geven alleen een waarschuwing', () => {
+  it('postcode 12345 en een raar e-mailadres zijn ongeldig en blokkeren (OFM-030)', () => {
     const k = { ...geldig, email: 'jan@nl', adres: { ...geldig.adres, postcode: '12345' } };
-    expect(controleerKlant(k)).toEqual({ fouten: {}, waarschuwingen: { postcode: 'vorm', email: 'vorm' } });
-    expect(klantCompleet(k)).toBe(true);
-    expect(
-      controleerKlant({ ...geldig, adres: { ...geldig.adres, postcode: '0611 AB' } }).waarschuwingen,
-    ).toEqual({
-      postcode: 'vorm',
+    expect(controleerKlant(k)).toEqual({
+      fouten: {},
+      ongeldig: { 'adres.postcode': 'postcode', email: 'email' },
+    });
+    expect(klantCompleet(k)).toBe(false);
+    expect(controleerKlant({ ...geldig, adres: { ...geldig.adres, postcode: '0611 AB' } }).ongeldig).toEqual({
+      'adres.postcode': 'postcode',
     });
   });
 
   it('werkadrespostcode alleen gecontroleerd bij een werkadres', () => {
     const werkadres = { straatHuisnummer: '', postcode: '99', plaats: '' };
-    expect(controleerKlant({ ...geldig, werkadres }).waarschuwingen).toEqual({});
-    expect(controleerKlant({ ...geldig, heeftWerkadres: true, werkadres }).waarschuwingen).toEqual({
-      werkadresPostcode: 'vorm',
+    expect(controleerKlant({ ...geldig, werkadres }).ongeldig).toEqual({});
+    expect(controleerKlant({ ...geldig, heeftWerkadres: true, werkadres }).ongeldig).toEqual({
+      'werkadres.postcode': 'postcode',
     });
   });
 });

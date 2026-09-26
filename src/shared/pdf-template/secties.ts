@@ -2,6 +2,7 @@ import { regelbedragCent } from '../calc/bedragen';
 import { formatAantal, formatDatum, formatDatumLang, formatEuro } from '../formatteer';
 import { klantWeergave } from '../labels';
 import type { Bedrijf, Klant } from '../types';
+import { telefoonWeergave } from '../validatie';
 import type { PdfModel } from './render';
 
 // De onderdelen van de offerte, in de volgorde van FO §9. Elke functie geeft één `<section>`
@@ -84,7 +85,9 @@ export function kop(m: PdfModel): string {
   const logo = veiligLogo(m.logoDataUri);
   const logoHtml = logo ? `<img class="logo" src="${escapeHtml(logo)}" alt="">` : '';
   const naam = b.naam.trim() ? `<div class="bedrijfsnaam">${escapeHtml(b.naam.trim())}</div>` : '';
-  const gegevens = regels([b.adres, postcodePlaats(b.postcode, b.plaats), b.telefoon, b.email, b.website]);
+  // Telefoon staat als E.164 opgeslagen (OFM-030); op papier leesbaar: +31 6 12345678.
+  const tel = telefoonWeergave(b.telefoon);
+  const gegevens = regels([b.adres, postcodePlaats(b.postcode, b.plaats), tel, b.email, b.website]);
   return (
     `<section class="kop">${logoHtml}<div class="bedrijf">${naam}` +
     `<div class="gegevens">${gegevens}</div></div></section>`

@@ -5,6 +5,7 @@ import { berekenGeldigTot } from '@shared/periode';
 import { leesDatum } from '@shared/formatteer';
 import { alsKeuzes } from '@shared/keuzelijsten';
 import type { Keuzelijsten, Klant, KlusInvoer, OfferteDetail } from '@shared/types';
+import { bewaarbareKlant } from '@shared/validatie';
 import { klantCompleet } from '@shared/wizardControle';
 import { useOpnieuwInloggen } from '../../api/agentTaak';
 import { useClaudeStatus } from '../../api/claude';
@@ -95,6 +96,8 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   const [stap, setStap] = useState<WizardStap>(alsStap(storeStap ?? detail.wizardStap));
   const [toonFouten, setToonFouten] = useState(false);
   const klantRef = useRef(klant);
+  // OFM-030: de laatst bewaarde klant; een ongeldig veld gaat met deze waarde mee naar main.
+  const bewaardeKlantRef = useRef(detail.klant);
   const invoerRef = useRef(invoer);
 
   // Geldigheid in dagen zoals main die bij `offerte:nieuw` gebruikte (teksten.geldigheidDagen).
@@ -106,7 +109,8 @@ function WizardFormulier({ detail, keuzelijsten }: { detail: OfferteDetail; keuz
   const wijzigKlant = (nieuw: Klant) => {
     klantRef.current = nieuw;
     setKlant(nieuw);
-    bewaar.plan({ klant: nieuw });
+    bewaardeKlantRef.current = bewaarbareKlant(nieuw, bewaardeKlantRef.current);
+    bewaar.plan({ klant: bewaardeKlantRef.current });
   };
   const wijzigInvoer = (deel: Partial<KlusInvoer>) => {
     const nieuw = { ...invoerRef.current, ...deel };

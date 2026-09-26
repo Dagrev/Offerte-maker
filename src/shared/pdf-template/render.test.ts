@@ -270,6 +270,14 @@ describe('renderOfferteHtml', () => {
     expect(renderOfferteHtml(model(), 'pdf')).toContain(`<img class="logo" src="${LOGO}" alt="">`);
   });
 
+  it('OFM-030: telefoon van het bedrijf leesbaar in de kop (+31 6 12345678)', () => {
+    const html = renderOfferteHtml(
+      model({ bedrijf: { ...VOORBEELD_BEDRIJF, telefoon: '+31612345678' } }),
+      'pdf',
+    );
+    expect(html).toContain('+31 6 12345678');
+  });
+
   it('voetnoot alleen als hij is ingevuld', () => {
     expect(renderOfferteHtml(model(), 'pdf')).not.toContain('class="voetnoot"');
     expect(renderOfferteHtml(model({ voetnoot: 'Prijzen onder voorbehoud.' }), 'pdf')).toContain(

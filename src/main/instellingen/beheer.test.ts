@@ -181,6 +181,36 @@ describe('instellingen:bewaar', () => {
     const r = await bewaar(nepEvent, { sleutel: 'bedrijf', waarde: bedrijf({ naam: 'X' }) });
     expect(r.ok).toBe(true);
   });
+
+  it('OFM-030: normaliseert adres, postcode, telefoon en e-mail; weigert ongeldig met de veldnaam', async () => {
+    const goed = bedrijf({
+      adres: 'Industrieweg  1',
+      postcode: '5600aa',
+      telefoon: '040-1234567',
+      email: 'Info@Dak.NL',
+    });
+    expect((await bewaar(nepEvent, { sleutel: 'bedrijf', waarde: goed })).ok).toBe(true);
+    expect(haalInstelling('bedrijf')).toMatchObject({
+      adres: 'Industrieweg 1',
+      postcode: '5600 AA',
+      telefoon: '+31401234567',
+      email: 'info@dak.nl',
+    });
+
+    const fout = await bewaar(nepEvent, { sleutel: 'bedrijf', waarde: { ...goed, email: 'info@dak' } });
+    expect(fout).toMatchObject({ ok: false, fout: { code: 'VALIDATIE' } });
+    expect(!fout.ok && fout.fout.melding).toMatch(/^E-mail van het bedrijf: Een e-mailadres/);
+    expect(haalInstelling('bedrijf').email).toBe('info@dak.nl');
+
+    // Oude ongeldige waarde (van vóór OFM-030) blijft staan zolang hij niet verandert.
+    bewaarInstelling('bedrijf', { ...haalInstelling('bedrijf'), telefoon: 'zie website' });
+    const r = await bewaar(nepEvent, {
+      sleutel: 'bedrijf',
+      waarde: { ...goed, naam: 'Nieuw', telefoon: 'zie website' },
+    });
+    expect(r.ok).toBe(true);
+    expect(haalInstelling('bedrijf')).toMatchObject({ naam: 'Nieuw', telefoon: 'zie website' });
+  });
 });
 
 describe('logo (FE-070, V-11)', () => {

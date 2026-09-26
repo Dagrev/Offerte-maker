@@ -27,8 +27,6 @@ export const wizard = {
     werkadres: 'Werkadres',
     naamLeeg: 'Vul de naam van de klant in',
     plaatsLeeg: 'Vul de plaats in',
-    postcodeVorm: 'Deze postcode ziet er niet goed uit (bijvoorbeeld 5611 AB)',
-    emailVorm: 'Dit e-mailadres ziet er niet goed uit',
   },
 
   dak: {
