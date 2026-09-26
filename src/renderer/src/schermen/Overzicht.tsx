@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Search, Settings, Trash2, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search, Settings, Trash2, X } from 'lucide-react';
 import type { OfferteLijstItem } from '@shared/types';
 import { formatEuroHeel } from '@shared/formatteer';
 import { periodeVan, verschuif } from '@shared/periode';
@@ -10,6 +10,7 @@ import { ClaudeBolletje } from '../componenten/ClaudeBolletje';
 import { Foutmelding } from '../componenten/Foutmelding';
 import { Knop } from '../componenten/Knop';
 import { OfferteRij, offerteRijKolommen } from '../componenten/OfferteRij';
+import { PeriodeKiezer } from '../componenten/PeriodeKiezer';
 import { useNavigatie, type Weergave } from '../stores/navigatie';
 import { nl } from '../teksten/nl';
 
@@ -30,6 +31,7 @@ export function Overzicht() {
   const claudeStatus = useClaudeStatus();
   const nieuw = useNieuweOfferte();
 
+  const [kiezerOpen, setKiezerOpen] = useState(false);
   const [zoekInvoer, setZoekInvoer] = useState('');
   const [zoekTekst, setZoekTekst] = useState('');
   useEffect(() => {
@@ -114,11 +116,17 @@ export function Overzicht() {
               icoon={ChevronLeft}
               onClick={() => zetPeriode({ datum: verschuif(weergave, datum, -1) })}
             />
-            <h2
-              aria-live="polite"
-              className="min-w-72 text-center text-xl font-semibold first-letter:uppercase"
-            >
-              {periodeVan(weergave, datum).label}
+            <h2 aria-live="polite" className="min-w-72 text-center text-xl font-semibold">
+              {/* Klikbaar label opent de periodekiezer (OFM-037). */}
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                title={t.kiesPeriode}
+                onClick={() => setKiezerOpen(true)}
+                className="min-h-14 w-full rounded-knop px-3 first-letter:uppercase hover:bg-vlak"
+              >
+                {periodeVan(weergave, datum).label}
+              </button>
             </h2>
             <Knop
               label={t.volgende}
@@ -127,6 +135,24 @@ export function Overzicht() {
               onClick={() => zetPeriode({ datum: verschuif(weergave, datum, 1) })}
             />
             <Knop label={t.vandaag} onClick={() => zetPeriode({ datum: vandaag })} disabled={opVandaag} />
+            <Knop
+              label={t.kiesPeriode}
+              alleenIcoon
+              icoon={CalendarDays}
+              aria-haspopup="dialog"
+              onClick={() => setKiezerOpen(true)}
+            />
+            <PeriodeKiezer
+              open={kiezerOpen}
+              weergave={weergave}
+              datum={datum}
+              vandaag={vandaag}
+              opKies={(gekozen) => {
+                zetPeriode({ datum: gekozen });
+                setKiezerOpen(false);
+              }}
+              opSluit={() => setKiezerOpen(false)}
+            />
           </div>
           <Periodelijst weergave={weergave} datum={datum} opKies={openOfferte} />
         </>

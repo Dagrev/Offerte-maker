@@ -80,9 +80,52 @@ export function periodeVan(weergave: Weergave, datum: string): Periode {
   }
 }
 
-/** Een datum in de vorige (`-1`) of volgende (`1`) periode. */
-export function verschuif(weergave: Weergave, datum: string, richting: -1 | 1): string {
+/** Een datum in de vorige (`-1`) of volgende (`1`) periode; ook meer stappen tegelijk (`-3`, `7`). */
+export function verschuif(weergave: Weergave, datum: string, richting: number): string {
   return schrijfDatum(VERSCHUIVERS[weergave](leesDatum(datum), richting));
+}
+
+// Hulpjes voor de periodekiezer op het hoofdscherm (OFM-037). De kiezer rekent zelf niet met datums:
+// alles loopt via `periodeVan` en `verschuif`.
+
+/** Of twee datums in dezelfde dag, week, maand of jaar vallen. */
+export function zelfdePeriode(weergave: Weergave, a: string, b: string): boolean {
+  return periodeVan(weergave, a).van === periodeVan(weergave, b).van;
+}
+
+/** ISO-weeknummer (maandag t/m zondag, A-21). */
+export function weeknummer(datum: string): number {
+  return getISOWeek(leesDatum(datum));
+}
+
+/** De maand waarin `datum` valt als kalender: hele weken van maandag t/m zondag, 4 tot 6 rijen. */
+export function maandRaster(datum: string): string[][] {
+  const { van, tot } = periodeVan('maand', datum);
+  const weken: string[][] = [];
+  for (let maandag = periodeVan('week', van).van; maandag <= tot; maandag = verschuif('week', maandag, 1)) {
+    weken.push(Array.from({ length: 7 }, (_, i) => verschuif('dag', maandag, i)));
+  }
+  return weken;
+}
+
+/** De eerste dag van elk van de twaalf maanden in het jaar van `datum`. */
+export function maandenVanJaar(datum: string): string[] {
+  const van = periodeVan('jaar', datum).van;
+  return Array.from({ length: 12 }, (_, i) => verschuif('maand', van, i));
+}
+
+/**
+ * Jaren voor de jaarkiezer, als 1 januari: van tien jaar vóór vandaag tot en met volgend jaar, en
+ * verder terug of vooruit als `datum` daarbuiten ligt (na lang bladeren met ◀ ▶).
+ */
+export function kiesbareJaren(vandaag: string, datum: string): string[] {
+  const dezeJaar = periodeVan('jaar', vandaag).van;
+  const gekozen = periodeVan('jaar', datum).van;
+  const eerste = [verschuif('jaar', dezeJaar, -10), gekozen].sort()[0] ?? gekozen;
+  const laatste = [verschuif('jaar', dezeJaar, 1), gekozen].sort()[1] ?? gekozen;
+  const jaren: string[] = [];
+  for (let jaar = eerste; jaar <= laatste; jaar = verschuif('jaar', jaar, 1)) jaren.push(jaar);
+  return jaren;
 }
 
 /** Geldig tot = offertedatum + geldigheid in dagen (V-12, FE-058). */
