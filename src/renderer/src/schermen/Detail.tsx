@@ -139,12 +139,8 @@ function DetailInhoud({ detail, terug }: { detail: OfferteDetail; terug: () => v
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem] gap-6">
-        {/* tabIndex: het scrollbare voorbeeld moet met het toetsenbord te scrollen zijn (axe, OFM-027). */}
-        <section
-          aria-label={nl.componenten.pdfVoorbeeld}
-          tabIndex={0}
-          className="min-h-0 overflow-y-auto pr-2"
-        >
+        {/* OFM-054: het voorbeeld heeft een eigen zoomwerkbalk en scrollt zelf (in de houder). */}
+        <section aria-label={nl.componenten.pdfVoorbeeld} className="flex min-h-0 flex-col">
           {voorbeeld.isError ? (
             <Foutmelding fout={alsFout(voorbeeld.error)} opnieuw={() => void voorbeeld.refetch()} />
           ) : (

@@ -49,6 +49,17 @@ export const componenten = {
 
   pdfVoorbeeld: 'Voorbeeld van de offerte',
   pdfVoorbeeldLaden: 'Het voorbeeld wordt gemaakt…',
+  /** Zoomwerkbalk van het voorbeeld (OFM-054). */
+  zoom: {
+    werkbalk: 'Zoom',
+    kleiner: 'Kleiner (Ctrl −)',
+    groter: 'Groter (Ctrl +)',
+    passend: 'Passend',
+    passendUitleg: 'Hele pagina (Ctrl 0)',
+    ware: '100 %',
+    wareUitleg: 'Ware grootte',
+    huidig: 'Zoom',
+  },
 
   claude: {
     gekoppeld: 'Claude is gekoppeld',
