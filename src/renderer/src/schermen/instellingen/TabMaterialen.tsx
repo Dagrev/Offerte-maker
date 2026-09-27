@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -7,6 +7,9 @@ import {
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
+  Eye,
+  EyeOff,
+  GripVertical,
   Trash2,
 } from 'lucide-react';
 import type { Categorie, Keuzeoptie, Materiaal, MateriaalTags, Prijspost } from '@shared/types';
@@ -25,6 +28,7 @@ import { bewaarPrijspost, usePrijzen } from '../../api/prijzen';
 import { alsFout } from '../../api/roep';
 import { Bevestiging } from '../../componenten/Bevestiging';
 import { BewaardIndicator } from '../../componenten/BewaardIndicator';
+import { ContextMenu, type MenuRegel, type SluitReden } from '../../componenten/ContextMenu';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
 import { useInstellingenWeergave } from '../../stores/instellingenWeergave';
@@ -55,16 +59,27 @@ import {
 // via `prijzen:bewaar`. OFM-057: de materialen staan per categorie in inklapbare groepen (standaard open,
 // binnen een groep alfabetisch) en bovenaan staat het inklapbare blok Categorieën (toevoegen, hernoemen,
 // volgorde, verwijderen; Overig is vast). Welke materialen bij een werkzaamheid kiesbaar zijn, staat in de
-// tab Werkzaamheden.
+// tab Werkzaamheden. OFM-059: een materiaal verplaatsen naar een andere categorie kan ook met het
+// contextmenu van de rij (rechtermuisknop, Shift+F10, de menutoets of een klik op de sleepgreep) of door
+// de sleepgreep naar een andere groep te slepen (HTML drag-and-drop, geen pakket).
 
 /**
- * Materiaalrij: naam, eenheid, prijs, btw, categorie, knoppen en (OFM-058) de tags aan het einde van de
- * regel (een vaste kolom, zodat de rijen gelijk blijven). Is de groep smaller dan 64rem, of heeft het
- * materiaal losse tags, dan staan de tags rechts onder de rij (container query).
+ * Materiaalrij: sleepgreep (OFM-059), naam, eenheid, prijs, btw, categorie, knoppen en (OFM-058) de tags
+ * aan het einde van de regel (een vaste kolom, zodat de rijen gelijk blijven). Is de groep smaller dan
+ * 64rem, of heeft het materiaal losse tags, dan staan de tags rechts onder de rij (container query).
  */
 const RIJ_MATERIAAL =
-  'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto] items-center gap-x-3 gap-y-1 ' +
-  '@5xl:grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto_11rem]';
+  'grid grid-cols-[3.5rem_minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto] items-center gap-x-3 gap-y-1 ' +
+  '@5xl:grid-cols-[3.5rem_minmax(0,1fr)_7rem_9rem_5.5rem_11rem_auto_11rem]';
+/** Hoe lang de melding "Verplaatst naar …" blijft staan. */
+const MELDING_MS = 4000;
+
+/** Het open contextmenu van een materiaalrij: waar, voor welk materiaal en waar de focus terug moet. */
+interface MateriaalMenu {
+  materiaalId: string;
+  positie: { x: number; y: number };
+  terug: HTMLElement;
+}
 const RIJ_OVERIG = 'grid grid-cols-[minmax(0,1fr)_7rem_9rem_5.5rem] items-center gap-3';
 const tc = t.categorie;
 
@@ -87,6 +102,24 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
   const [nieuwMateriaal, setNieuwMateriaal] = useState('');
   const [zoekterm, setZoekterm] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+  // OFM-059: contextmenu, slepen en de melding na verplaatsen.
+  const [menu, setMenu] = useState<MateriaalMenu | null>(null);
+  const [sleept, setSleept] = useState<string | null>(null);
+  const [sleepDoel, setSleepDoel] = useState<string | null>(null);
+  // Een nieuw object per verplaatsing, zodat hetzelfde materiaal twee keer na elkaar de focus krijgt.
+  const [focusGreep, setFocusGreep] = useState<{ id: string } | null>(null);
+  const [melding, setMelding] = useState<{ nr: number; tekst: string } | null>(null);
+
+  // Na verplaatsen: focus op de sleepgreep van het materiaal in zijn nieuwe groep.
+  useEffect(() => {
+    if (focusGreep === null) return;
+    document.querySelector<HTMLElement>(`[data-greep="${focusGreep.id}"]`)?.focus();
+  }, [focusGreep]);
+  useEffect(() => {
+    if (melding === null) return;
+    const klok = window.setTimeout(() => setMelding(null), MELDING_MS);
+    return () => window.clearTimeout(klok);
+  }, [melding]);
 
   const voegMateriaalToe = (label: string, categorieId: string | null) => {
     const naam = label.trim();
@@ -145,6 +178,70 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
     beginSet.categorieen.find((c) => c.id === id)?.naam ??
     set.categorieen.find((c) => c.id === id)?.naam ??
     '';
+  const naamVanCategorie = (c: Categorie) => categorieNaam(c.id) || c.naam;
+
+  // OFM-059: een materiaal naar een andere categorie. Bewaart direct; de doelgroep gaat open en de
+  // sleepgreep van het materiaal krijgt daarna de focus. De melding noemt de nieuwe categorie (ook voor
+  // schermlezers), zodat een verplaatsing tijdens het zoeken niet onopgemerkt blijft.
+  const plaatsBij = (materiaalId: string, categorieId: string) => {
+    const m = set.materialen.find((x) => x.id === materiaalId);
+    const doel = set.categorieen.find((c) => c.id === categorieId);
+    if (!m || !doel || categorieVan(m, set.categorieen) === categorieId) return;
+    zetCategorieOpen(categorieId, true);
+    b.zetMateriaal(m.id, { categorieId: categorieId === CATEGORIE_OVERIG ? null : categorieId }, true);
+    setFocusGreep({ id: m.id });
+    setMelding((oud) => ({ nr: (oud?.nr ?? 0) + 1, tekst: tc.verplaatst(naamVanCategorie(doel)) }));
+  };
+  const vraagVerwijderen = (m: Materiaal, naam: string) =>
+    b.vraagVerwijderen(
+      m,
+      naam,
+      () => verwijderMateriaal(m.id),
+      () => b.zetMateriaal(m.id, { verborgen: true }, true),
+    );
+  const menuMateriaal = menu ? set.materialen.find((m) => m.id === menu.materiaalId) : undefined;
+  const menuRegels = (m: Materiaal): MenuRegel[] => {
+    const huidig = categorieVan(m, set.categorieen);
+    const naam = b.materiaalNaam(m);
+    return [
+      {
+        soort: 'groep',
+        label: tc.plaatsBij,
+        keuzes: set.categorieen.map((c) => ({
+          label: naamVanCategorie(c),
+          gekozen: c.id === huidig,
+          uitReden: c.id === huidig ? tc.alHier : undefined,
+          opKies: () => plaatsBij(m.id, c.id),
+        })),
+      },
+      { soort: 'scheiding' },
+      {
+        soort: 'actie',
+        label: m.verborgen ? tc.menuToon : tc.menuVerberg,
+        icoon: m.verborgen ? Eye : EyeOff,
+        opKies: () => b.zetMateriaal(m.id, { verborgen: !m.verborgen }, true),
+      },
+      {
+        soort: 'actie',
+        label: tc.menuVerwijder,
+        icoon: Trash2,
+        gevaar: true,
+        opKies: () => vraagVerwijderen(m, naam),
+      },
+    ];
+  };
+  const sluitMenu = (reden: SluitReden) => {
+    const terug = menu?.terug;
+    setMenu(null);
+    // Na Escape of een keuze terug naar waar het menu vandaan kwam (een verplaatsing zet daarna de focus
+    // op de sleepgreep in de nieuwe groep).
+    if ((reden === 'escape' || reden === 'keuze') && terug?.isConnected) terug.focus();
+  };
+  /** Bij het toetsenbord of de sleepgreep opent het menu onder het element. */
+  const onder = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + 16, y: r.bottom };
+  };
 
   return (
     <div className="flex flex-col gap-10">
@@ -194,6 +291,14 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
                 )
               }
             />
+            <p role="status" className="flex min-h-14 items-center gap-1 font-semibold text-goed">
+              {melding && (
+                <>
+                  <Check aria-hidden="true" className="size-5" strokeWidth={3} />
+                  {melding.tekst}
+                </>
+              )}
+            </p>
           </div>
         )}
         {set.materialen.length === 0 && <p className="text-tekst-zacht">{t.geenMaterialenLijst}</p>}
@@ -202,92 +307,161 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
             {t.geenMaterialenGevonden}
           </p>
         )}
-        {getoond.map((g) => (
-          <Groep
-            key={g.categorie.id}
-            naam={categorieNaam(g.categorie.id) || g.categorie.naam}
-            aantal={g.materialen.length}
-            open={dicht[g.categorie.id] !== true}
-            opOpen={(open) => zetCategorieOpen(g.categorie.id, open)}
-            opToevoegen={(label) => voegMateriaalToe(label, g.categorie.id)}
-          >
-            {g.zichtbaar.length === 0 ? (
-              <p className="text-tekst-zacht">{tc.leeg}</p>
-            ) : (
-              <>
-                <Koppen klasse={RIJ_MATERIAAL} koppen={[t.naam, t.eenheid, t.prijs, t.btw, tc.kop]} />
-                <ul aria-label={tc.materialenIn(g.categorie.naam)} className="flex flex-col">
-                  {g.zichtbaar.map((m) => {
-                    const naam = b.materiaalNaam(m);
-                    return (
-                      <li key={m.id} className={`${RIJ_MATERIAAL} border-b border-rand px-2 py-2`}>
-                        <NaamInvoer
-                          label={t.materiaalNaam(naam)}
-                          item={m}
-                          focus={focusId === m.id}
-                          opWijzig={(label) => b.zetMateriaal(m.id, { label }, false)}
-                          opBlur={b.bewaren.bewaarNu}
-                        />
-                        <EenheidKeuze
-                          label={t.materiaalEenheid(naam)}
-                          waarde={m.eenheid}
-                          opWijzig={(eenheid) => b.zetMateriaal(m.id, { eenheid }, true)}
-                        />
-                        <PrijsInvoer
-                          label={t.materiaalPrijs(naam)}
-                          prijsCent={m.prijsCent}
-                          opWijzig={(prijsCent) => b.zetMateriaal(m.id, { prijsCent }, false)}
-                          opBlur={b.bewaren.bewaarNu}
-                        />
-                        <BtwKeuze
-                          label={t.materiaalBtw(naam)}
-                          waarde={m.btwTarief}
-                          opWijzig={(btwTarief) => b.zetMateriaal(m.id, { btwTarief }, true)}
-                        />
-                        <select
-                          className={invoerKlasse}
-                          aria-label={tc.vanMateriaal(naam)}
-                          value={categorieVan(m, set.categorieen)}
-                          onChange={(e) => {
-                            const id = e.target.value;
-                            zetCategorieOpen(id, true);
-                            b.zetMateriaal(m.id, { categorieId: id === CATEGORIE_OVERIG ? null : id }, true);
+        {getoond.map((g) => {
+          const sleepMateriaal = sleept ? set.materialen.find((m) => m.id === sleept) : undefined;
+          // Alleen een andere groep is een doel; de eigen groep en alles buiten een groep doen niets.
+          const kanDoel =
+            sleepMateriaal !== undefined && categorieVan(sleepMateriaal, set.categorieen) !== g.categorie.id;
+          return (
+            <Groep
+              key={g.categorie.id}
+              categorieId={g.categorie.id}
+              naam={categorieNaam(g.categorie.id) || g.categorie.naam}
+              aantal={g.materialen.length}
+              open={dicht[g.categorie.id] !== true}
+              opOpen={(open) => zetCategorieOpen(g.categorie.id, open)}
+              opToevoegen={(label) => voegMateriaalToe(label, g.categorie.id)}
+              sleep={
+                kanDoel
+                  ? {
+                      doel: sleepDoel === g.categorie.id,
+                      opOver: () => setSleepDoel(g.categorie.id),
+                      opWeg: () => setSleepDoel((d) => (d === g.categorie.id ? null : d)),
+                      opLos: () => {
+                        setSleepDoel(null);
+                        setSleept(null);
+                        plaatsBij(sleepMateriaal.id, g.categorie.id);
+                      },
+                    }
+                  : null
+              }
+            >
+              {g.zichtbaar.length === 0 ? (
+                <p className="text-tekst-zacht">{tc.leeg}</p>
+              ) : (
+                <>
+                  <Koppen klasse={RIJ_MATERIAAL} koppen={['', t.naam, t.eenheid, t.prijs, t.btw, tc.kop]} />
+                  <ul aria-label={tc.materialenIn(g.categorie.naam)} className="flex flex-col">
+                    {g.zichtbaar.map((m) => {
+                      const naam = b.materiaalNaam(m);
+                      return (
+                        <li
+                          key={m.id}
+                          aria-keyshortcuts="Shift+F10"
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            const muis = e.clientX !== 0 || e.clientY !== 0;
+                            const terug =
+                              e.target instanceof HTMLElement && e.target.matches('input, select, button')
+                                ? e.target
+                                : e.currentTarget.querySelector<HTMLElement>(`[data-greep="${m.id}"]`);
+                            if (!terug) return;
+                            setMenu({
+                              materiaalId: m.id,
+                              positie: muis ? { x: e.clientX, y: e.clientY } : onder(terug),
+                              terug,
+                            });
                           }}
+                          onKeyDown={(e) => {
+                            if (!(e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10'))) return;
+                            if (!(e.target instanceof HTMLElement)) return;
+                            e.preventDefault();
+                            setMenu({ materiaalId: m.id, positie: onder(e.target), terug: e.target });
+                          }}
+                          className={`${RIJ_MATERIAAL} border-b border-rand px-2 py-2 ${
+                            sleept === m.id ? 'opacity-50' : ''
+                          }`}
                         >
-                          {set.categorieen.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {categorieNaam(c.id) || c.naam}
-                            </option>
-                          ))}
-                        </select>
-                        <ItemKnoppen
-                          naam={naam}
-                          item={m}
-                          opVerberg={() => b.zetMateriaal(m.id, { verborgen: !m.verborgen }, true)}
-                          opVerwijder={() =>
-                            b.vraagVerwijderen(
-                              m,
-                              naam,
-                              () => verwijderMateriaal(m.id),
-                              () => b.zetMateriaal(m.id, { verborgen: true }, true),
-                            )
-                          }
-                        />
-                        <TagChips
-                          naam={naam}
-                          tags={m.tags}
-                          ondergronden={tagOndergronden}
-                          bedekkingen={tagBedekkingen}
-                          opWijzig={(tags) => b.zetMateriaal(m.id, { tags }, true)}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            )}
-          </Groep>
-        ))}
+                          <Knop
+                            label={tc.greep(naam)}
+                            icoon={GripVertical}
+                            alleenIcoon
+                            data-greep={m.id}
+                            aria-haspopup="menu"
+                            draggable
+                            onClick={(e) => {
+                              const el = e.currentTarget;
+                              setMenu({ materiaalId: m.id, positie: onder(el), terug: el });
+                            }}
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', m.id);
+                              const rij = e.currentTarget.closest('li');
+                              if (rij) e.dataTransfer.setDragImage(rij, 24, 24);
+                              setMenu(null);
+                              setSleept(m.id);
+                            }}
+                            onDragEnd={() => {
+                              setSleept(null);
+                              setSleepDoel(null);
+                            }}
+                            className="cursor-grab"
+                          />
+                          <NaamInvoer
+                            label={t.materiaalNaam(naam)}
+                            item={m}
+                            focus={focusId === m.id}
+                            opWijzig={(label) => b.zetMateriaal(m.id, { label }, false)}
+                            opBlur={b.bewaren.bewaarNu}
+                          />
+                          <EenheidKeuze
+                            label={t.materiaalEenheid(naam)}
+                            waarde={m.eenheid}
+                            opWijzig={(eenheid) => b.zetMateriaal(m.id, { eenheid }, true)}
+                          />
+                          <PrijsInvoer
+                            label={t.materiaalPrijs(naam)}
+                            prijsCent={m.prijsCent}
+                            opWijzig={(prijsCent) => b.zetMateriaal(m.id, { prijsCent }, false)}
+                            opBlur={b.bewaren.bewaarNu}
+                          />
+                          <BtwKeuze
+                            label={t.materiaalBtw(naam)}
+                            waarde={m.btwTarief}
+                            opWijzig={(btwTarief) => b.zetMateriaal(m.id, { btwTarief }, true)}
+                          />
+                          <select
+                            className={invoerKlasse}
+                            aria-label={tc.vanMateriaal(naam)}
+                            value={categorieVan(m, set.categorieen)}
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              zetCategorieOpen(id, true);
+                              b.zetMateriaal(
+                                m.id,
+                                { categorieId: id === CATEGORIE_OVERIG ? null : id },
+                                true,
+                              );
+                            }}
+                          >
+                            {set.categorieen.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {categorieNaam(c.id) || c.naam}
+                              </option>
+                            ))}
+                          </select>
+                          <ItemKnoppen
+                            naam={naam}
+                            item={m}
+                            opVerberg={() => b.zetMateriaal(m.id, { verborgen: !m.verborgen }, true)}
+                            opVerwijder={() => vraagVerwijderen(m, naam)}
+                          />
+                          <TagChips
+                            naam={naam}
+                            tags={m.tags}
+                            ondergronden={tagOndergronden}
+                            bedekkingen={tagBedekkingen}
+                            opWijzig={(tags) => b.zetMateriaal(m.id, { tags }, true)}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </Groep>
+          );
+        })}
         <NieuwFormulier
           label={t.nieuwMateriaal}
           hint={t.nieuwMateriaalHint}
@@ -301,30 +475,74 @@ function MaterialenBewerker({ beginSet, soorten, ondergronden, bedekkingen }: Se
         />
       </Deel>
       {b.verwijderVragen}
+      {menu && menuMateriaal && (
+        <ContextMenu
+          label={tc.menu(b.materiaalNaam(menuMateriaal))}
+          positie={menu.positie}
+          regels={menuRegels(menuMateriaal)}
+          opSluit={sluitMenu}
+        />
+      )}
     </div>
   );
 }
 
-/** OFM-057: één categorie als inklapbare groep met een eigen "Materiaal toevoegen". */
+/** OFM-059: een groep als doel tijdens het slepen van een materiaal uit een andere groep. */
+interface SleepDoel {
+  /** De sleepgreep is boven deze groep: de groep licht op. */
+  doel: boolean;
+  opOver: () => void;
+  opWeg: () => void;
+  opLos: () => void;
+}
+
+/**
+ * OFM-057: één categorie als inklapbare groep met een eigen "Materiaal toevoegen". OFM-059: tijdens het
+ * slepen van een materiaal uit een andere groep is de hele groep (kop en inhoud, ook ingeklapt) een doel.
+ */
 function Groep({
+  categorieId,
   naam,
   aantal,
   open,
   opOpen,
   opToevoegen,
+  sleep,
   children,
 }: {
+  categorieId: string;
   naam: string;
   aantal: number;
   open: boolean;
   opOpen: (open: boolean) => void;
   opToevoegen: (label: string) => void;
+  sleep: SleepDoel | null;
   children: ReactNode;
 }) {
   const [nieuw, setNieuw] = useState('');
   const inhoudId = useId();
   return (
-    <section aria-label={tc.groep(naam)} className="flex flex-col rounded-knop border-2 border-rand">
+    <section
+      aria-label={tc.groep(naam)}
+      data-categorie-id={categorieId}
+      onDragOver={(e) => {
+        if (!sleep) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!sleep.doel) sleep.opOver();
+      }}
+      onDragLeave={(e) => {
+        if (sleep && !e.currentTarget.contains(e.relatedTarget as Node | null)) sleep.opWeg();
+      }}
+      onDrop={(e) => {
+        if (!sleep) return;
+        e.preventDefault();
+        sleep.opLos();
+      }}
+      className={`flex flex-col rounded-knop border-2 ${
+        sleep?.doel ? 'border-accent bg-vlak ring-2 ring-accent' : 'border-rand'
+      }`}
+    >
       <h3 className="p-2 text-xl font-semibold">
         <button
           type="button"

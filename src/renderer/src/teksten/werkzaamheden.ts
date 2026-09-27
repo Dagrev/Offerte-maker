@@ -42,6 +42,15 @@ export const werkzaamheden = {
       leeg: 'Vul een naam in.',
       dubbel: 'Er is al een categorie met deze naam.',
     },
+    // OFM-059: verplaatsen via het contextmenu of door te slepen.
+    menu: (materiaal: string) => `Acties voor ${materiaal}`,
+    plaatsBij: 'Plaats bij',
+    alHier: 'Het materiaal staat al in deze categorie.',
+    greep: (materiaal: string) => `Verplaats ${materiaal}`,
+    verplaatst: (categorie: string) => `Verplaatst naar ${categorie}`,
+    menuVerberg: 'Verbergen',
+    menuToon: 'Tonen',
+    menuVerwijder: 'Verwijderen',
     verwijderTitel: 'Categorie verwijderen?',
     verwijderTekst: (categorie: string, aantal: number) =>
       aantal === 0
