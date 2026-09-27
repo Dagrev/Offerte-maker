@@ -36,6 +36,9 @@
 @layer base {
   html {
     color-scheme: light;
+    /* OFM-060: wat in beeld scrolt (Tab-focus, scrollIntoView) komt onder de vaste balk, niet erachter.
+       `--vaste-balk-hoogte` zet `componenten/VasteBalk.tsx`; zonder balk is het 0. */
+    scroll-padding-top: calc(var(--vaste-balk-hoogte, 0px) + 0.5rem);
   }
 
   body {

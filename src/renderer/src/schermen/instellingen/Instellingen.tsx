@@ -5,6 +5,7 @@ import { useInstellingen } from '../../api/instellingen';
 import { alsFout } from '../../api/roep';
 import { Foutmelding } from '../../componenten/Foutmelding';
 import { Knop } from '../../componenten/Knop';
+import { VasteBalk } from '../../componenten/VasteBalk';
 import { useNavigatie, type InstellingenTab } from '../../stores/navigatie';
 import { nl } from '../../teksten/nl';
 import { Backups } from './Backups';
@@ -74,25 +75,28 @@ export function Instellingen() {
         <h1 className="text-3xl font-semibold">{t.titel}</h1>
       </header>
 
-      <nav aria-label={t.tabs} className="flex flex-wrap gap-2 border-b-2 border-rand pb-3">
-        {HOOFDTABS.map((tab) => (
-          <TabKnop key={tab} actief={gekozen === tab} opKlik={() => naarTab(tab)}>
-            {t.tab[tab]}
-          </TabKnop>
-        ))}
-        <TabKnop actief={geavanceerd} opKlik={() => naarTab(geavanceerd ? gekozen : 'claudeKoppeling')}>
-          {t.geavanceerd}
-        </TabKnop>
-      </nav>
-      {geavanceerd && (
-        <nav aria-label={t.subtabs} className="flex flex-wrap gap-2">
-          {GEAVANCEERD.map((tab) => (
-            <TabKnop key={tab} klein actief={gekozen === tab} opKlik={() => naarTab(tab)}>
+      {/* OFM-060: de tabbalk (en de geavanceerde tabs) blijft bovenaan staan bij scrollen. */}
+      <VasteBalk>
+        <nav aria-label={t.tabs} className="flex flex-wrap gap-2 border-b-2 border-rand pb-3">
+          {HOOFDTABS.map((tab) => (
+            <TabKnop key={tab} actief={gekozen === tab} opKlik={() => naarTab(tab)}>
               {t.tab[tab]}
             </TabKnop>
           ))}
+          <TabKnop actief={geavanceerd} opKlik={() => naarTab(geavanceerd ? gekozen : 'claudeKoppeling')}>
+            {t.geavanceerd}
+          </TabKnop>
         </nav>
-      )}
+        {geavanceerd && (
+          <nav aria-label={t.subtabs} className="flex flex-wrap gap-2">
+            {GEAVANCEERD.map((tab) => (
+              <TabKnop key={tab} klein actief={gekozen === tab} opKlik={() => naarTab(tab)}>
+                {t.tab[tab]}
+              </TabKnop>
+            ))}
+          </nav>
+        )}
+      </VasteBalk>
 
       {/* Fout uit de navigatie, bijv. na "Standaardteksten uit template" op het Bezig-scherm (V-07). */}
       {fout && <Foutmelding fout={fout} />}
